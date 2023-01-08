@@ -332,7 +332,7 @@ router.get('/:cid', getUser, async (req, res) => {
 		const user = await User.findOne({
 			cid: req.params.cid
 		}).select(
-			'-idsToken -discordInfo -trainingMilestones'
+			'-idsToken -trainingMilestones'
 		).populate('roles').populate('certifications').populate({
 			path: 'absence',
 			match: {
@@ -394,6 +394,7 @@ router.put('/:cid/rating', microAuth, async (req, res) => {
 
 	return res.json(res.stdRes);
 })
+
 router.get('/stats/:cid', async (req, res) => {
 	try {
 		const controllerHours = await ControllerHours.find({cid: req.params.cid});

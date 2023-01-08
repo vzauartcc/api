@@ -36,7 +36,8 @@ const userSchema = new m.Schema({
 	roleCodes: [],
 	trainingMilestones: [{
 		type: m.Schema.Types.ObjectId, ref: 'TrainingMilestone'
-	}]
+	}],
+	discordId: Number
 }, {
 	timestamps: true,
 });

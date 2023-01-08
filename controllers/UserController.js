@@ -13,7 +13,7 @@ import ControllerHours from "../models/ControllerHours.js";
 import Discord from "discord-oauth2";
 import oAuth from "../middleware/vatsimOAuth.js";
 import vatsimApiHelper from "../helpers/vatsimApiHelper.js";
-
+import qs from "qs";
 dotenv.config();
 
 router.get("/", async (req, res) => {
@@ -184,7 +184,7 @@ router.post("/login", oAuth, async (req, res) => {
     res.cookie("token", apiToken, {
       httpOnly: true,
       maxAge: 2592000000,
-      sameSite: true,
+      sameSite: false,
     }); // Expires in 30 days
   } catch (e) {
     req.app.Sentry.captureException(e);
@@ -229,8 +229,10 @@ router.get("/sessions", getUser, async (req, res) => {
 
 router.get("/discord", getUser, async (req, res) => {
   try {
+
     res.stdRes.data = !!res.user.discordInfo.clientId;
   } catch (e) {
+
     req.app.Sentry.captureException(e);
     res.stdRes.ret_det = e;
   }
@@ -257,20 +259,25 @@ router.post("/discord", async (req, res) => {
       };
     }
 
-    const oauth = new Discord();
-    const token = await oauth
-      .tokenRequest({
-        clientId: process.env.DISCORD_CLIENT_ID,
-        clientSecret: process.env.DISCORD_CLIENT_SECRET,
-        redirectUri: process.env.DISCORD_REDIRECT_URI,
-        grantType: "authorization_code",
-        code,
-        scope: "identify",
-      })
-      .catch((err) => {
-        console.log(err);
-        return false;
-      });
+
+
+    const { data } = await axios.post(
+        "https://discord.com/api/oauth2/token",
+        qs.stringify({
+            client_id: process.env.DISCORD_CLIENT_ID,
+            client_secret: process.env.DISCORD_SECRET,
+            grant_type: "authorization_code",
+            code,
+            redirect_uri: process.env.DISCORD_REDIRECT_URI,
+            scope: "identify",
+        }),
+
+    );
+    let token = data
+
+
+
+
 
     if (!token) {
       throw {
@@ -280,16 +287,16 @@ router.post("/discord", async (req, res) => {
     }
 
     const { data: discordUser } = await axios
-      .get("https://discord.com/api/users/@me", {
-        headers: {
-          Authorization: `${token.token_type} ${token.access_token}`,
-          "User-Agent": "Chicago ARTCC API",
-        },
-      })
-      .catch((err) => {
-        console.log(err);
-        return false;
-      });
+        .get("https://discord.com/api/users/@me", {
+          headers: {
+            Authorization: `${token.token_type} ${token.access_token}`,
+            "User-Agent": "Chicago ARTCC API",
+          },
+        })
+        .catch((err) => {
+          console.log(err);
+          return false;
+        });
 
     if (!discordUser) {
       throw {
@@ -321,6 +328,7 @@ router.post("/discord", async (req, res) => {
 
   return res.json(res.stdRes);
 });
+
 
 router.delete("/discord", getUser, async (req, res) => {
   try {
