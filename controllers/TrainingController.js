@@ -60,10 +60,10 @@ router.post('/request/new', getUser, async (req, res) => {
 			}
 		}
 
-		if((new Date(req.body.endTime).getTime() - new Date(req.body.startTime).getTime()) / 60000 > 960) {
+		if((new Date(req.body.endTime).getTime() - new Date(req.body.startTime).getTime()) / 60000 > 120) {
 			throw {
 				code: 400,
-				message: "Requests must be shorter than 16 hours"
+				message: "Requests must be a maximum of 2 hours"
 			}
 		}
 
