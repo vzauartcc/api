@@ -100,7 +100,9 @@ router.get('/sessions', async (req, res) => {
 	const queryDate = req.query.startTime;
 	//console.log(queryDate);
 	const start = new Date(Date.parse(`${queryDate}T00:00:00.000Z`));
-	const end = new Date(Date.parse(`${queryDate}T23:59:59.999Z`));
+	const date = new Date(`${queryDate}T00:00:00.000Z`);
+	date.setDate(date.getDate() + 2);
+	const end = new Date(date.getTime() + 86399999);
 	//console.log(start);
 	//console.log(end);
 	const sessions = await ScheduledSession.find({
@@ -117,7 +119,7 @@ router.get('/sessions', async (req, res) => {
 	}
 	//console.log(sessions);
 	//console.log("This is the right info above ^")
-	console.log(res.statusCode);
+	//console.log(res.statusCode);
 });
 
 router.get('/sessions/:id', async (req, res) => {
