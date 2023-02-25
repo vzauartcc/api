@@ -66,7 +66,7 @@ router.post('/downloads', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), uplo
         }
         const tmpFile = await fs.readFile(req.file.path);
         await s3.putObject({
-            Bucket: 'zauartcc/${process.env.SPACE}/downloads',
+            Bucket: `zauartcc/${process.env.SPACE}/downloads`,
             Key: req.file.filename,
             Body: tmpFile,
             ContentType: req.file.mimetype,
@@ -113,7 +113,7 @@ router.put('/downloads/:id', upload.single('download'), getUser, auth(['atm', 'd
             }
             const tmpFile = await fs.readFile(req.file.path);
             await s3.putObject({
-                Bucket: 'zauartcc/${process.env.SPACE}/downloads',
+                Bucket: `zauartcc/${process.env.SPACE}/downloads`,
                 Key: req.file.filename,
                 Body: tmpFile,
                 ContentType: req.file.mimetype,
@@ -210,7 +210,7 @@ router.post('/documents', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), uplo
 
             const tmpFile = await fs.readFile(req.file.path);
             await s3.putObject({
-                Bucket: 'zauartcc/${process.env.SPACE}/documents',
+                Bucket: `zauartcc/${process.env.SPACE}/documents`,
                 Key: req.file.filename,
                 Body: tmpFile,
                 ContentType: req.file.mimetype,
@@ -286,7 +286,7 @@ router.put('/documents/:slug', upload.single('download'), getUser, auth(['atm', 
                 }
                 const tmpFile = await fs.readFile(req.file.path);
                 await s3.putObject({
-                    Bucket: 'zauartcc/${process.env.SPACE}/documents',
+                    Bucket: `zauartcc/${process.env.SPACE}/documents`,
                     Key: req.file.filename,
                     Body: tmpFile,
                     ContentType: req.file.mimetype,
