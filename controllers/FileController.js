@@ -58,7 +58,7 @@ router.post('/downloads', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), uplo
                 message: 'You must select a category'
             }
         }
-        if(req.file.size > (100 * 1024 * 1024)) {	// 20MiB
+        if(req.file.size > (100 * 1024 * 1024)) {	// 100MiB
             throw {
                 code: 400,
                 message: 'File too large'
@@ -105,7 +105,7 @@ router.put('/downloads/:id', upload.single('download'), getUser, auth(['atm', 'd
             });
         } else {
 
-            if(req.file.size > (100 * 1024 * 1024)) {	// 20MiB
+            if(req.file.size > (100 * 1024 * 1024)) {	// 100MiB
                 throw {
                     code: 400,
                     message: 'File too large'
@@ -201,7 +201,7 @@ router.post('/documents', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), uplo
         const slug = name.replace(/\s+/g, '-').toLowerCase().replace(/^-+|-+(?=-|$)/g, '').replace(/[^a-zA-Z0-9-_]/g, '') + '-' + Date.now().toString().slice(-5);
 
         if(type === "file") {
-            if(req.file.size > (100 * 1024 * 1024)) {	// 20MiB
+            if(req.file.size > (100 * 1024 * 1024)) {	// 100MiB
                 throw {
                     code: 400,
                     message: 'File too large'
@@ -278,7 +278,7 @@ router.put('/documents/:slug', upload.single('download'), getUser, auth(['atm', 
                     type: 'file'
                 });
             } else {
-                if(req.file.size > (100 * 1024 * 1024)) {	// 20MiB
+                if(req.file.size > (100 * 1024 * 1024)) {	// 100MiB
                     throw {
                         code: 400,
                         message: 'File too large.'

@@ -557,6 +557,19 @@ router.put('/visit/:cid', getUser, auth(['atm', 'datm']), async (req, res) => {
 		user.vis = true;
 		user.oi = userOi;
 
+		// Assign certCodes based on rating
+		let certCodes = [];
+		if (user.rating >= 2) {
+		  certCodes.push('gnd', 'del');
+		}
+		if (user.rating >= 3) {
+		  certCodes.push('twr');
+		}
+		if (user.rating >= 4) {
+		  certCodes.push('app');
+		}
+		user.certCodes = certCodes;	
+
 		await user.save();
 
 		await axios.post(`https://api.vatusa.net/v2/facility/ZAU/roster/manageVisitor/${req.params.cid}?apikey=${process.env.VATUSA_API_KEY}`)
