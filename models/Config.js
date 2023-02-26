@@ -57,6 +57,7 @@ const configSchema = new m.Schema({
 	bacenStatus: String,
 	acitoStatus: String,
 	departureGroundStop: String,
+	cictextInput: String,
 
 }, {
 	collection: "config"
