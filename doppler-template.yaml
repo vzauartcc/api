@@ -1,0 +1,92 @@
+# doppler-template.yaml
+projects:
+  - name: 'api' # Name may contain lowercase letters, spaces, numbers, hyphens, and underscores
+    description: 'API for vZAU Website'
+
+    # List of totally customizable environments, e.g Test, Stage, QA, CI-CD
+    environments:
+      - name: 'Development' # Name may contain letters, spaces, numbers, hyphens, and underscores
+        slug: 'dev' # Slug may contain letters, numbers, hyphens, and underscores
+        configs:
+          - slug: 'dev' # First slug *must* match environment slug name
+          - slug: 'dev_matt'
+          - slug: 'dev_noah'
+          - slug: 'dev_tim'
+
+      - name: 'Staging'
+        slug: 'stg'
+        configs:
+          - slug: 'stg'
+
+      - name: 'Production'
+        slug: 'prd'
+        configs:
+          - slug: 'prd'
+
+    # Define secrets for each environment
+    secrets:
+      dev:
+        AWS_ACCESS_KEY_ID: ''
+        AWS_SECRET_ACCESS_KEY: ''
+        CORS_ORIGIN: ''
+        DISCORD_CLIENT_ID: ''
+        DISCORD_CLIENT_SECRET: ''
+        DISCORD_REDIRECT_URI: ''
+        DOMAIN: ''
+        EMAIL_PASSWORD: ''
+        JWT_SECRET: ''
+        MICRO_ACCESS_KEY: ''
+        MONGO_URI: ''
+        MYSQL_PASSWORD: ''
+        NODEMAILER_PASS: ''
+        NODEMAILER_USER: ''
+        PORT: '3000'
+        REDIS_URI: ''
+        VATSIM_AUTH_CLIENT_ID: ''
+        VATSIM_AUTH_CLIENT_SECRET: ''
+        VATSIM_AUTH_ENDPOINT: 'https://auth-dev.vatsim.net'
+        VATUSA_API_KEY: ''
+
+      stg:
+        AWS_ACCESS_KEY_ID: ''
+        AWS_SECRET_ACCESS_KEY: ''
+        CORS_ORIGIN: ''
+        DISCORD_CLIENT_ID: ''
+        DISCORD_CLIENT_SECRET: ''
+        DISCORD_REDIRECT_URI: ''
+        DOMAIN: ''
+        EMAIL_PASSWORD: ''
+        JWT_SECRET: ''
+        MICRO_ACCESS_KEY: ''
+        MONGO_URI: ''
+        MYSQL_PASSWORD: ''
+        NODEMAILER_PASS: ''
+        NODEMAILER_USER: ''
+        PORT: '4000'
+        REDIS_URI: ''
+        VATSIM_AUTH_CLIENT_ID: ''
+        VATSIM_AUTH_CLIENT_SECRET: ''
+        VATSIM_AUTH_ENDPOINT: 'https://auth.vatsim.net'
+        VATUSA_API_KEY: ''
+
+      prd:
+        AWS_ACCESS_KEY_ID: ''
+        AWS_SECRET_ACCESS_KEY: ''
+        CORS_ORIGIN: ''
+        DISCORD_CLIENT_ID: ''
+        DISCORD_CLIENT_SECRET: ''
+        DISCORD_REDIRECT_URI: ''
+        DOMAIN: ''
+        EMAIL_PASSWORD: ''
+        JWT_SECRET: ''
+        MICRO_ACCESS_KEY: ''
+        MONGO_URI: ''
+        MYSQL_PASSWORD: ''
+        NODEMAILER_PASS: ''
+        NODEMAILER_USER: ''
+        PORT: '3000'
+        REDIS_URI: ''
+        VATSIM_AUTH_CLIENT_ID: ''
+        VATSIM_AUTH_CLIENT_SECRET: ''
+        VATSIM_AUTH_ENDPOINT: 'https://auth.vatsim.net'
+        VATUSA_API_KEY: ''
