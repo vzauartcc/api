@@ -3,6 +3,15 @@ import m from 'mongoose';
 
 const configSchema = new m.Schema({
 	id: String,
+	drConfig1: String,
+	drConfig2: String,
+	drConfig3: String,
+	drConfig4: String,
+	drConfig5: String,
+	ssatConfig1: String,
+	ssatConfig2: String,
+	ssatConfig3: String,
+	ssatConfig4: String,
 	lcConfig1: String, 
 	lcConfig2: String, 
 	lcConfig3: String, 
