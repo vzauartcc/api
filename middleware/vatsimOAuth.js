@@ -4,29 +4,38 @@ import axios from "axios";
 
 export default function (req, res, next) {
   const code = req.body.code;
-  let redirectUrl = "/login/verify";
-
   const vatsimOauthTokenEndpoint =
     process.env.VATSIM_AUTH_ENDPOINT + "/oauth/token";
 
-  if (process.env.NODE_ENV === "beta") {
-    redirectUrl = "https://staging.zauartcc.org" + redirectUrl;
-  } else if (process.env.NODE_ENV === "prod") { //to test sentry change back to production.
-    redirectUrl = "https://zauartcc.org" + redirectUrl;
-  } else {
-    redirectUrl = "http://localhost:8080" + redirectUrl;
-  }
+  const redirectUrlHost = req.headers.host === "ids.zauartcc.org"
+    ? "https://ids.zauartcc.org"
+    : process.env.NODE_ENV === "beta"
+      ? "https://staging.zauartcc.org"
+      : process.env.NODE_ENV === "prod"
+        ? "https://zauartcc.org"
+        : "http://localhost:8080";
+
+  const redirectUrl = `${redirectUrlHost}/login/verify`;
 
   if (!code) {
     res.status(400).send("No authorization code provided.");
   }
 
+  if (!process.env.VATSIM_AUTH_ENDPOINT || !process.env.VATSIM_AUTH_CLIENT_ID) {
+    res.status(500).send("Missing VATSIM auth environment variables.");
+  }
+
   const params = new URLSearchParams();
   params.append("grant_type", "authorization_code");
   params.append("client_id", process.env.VATSIM_AUTH_CLIENT_ID);
-  params.append("client_secret", process.env.VATSIM_AUTH_CLIENT_SECRET);
   params.append("code", code);
   params.append("redirect_uri", redirectUrl);
+
+  if (req.headers.host === "ids.zauartcc.org" && process.env.VATSIM_AUTH_CLIENT_SECRET_IDS) {
+    params.append("client_secret", process.env.VATSIM_AUTH_CLIENT_SECRET_IDS);
+  } else {
+    params.append("client_secret", process.env.VATSIM_AUTH_CLIENT_SECRET);
+  }
 
   axios
     .post(vatsimOauthTokenEndpoint, params)
