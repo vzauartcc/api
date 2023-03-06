@@ -175,6 +175,7 @@ router.get('/activity', getUser, auth(['atm', 'datm', 'ta', 'wm']), async (req, 
 		const users = await User.find({member: true}).select('fname lname cid rating oi vis createdAt roleCodes certCodes joinDate').populate('certifications').populate({path: 'absence', match: {expirationDate: {$gte: new Date()},deleted: false},select: '-reason'}).lean({virtuals: true});
 		const activityReduced = {};
 		const trainingReduced = {};
+		const trainingSession = {};
 
 		(await ControllerHours.aggregate([
 			{$match: {timeStart: {$gt: chkDate}}},
@@ -194,6 +195,13 @@ router.get('/activity', getUser, auth(['atm', 'datm', 'ta', 'wm']), async (req, 
 					total: {$sum: 1}
 				}}
 		])).forEach(i => trainingReduced[i._id] = i.total);
+		(await TrainingSession.aggregate([
+			{$match: {startTime: {$gt: chkDate}}},
+			{$group: {
+					_id: "$studentCid",
+					total: {$sum: 1}
+				}}
+		])).forEach(i => trainingSession[i._id] = i.total);
 		const userData = {};
 		for(let user of users) {
 			let fiftyTime = await req.app.redis.get(`FIFTY:${user.cid}`);
@@ -205,13 +213,24 @@ router.get('/activity', getUser, auth(['atm', 'datm', 'ta', 'wm']), async (req, 
 
 			const totalTime = Math.round(activityReduced[user.cid] / 1000) || 0;
 			const totalRequests = trainingReduced[user.cid] || 0;
+			const totalSessions = trainingSession[user.cid] || 0;
+
+			let tooLow = false;
+
+			if (user.rating <= 1 && totalSessions < 1 && totalTime < 3600 && (user.createdAt) < chkDate) {
+				tooLow = true;
+			} 
+			else if(user.rating > 1 && totalTime < 3600 && (user.createdAt) < chkDate) {
+				tooLow = true;
+			}
 
 			userData[user.cid] = {
 				...user,
 				totalTime,
 				totalRequests,
+				totalSessions,
 				fiftyTime: Math.round(fiftyTime),
-				tooLow: totalTime < 3600 && (user.createdAt) < chkDate,
+				tooLow,
 				protected: user.isStaff || [1202744].includes(user.cid) || user.absence.some(a => !a.deleted && new Date(a.expirationDate) > new Date() && a.controller === user.cid)
 			}
 		}

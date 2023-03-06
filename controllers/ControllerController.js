@@ -557,8 +557,8 @@ router.put('/visit/:cid', getUser, auth(['atm', 'datm']), async (req, res) => {
 		user.vis = true;
 		user.oi = userOi;
 
-		// Assign certCodes based on rating
-		let certCodes = [];
+		// Assign certCodes based on rating removed right now due to policy change. I will leave this here in case future policy is changed.
+		/*let certCodes = [];
 		if (user.rating >= 2) {
 		  certCodes.push('gnd', 'del');
 		}
@@ -568,7 +568,7 @@ router.put('/visit/:cid', getUser, auth(['atm', 'datm']), async (req, res) => {
 		if (user.rating >= 4) {
 		  certCodes.push('app');
 		}
-		user.certCodes = certCodes;	
+		user.certCodes = certCodes;*/
 
 		await user.save();
 
