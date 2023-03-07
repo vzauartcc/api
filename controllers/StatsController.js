@@ -170,15 +170,16 @@ router.get('/ins', getUser, auth(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']), asy
 
 router.get('/activity', getUser, auth(['atm', 'datm', 'ta', 'wm']), async (req, res) => {
 	try {
-		const today = L.utc();
-		const chkDate = today.minus({days: 31});
+		const selectedMonth = req.query.month ? L.fromFormat(`${req.query.month}-01`, 'yyyy-MM-dd') : L.utc();
+		const endOfMonth = selectedMonth.toUTC().endOf('month').set({hour: 23, minute: 59, second: 59});
+		const beginningOfMonth = selectedMonth.toUTC().startOf('month');
 		const users = await User.find({member: true}).select('fname lname cid rating oi vis createdAt roleCodes certCodes joinDate').populate('certifications').populate({path: 'absence', match: {expirationDate: {$gte: new Date()},deleted: false},select: '-reason'}).lean({virtuals: true});
 		const activityReduced = {};
 		const trainingReduced = {};
 		const trainingSession = {};
 
 		(await ControllerHours.aggregate([
-			{$match: {timeStart: {$gt: chkDate}}},
+			{$match: {timeStart: {$gte: beginningOfMonth, $lte: endOfMonth}}},
 			{$project: {
 					length: {$subtract: ['$timeEnd', '$timeStart']},
 					cid: 1
@@ -189,14 +190,14 @@ router.get('/activity', getUser, auth(['atm', 'datm', 'ta', 'wm']), async (req, 
 				}}
 		])).forEach(i => activityReduced[i._id] = i.total);
 		(await TrainingRequest.aggregate([
-			{$match: {startTime: {$gt: chkDate}}},
+			{$match: {timeStart: {$gte: beginningOfMonth, $lte: endOfMonth}}},
 			{$group: {
 					_id: "$studentCid",
 					total: {$sum: 1}
 				}}
 		])).forEach(i => trainingReduced[i._id] = i.total);
 		(await TrainingSession.aggregate([
-			{$match: {startTime: {$gt: chkDate}}},
+			{$match: {timeStart: {$gte: beginningOfMonth, $lte: endOfMonth}}},
 			{$group: {
 					_id: "$studentCid",
 					total: {$sum: 1}
@@ -217,10 +218,10 @@ router.get('/activity', getUser, auth(['atm', 'datm', 'ta', 'wm']), async (req, 
 
 			let tooLow = false;
 
-			if (user.rating <= 1 && totalSessions < 1 && totalTime < 3600 && (user.createdAt) < chkDate) {
+			if (user.rating <= 1 && totalSessions < 1 && totalTime < 3600 && (user.createdAt) < beginningOfMonth) {
 				tooLow = true;
 			} 
-			else if(user.rating > 1 && totalTime < 3600 && (user.createdAt) < chkDate) {
+			else if(user.rating > 1 && totalTime < 3600 && (user.createdAt) < beginningOfMonth) {
 				tooLow = true;
 			}
 
@@ -266,7 +267,7 @@ const getFiftyData = async cid => {
 	const today = L.utc();
 	const chkDate = today.minus({days: 60});
 
-	const {data: fiftyData} = await axios.get(`https://api.vatsim.net/api/ratings/${cid}/atcsessions/?start=${chkDate.toISODate()}&group_by_callsign`);
+	const {data: fiftyData} = await axios.get(`https://api.vatsim.net/api/ratings/${1202744}/atcsessions/?start=${chkDate.toISODate()}&group_by_callsign`);
 
 	let total = 0;
 
