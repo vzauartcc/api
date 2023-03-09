@@ -93,7 +93,7 @@ router.get('/staffingRequest', async (req, res) => {
 	  });
 	} catch (e) {
 	  console.error(e);
-	  return res.status(500).json({ error: 'An error occurred while retrieving staffing requests' });
+	  return res.status(500).json({ ret_det: { code: 500, message: 'An error occurred while retrieving staffing requests' }});
 	}
 });
 
@@ -583,20 +583,32 @@ router.put('/:slug/close', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (re
 	return res.json(res.stdRes);
 });
 
-router.post('/staffingRequest', async (req, res) => {
+router.post('/staffingRequest', async (req, res) => { // Submit staffing request
 	try {
-	  // Create a new staffing request in the database
-	  const newStaffingRequest = new StaffingRequest({
-		vaName: req.body.vaName,
-		name: req.body.name,
-		email: req.body.email,
-		date: req.body.date,
-		pilots: req.body.pilots,
-		route: req.body.route,
-		description: req.body.description,
-		accepted: false,
-	  });
-	  await newStaffingRequest.save();
+		if(!req.body.vaName || !req.body.name || !req.body.email || !req.body.date || !req.body.pilots || !req.body.route || !req.body.description) { // Validation
+			throw {
+				code: 400,
+				message: "You must fill out all required fields"
+			};
+		}
+
+		if(isNaN(req.body.pilots)) {
+			throw {
+				code: 400,
+				message: "Pilots must be a number"
+			};
+		}
+
+		await StaffingRequest.create({
+			vaName: req.body.vaName,
+			name: req.body.name,
+			email: req.body.email,
+			date: req.body.date,
+			pilots: req.body.pilots,
+			route: req.body.route,
+			description: req.body.description,
+			accepted: false
+		});
   
 	  // Send an email notification to the specified email address
 	  /*await transporter.sendMail({
@@ -619,11 +631,12 @@ router.post('/staffingRequest', async (req, res) => {
 	  });*/
   
 	  // Send a response to the client
-	  return res.status(201).json({ message: 'Staffing request created successfully' });
-	} catch (e) {
-	  console.error(e);
-	  return res.status(500).json({ error: 'An error occurred while creating the staffing request' });
+	} catch(e) {
+		req.app.Sentry.captureException(e);
+		res.stdRes.ret_det = e;
 	}
+
+	return res.json(res.stdRes);
 });
 
 router.put('/staffingRequest/:id/accept', async (req, res) => {
@@ -631,17 +644,17 @@ router.put('/staffingRequest/:id/accept', async (req, res) => {
 	  const staffingRequest = await StaffingRequest.findById(req.params.id);
   
 	  if (!staffingRequest) {
-		return res.status(404).json({ error: 'Staffing request not found' });
+		return res.status(404).json({ ret_det: { code: 404, message: 'Staffing request not found' }});
 	  }
   
 	  staffingRequest.accepted = req.body.accepted;
   
 	  await staffingRequest.save();
   
-	  return res.status(200).json({ message: 'Staffing request updated successfully' });
+	  return res.status(200).json({ ret_det: { code: 200, message: 'Staffing request updated successfully' }});
 	} catch (e) {
 	  console.error(e);
-	  return res.status(500).json({ error: 'An error occurred while updating the staffing request' });
+	  return res.status(500).json({ ret_det: { code: 500, message: 'An error occurred while updating the staffing request' }});
 	}
 });
 
@@ -651,7 +664,7 @@ router.put('/staffingRequest/:id', async (req, res) => {
 	  const staffingRequest = await StaffingRequest.findById(req.params.id);
   
 	  if (!staffingRequest) {
-		return res.status(404).json({ error: 'Staffing request not found' });
+		return res.status(404).json({ ret_det: { code: 404, message: 'Staffing request not found' }});
 	  }
   
 	  staffingRequest.vaName = req.body.vaName;
@@ -665,10 +678,10 @@ router.put('/staffingRequest/:id', async (req, res) => {
   
 	  await staffingRequest.save();
   
-	  return res.status(200).json({ message: 'Staffing request updated successfully' });
+	  return res.status(200).json({ ret_det: { code: 200, message: 'Staffing request updated successfully' }});
 	} catch (e) {
 	  console.error(e);
-	  return res.status(500).json({ error: 'An error occurred while updating the staffing request' });
+	  return res.status(500).json({ ret_det: { code: 500, message: 'An error occurred while updating the staffing request' }});
 	}
 });  
 
@@ -677,15 +690,15 @@ router.delete('/staffingRequest/:id', getUser, auth(['atm', 'datm', 'ec', 'wm'])
 	  const staffingRequest = await StaffingRequest.findById(req.params.id);
 	  
 	  if (!staffingRequest) {
-		return res.status(404).json({ error: 'Staffing request not found' });
+		return res.status(404).json({ ret_det: { code: 404, message: 'Staffing request not found' }});
 	  }
 	  
 	  await staffingRequest.delete(); // Soft-delete the staffing request using the mongoose-delete plugin
   
-	  return res.status(200).json({ message: 'Staffing request deleted successfully' });
+	  return res.status(200).json({ ret_det: { code: 200, message: 'Staffing request deleted successfully' }});
 	} catch (e) {
 	  console.error(e);
-	  return res.status(500).json({ error: 'An error occurred while deleting the staffing request' });
+	  return res.status(500).json({ ret_det: { code: 500, message: 'An error occurred while deleting the staffing request' }});
 	}
 });
 
