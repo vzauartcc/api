@@ -10,6 +10,7 @@ const staffingSchema = new m.Schema({
 	pilots: Number, // expected amount of pilots
 	route: String, // expected route
 	description: String, // description for the request
+	accepted: Boolean, //whether it is accepted or not by the EC
 }, {
 	timestamps: true,
 });
