@@ -599,6 +599,21 @@ router.post('/staffingRequest', async (req, res) => { // Submit staffing request
 			};
 		}
 
+		const count = await StaffingRequest.count({ 
+			where: { 
+				accepted: false,
+				name: req.body.name,
+				email: req.body.email,
+			} 
+		});
+
+		if (count > 3) {
+			throw {
+				code: 400,
+				message: "You have reached the maximum limit of staffing requests with a pending status."
+			};
+		}
+
 		await StaffingRequest.create({
 			vaName: req.body.vaName,
 			name: req.body.name,
@@ -609,8 +624,8 @@ router.post('/staffingRequest', async (req, res) => { // Submit staffing request
 			description: req.body.description,
 			accepted: false
 		});
-  
-	  // Send an email notification to the specified email address
+
+		// Send an email notification to the specified email address
 	  /*await transporter.sendMail({
 		to: 'ec@zauartcc.org, aec@zauartcc.org',
 		from: {
@@ -628,9 +643,9 @@ router.post('/staffingRequest', async (req, res) => { // Submit staffing request
 			route: req.body.route,
 			description: req.body.description,
 		},
-	  });*/
-  
-	  // Send a response to the client
+	  	});*/
+
+	// Send a response to the client
 	} catch(e) {
 		req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;

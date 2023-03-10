@@ -5,7 +5,7 @@ import softDelete from 'mongoose-delete';
 const staffingSchema = new m.Schema({
     vaName: String, //VA requesting staffing
 	name: String, //person making the request
-    email: String, // requestor's email
+    email: String, // requester's email
 	date: Date, // Date and Time for the request
 	pilots: Number, // expected amount of pilots
 	route: String, // expected route
