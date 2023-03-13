@@ -599,22 +599,21 @@ router.post('/staffingRequest', async (req, res) => { // Submit staffing request
 			};
 		}
 
-		const count = await StaffingRequest.count({ 
-			where: { 
-				accepted: false,
-				name: req.body.name,
-				email: req.body.email,
-			} 
-		});
-
-		if (count > 3) {
+		const count = await StaffingRequest.countDocuments({ 
+			accepted: false,
+			name: req.body.name,
+			email: req.body.email
+		  });
+		  
+		console.log(count);
+		if (count >= 3) {
 			throw {
 				code: 400,
 				message: "You have reached the maximum limit of staffing requests with a pending status."
 			};
 		}
 
-		await StaffingRequest.create({
+		const newRequest = await StaffingRequest.create({
 			vaName: req.body.vaName,
 			name: req.body.name,
 			email: req.body.email,
@@ -622,28 +621,31 @@ router.post('/staffingRequest', async (req, res) => { // Submit staffing request
 			pilots: req.body.pilots,
 			route: req.body.route,
 			description: req.body.description,
-			accepted: false
+			accepted: false,
 		});
 
+		const newRequestID = newRequest._id; // Access the new object's ID
+
 		// Send an email notification to the specified email address
-	  /*await transporter.sendMail({
-		to: 'ec@zauartcc.org, aec@zauartcc.org',
-		from: {
-		  name: 'Chicago ARTCC',
-		  address: 'no-reply@zauartcc.org'
-		},
-		subject: `New Staffing Request from ${req.body.vaName} | Chicago ARTCC`,
-		template: `staffingRequest`,
-		context: {
-			vaName: req.body.vaName,
-			name: req.body.name,
-			email: req.body.email,
-			date: req.body.date,
-			pilots: req.body.pilots,
-			route: req.body.route,
-			description: req.body.description,
-		},
-	  	});*/
+	  	await transporter.sendMail({
+			to: 'ec@zauartcc.org, aec@zauartcc.org',
+			from: {
+		  		name: 'Chicago ARTCC',
+		  		address: 'no-reply@zauartcc.org'
+			},
+			subject: `New Staffing Request from ${req.body.vaName} | Chicago ARTCC`,
+			template: `staffingRequest`,
+			context: {
+				vaName: req.body.vaName,
+				name: req.body.name,
+				email: req.body.email,
+				date: req.body.date,
+				pilots: req.body.pilots,
+				route: req.body.route,
+				description: req.body.description,
+				slug: newRequestID,
+			},
+	  	});
 
 	// Send a response to the client
 	} catch(e) {
@@ -693,12 +695,34 @@ router.put('/staffingRequest/:id', async (req, res) => {
   
 	  await staffingRequest.save();
   
+	  if (req.body.accepted) {
+		// Send an email notification to the specified email address
+		await transporter.sendMail({
+		  to: req.body.email,
+		  from: {
+			name: 'Chicago ARTCC',
+			address: 'no-reply@zauartcc.org'
+		  },
+		  subject: `Staffing Request for ${req.body.vaName} accepted | Chicago ARTCC`,
+		  template: `staffingRequestAccepted`,
+		  context: {
+			vaName: req.body.vaName,
+			name: req.body.name,
+			email: req.body.email,
+			date: req.body.date,
+			pilots: req.body.pilots,
+			route: req.body.route,
+			description: req.body.description,
+		  },
+		});
+	  }
+  
 	  return res.status(200).json({ ret_det: { code: 200, message: 'Staffing request updated successfully' }});
 	} catch (e) {
 	  console.error(e);
 	  return res.status(500).json({ ret_det: { code: 500, message: 'An error occurred while updating the staffing request' }});
 	}
-});  
+});
 
 router.delete('/staffingRequest/:id', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req, res) => {
 	try {

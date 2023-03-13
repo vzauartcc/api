@@ -1,9 +1,19 @@
 <div style="padding: 1em; box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.12), 0 1px 5px 0 rgba(0, 0, 0, 0.2);">
 	<div style="font-size: 1.2rem; font-weight: 300; margin-bottom: 20px;">
-    	Assignments for {{eventTitle}}
+    	Staffing Request for {{vaName}}
     </div>
     <div style="font-size: 0.9rem;">
-		Hello {{name}}, <br /><br />
-		The position assignments for the <strong>{{eventTitle}}</strong> event have been published. Please check whether you've been assigned a position by visiting <a href="https://zauartcc.org/events/{{slug}}" style="text-decoration: none; font-weight: 700; color: #192d66;"> the website</a>. <br />If due to unforseen circumstances you need to cancel, please let the events coordinator know as soon as possible by sending an email to <a href="mailto:ec@zauartcc.org" style="text-decoration: none; font-weight: 700; color: #192d66;">ec@zauartcc.org</a>.<br /><br />Sincerely,<br />The ZAU Staff Team
+		Hello Events Team, <br /><br />
+		There is a submitted staffing request for <strong>{{vaName}}</strong>. The information is below.<br />
+<br>
+Requester: <strong>{{name}}</strong><br>
+Email: <strong>{{email}}</strong><br>
+Time Requested: <strong>{{formatDate date}}</strong><br>
+Number of Pilots: <strong>{{pilots}}</strong><br>
+Requested Route: <strong>{{route}}</strong><br>
+Additional Information: <strong>{{description}}</strong><br><br>
+
+The request can be viewed at <a href="https://zauartcc.org/admin/events/editRequest/{{slug}}" style="text-decoration: none; font-weight: 700; color: #192d66;"> the website</a>.<br>Please go check it out and either accept the request or delete the request or reach out to the requester and get more information from them.
+<br /><br />Sincerely,<br />The ZAU Staff Team
 	</div>
 </div>
