@@ -267,7 +267,7 @@ const getFiftyData = async cid => {
 	const today = L.utc();
 	const chkDate = today.minus({days: 60});
 
-	const {data: fiftyData} = await axios.get(`https://api.vatsim.net/api/ratings/${1202744}/atcsessions/?start=${chkDate.toISODate()}&group_by_callsign`);
+	const {data: fiftyData} = await axios.get(`https://api.vatsim.net/api/ratings/${cid}/atcsessions/?start=${chkDate.toISODate()}&group_by_callsign`);
 
 	let total = 0;
 
