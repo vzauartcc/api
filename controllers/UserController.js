@@ -42,7 +42,7 @@ router.get("/", async (req, res) => {
                 cid: decoded.cid,
               })
                 .select("-createdAt -updatedAt")
-                .populate("roles")
+                .populate("roles absence")
                 .catch(console.log);
               if (!user) {
                 res.cookie("token", "", { expires: new Date(0) });
