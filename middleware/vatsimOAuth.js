@@ -13,12 +13,12 @@ export default function (req, res, next) {
     "https://ids.zauartcc.org": "https://ids.zauartcc.org/login/verify",
     "https://staging.zauartcc.org": "https://staging.zauartcc.org/login/verify",
     "https://zauartcc.org": "https://zauartcc.org/login/verify",
-    "http://localhost:8080": "http://localhost:8080/login/verify",
   };
   const defaultRedirectUrl = "http://localhost:8080/login/verify";
+  
   const origin = req.headers.origin;
   if (origin) {
-    redirectUrl = allowedOrigins[origin];
+    redirectUrl = allowedOrigins[origin] || defaultRedirectUrl;
   } else {
     redirectUrl = defaultRedirectUrl;
   }
