@@ -2,6 +2,8 @@ import express from 'express';
 import Redis from 'ioredis';
 import User from '../models/User.js';
 import Pireps from '../models/Pireps.js';
+import Config from '../models/Config.js';
+import config from '../config/zab.js';
 
 const router = express.Router();
 
@@ -103,55 +105,50 @@ router.get('/atis', (req, res) => {
 	});
 });
 
+const acceptableAirports = config.airports;
 router.post('/vatis', async (req, res) => {
-	if(req.body.config_profile.match(/IDS:/i)) { // IDS compatible profile
-		let arr = [];
-		let dep = [];
-		const profileString = req.body.config_profile.split('IDS:')[1];
-		for(const i of profileString.split('.')) {
-			const rwyConfig = i.match(/(?<type>[A-Z])(?<runway>[0-9]{1,2}[LRC]?)/).groups;
-			if(rwyConfig.type === "D") {
-				dep.push(rwyConfig.runway);
-			} else {
-				let type;
-				switch(rwyConfig.type) {
-					case "V":
-						type = 'VIS'
-						break;
-					case "A":
-						type = 'RNAV'
-						break;
-					case "I":
-						type = 'ILS'
-						break;
-					case "O":
-						type = 'VOR'
-						break;
-					default:
-						type = ''
-						break;
-				}
-				arr.push(`${type} ${rwyConfig.runway}`)
-			}
-		}
-
-		let redisAtis = await req.app.redis.get('atis')
-		redisAtis = (redisAtis && redisAtis.length) ? redisAtis.split('|') : [];
-		redisAtis.push(req.body.facility);
-		req.app.redis.set('atis', redisAtis.join('|'));
-		req.app.redis.expire(`atis`, 65);
-
-		req.app.redis.hmset(`ATIS:${req.body.facility}`,
-			'station', req.body.facility,
-			'letter', req.body.atis_letter,
-			'dep', dep.join(', '),
-			'arr', arr.join(', ')
-		);
-		req.app.redis.expire(`ATIS:${req.body.facility}`, 65)
-		req.app.redis.publish('ATIS:UPDATE', req.body.facility);
+	console.log("Received POST request at /vatis");
+	console.log("Request body: ", req.body);
+	
+	const { Facility, Preset, AtisLetter, AirportConditions, Notams, Timestamp, Version } = req.body;
+  
+	// check that all required fields are present
+	if (!Facility || !Preset || !AtisLetter || !AirportConditions) {
+	  console.log("Missing required fields");
+	  return res.status(400).send({ error: 'Missing required fields' });
 	}
+  
+	// check that Facility is in the list of acceptable airports
+	if (!acceptableAirports.includes(Facility)) {
+	  console.log(`Invalid airport: ${Facility}`);
+	  return res.status(400).send({ error: `Invalid airport: ${Facility}` });
+	}
+  
+	console.log("Facility is present and acceptable");
+  
+	let redisAtis = await req.app.redis.get('AtisLetter');
+	console.log("Retrieved ATIS from Redis: ", redisAtis);
+  
+	redisAtis = (redisAtis && redisAtis.length) ? redisAtis.split('|') : [];
+	redisAtis.push(Facility);
+	req.app.redis.set('atis', redisAtis.join('|'));
+	req.app.redis.expire(`atis`, 65);
+  
+	req.app.redis.hmset(`ATIS:${Facility}`,
+	  'station', Facility,
+	  'letter', AtisLetter,
+	  'preset', Preset,
+	  'airport_conditions', AirportConditions,
+	  'notams', Notams,
+	  'timestamp', Timestamp,
+	  'version', Version
+	);
+	req.app.redis.expire(`atis`, 65)
+	req.app.redis.publish('ATIS:UPDATE', Facility);
+	
+	console.log("Successfully processed the request and set the ATIS in Redis");
 	return res.sendStatus(200);
-});
+  });
 
 router.get('/stations', async (req, res) => {
 	const airports = await req.app.redis.get('airports');
@@ -205,5 +202,33 @@ router.delete('/pireps/:id', async(req, res) => {
 		return res.sendStatus(500);
 	});
 });
+
+router.put('/config/:id', async (req, res) => {
+	try {
+	  const updatedConfig = await Config.findOneAndUpdate({ id: req.params.id }, req.body, { new: true });
+	  if (!updatedConfig) {
+		return res.status(404).send({ message: "Config not found" });
+	  }
+	  return res.send(updatedConfig);
+	} catch (error) {
+	  console.log(error);
+	  return res.status(500).send({ message: "Error updating config" });
+	}
+  });
+
+  router.get('/config/:id', async (req, res) => {
+	try {
+	  const config = await Config.findOne({ id: req.params.id });
+	  if (!config) {
+		return res.status(404).send({ message: "Config not found" });
+	  }
+	  return res.send(config);
+	} catch (error) {
+	  console.log(error);
+	  return res.status(500).send({ message: "Error retrieving config" });
+	}
+  });
+
+  
 
 export default router;
