@@ -9,12 +9,18 @@ export default function (req, res, next) {
   const vatsimOauthTokenEndpoint =
     process.env.VATSIM_AUTH_ENDPOINT + "/oauth/token";
 
-  if (process.env.NODE_ENV === "beta") {
-    redirectUrl = "https://staging.zauartcc.org" + redirectUrl;
-  } else if (process.env.NODE_ENV === "prod") { //to test sentry change back to production.
-    redirectUrl = "https://zauartcc.org" + redirectUrl;
+  const allowedOrigins = {
+    "https://ids.zauartcc.org": "https://ids.zauartcc.org/login/verify",
+    "https://staging.zauartcc.org": "https://staging.zauartcc.org/login/verify",
+    "https://zauartcc.org": "https://zauartcc.org/login/verify",
+  };
+  const defaultRedirectUrl = "http://localhost:8080/login/verify";
+  
+  const origin = req.headers.origin;
+  if (origin) {
+    redirectUrl = allowedOrigins[origin] || defaultRedirectUrl;
   } else {
-    redirectUrl = "http://localhost:8080" + redirectUrl;
+    redirectUrl = defaultRedirectUrl;
   }
 
   if (!code) {
