@@ -4,6 +4,7 @@ import User from '../models/User.js';
 import Pireps from '../models/Pireps.js';
 import Config from '../models/Config.js';
 import config from '../config/zab.js';
+import axios from 'axios'
 
 const router = express.Router();
 
@@ -171,6 +172,37 @@ router.get('/pireps', async({res}) => {
 	const pirep = await Pireps.find().sort('-reportTime').lean();
 	return res.json(pirep);
 });
+
+router.get('/vatsim-data', (req, res) => {
+	axios.get('https://status.vatsim.net/status.json')
+	  .then(response => {
+		const apiUrl = response.data.data.v3[0];
+		axios.get(apiUrl)
+		  .then(vatsimResponse => {
+			res.json(vatsimResponse.data);
+		  })
+		  .catch(error => {
+			console.error(error);
+			res.status(500).send('Error fetching data from external API.');
+		  });
+	  })
+	  .catch(error => {
+		console.error(error);
+		res.status(500).send('Error fetching data from external API.');
+	  });
+});
+
+router.get('/charts/:airportCode', async (req, res) => {
+	const airportCode = req.params.airportCode.toUpperCase();
+	try {
+	  const response = await axios.get(`https://api.aviationapi.com/v1/charts?apt=${airportCode}`);
+	  const charts = response.data[airportCode];
+	  res.json(charts);
+	} catch (error) {
+	  console.error(error);
+	  res.status(500).send('Error fetching data from external API.');
+	}
+  });
 
 router.post('/pireps', async(req, res) => {
 	if(req.body.ua === undefined || req.body.ov === undefined) {
