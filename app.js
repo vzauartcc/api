@@ -106,12 +106,12 @@ app.redis = new Redis(process.env.REDIS_URI);
 app.redis.on('error', err => { throw new Error(`Failed to connect to Redis: ${err}`); });
 app.redis.on('connect', () => console.log('Successfully connected to Redis'));
 
-//*const origins = process.env.CORS_ORIGIN.split('|');
+const origins = process.env.CORS_ORIGIN.split('|');
 
-/*app.use(cors({
+app.use(cors({
 	origin: origins,
 	credentials: true,
-}));*/
+}));
 
 app.use((req, res, next) => {
 	res.setHeader('Access-Control-Allow-Origin', '*');
