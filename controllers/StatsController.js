@@ -148,7 +148,7 @@ router.get('/ins', getUser, auth(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']), asy
 		const cidsWithTraining = lastTraining.map(train => train.studentCid);
 		const cidsWithoutTraining = allCids.filter(cid => !cidsWithTraining.includes(cid))
 
-		const controllersWithoutTraining = allHomeControllers.filter(c => cidsWithoutTraining.includes(c.cid));
+		const controllersWithoutTraining = allHomeControllers.filter((c) => cidsWithoutTraining.includes(c.cid)).filter(c => !c.certCodes.includes('zau'));
 		lastRequest = lastRequest.reduce((acc, cur) => {
 			acc[cur.studentCid] = cur
 			return acc;
@@ -170,14 +170,16 @@ router.get('/ins', getUser, auth(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']), asy
 
 router.get('/activity', getUser, auth(['atm', 'datm', 'ta', 'wm']), async (req, res) => {
 	try {
-		const today = L.utc();
-		const chkDate = today.minus({days: 31});
-		const users = await User.find({member: true}).select('fname lname cid rating oi vis createdAt roleCodes certCodes joinDate').populate('certifications').lean({virtuals: true});
+		const selectedMonth = req.query.month ? L.fromFormat(`${req.query.month}-01`, 'yyyy-MM-dd') : L.utc();
+		const endOfMonth = selectedMonth.toUTC().endOf('month').set({hour: 23, minute: 59, second: 59});
+		const beginningOfMonth = selectedMonth.toUTC().startOf('month');
+		const users = await User.find({member: true}).select('fname lname cid rating oi vis createdAt roleCodes certCodes joinDate').populate('certifications').populate({path: 'absence', match: {expirationDate: {$gte: new Date()},deleted: false},select: '-reason'}).lean({virtuals: true});
 		const activityReduced = {};
 		const trainingReduced = {};
+		const trainingSession = {};
 
 		(await ControllerHours.aggregate([
-			{$match: {timeStart: {$gt: chkDate}}},
+			{$match: {timeStart: {$gte: beginningOfMonth, $lte: endOfMonth}}},
 			{$project: {
 					length: {$subtract: ['$timeEnd', '$timeStart']},
 					cid: 1
@@ -188,12 +190,19 @@ router.get('/activity', getUser, auth(['atm', 'datm', 'ta', 'wm']), async (req, 
 				}}
 		])).forEach(i => activityReduced[i._id] = i.total);
 		(await TrainingRequest.aggregate([
-			{$match: {startTime: {$gt: chkDate}}},
+			{$match: {timeStart: {$gte: beginningOfMonth, $lte: endOfMonth}}},
 			{$group: {
 					_id: "$studentCid",
 					total: {$sum: 1}
 				}}
 		])).forEach(i => trainingReduced[i._id] = i.total);
+		(await TrainingSession.aggregate([
+			{$match: {timeStart: {$gte: beginningOfMonth, $lte: endOfMonth}}},
+			{$group: {
+					_id: "$studentCid",
+					total: {$sum: 1}
+				}}
+		])).forEach(i => trainingSession[i._id] = i.total);
 		const userData = {};
 		for(let user of users) {
 			let fiftyTime = await req.app.redis.get(`FIFTY:${user.cid}`);
@@ -205,14 +214,25 @@ router.get('/activity', getUser, auth(['atm', 'datm', 'ta', 'wm']), async (req, 
 
 			const totalTime = Math.round(activityReduced[user.cid] / 1000) || 0;
 			const totalRequests = trainingReduced[user.cid] || 0;
+			const totalSessions = trainingSession[user.cid] || 0;
+
+			let tooLow = false;
+
+			if (user.rating <= 1 && totalSessions < 1 && totalTime < 3600 && (user.createdAt) < beginningOfMonth) {
+				tooLow = true;
+			} 
+			else if(user.rating > 1 && totalTime < 3600 && (user.createdAt) < beginningOfMonth) {
+				tooLow = true;
+			}
 
 			userData[user.cid] = {
 				...user,
 				totalTime,
 				totalRequests,
+				totalSessions,
 				fiftyTime: Math.round(fiftyTime),
-				tooLow: totalTime < 3600 && (user.createdAt) < chkDate,
-				protected: user.isStaff || [1202744].includes(user.cid)
+				tooLow,
+				protected: user.isStaff || [1202744].includes(user.cid) || user.absence.some(a => !a.deleted && new Date(a.expirationDate) > new Date() && a.controller === user.cid)
 			}
 		}
 		res.stdRes.data = Object.values(userData);

@@ -14,7 +14,6 @@ const airports = {
 	BTL: 'Battle Creek',
 	EKM: 'Elkhart',
 	ENW: 'Kenosha',
-	RAC: 'Racine',
 	PWK: 'Palwaukee',
 	ARR: 'Aurora',
 	DPA: 'Du Page',
@@ -38,6 +37,7 @@ const airports = {
 	MWC: 'Timmerman',
 	RFD: 'Rockford',
 	CHI: 'Chicago',
+	LOT: 'Lewis University'
 };
 
 const positions = {

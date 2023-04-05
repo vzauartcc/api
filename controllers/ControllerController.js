@@ -557,6 +557,19 @@ router.put('/visit/:cid', getUser, auth(['atm', 'datm']), async (req, res) => {
 		user.vis = true;
 		user.oi = userOi;
 
+		// Assign certCodes based on rating removed right now due to policy change. I will leave this here in case future policy is changed.
+		/*let certCodes = [];
+		if (user.rating >= 2) {
+		  certCodes.push('gnd', 'del');
+		}
+		if (user.rating >= 3) {
+		  certCodes.push('twr');
+		}
+		if (user.rating >= 4) {
+		  certCodes.push('app');
+		}
+		user.certCodes = certCodes;*/
+
 		await user.save();
 
 		await axios.post(`https://api.vatusa.net/v2/facility/ZAU/roster/manageVisitor/${req.params.cid}?apikey=${process.env.VATUSA_API_KEY}`)
@@ -644,7 +657,7 @@ router.post('/:cid', microAuth, async (req, res) => {
 		const {data} = await axios.get(`https://ui-avatars.com/api/?name=${userOi}&size=256&background=122049&color=ffffff`, {responseType: 'arraybuffer'});
 
 		await req.app.s3.putObject({
-			Bucket: 'zauartcc/avatars',
+			Bucket: `zauartcc/${process.env.SPACE}/avatars`,
 			Key: `${req.body.cid}-default.png`,
 			Body: data,
 			ContentType: 'image/png',
@@ -827,7 +840,7 @@ router.put('/:cid', getUser, auth(['atm', 'datm', 'ta', 'fe', 'ec', 'wm', 'ins',
 		const {data} = await axios.get(`https://ui-avatars.com/api/?name=${oi}&size=256&background=122049&color=ffffff`, {responseType: 'arraybuffer'});
 
 		await req.app.s3.putObject({
-			Bucket: 'zauartcc/avatars',
+			Bucket: `zauartcc/${process.env.SPACE}/avatars`,
 			Key: `${req.params.cid}-default.png`,
 			Body: data,
 			ContentType: 'image/png',

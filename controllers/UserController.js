@@ -42,7 +42,7 @@ router.get("/", async (req, res) => {
                 cid: decoded.cid,
               })
                 .select("-createdAt -updatedAt")
-                .populate("roles")
+                .populate("roles absence")
                 .catch(console.log);
               if (!user) {
                 res.cookie("token", "", { expires: new Date(0) });
@@ -163,7 +163,7 @@ router.post("/login", oAuth, async (req, res) => {
 
       await req.app.s3
         .putObject({
-          Bucket: "zauartcc/avatars",
+          Bucket: "zauartcc/${process.env.SPACE}/avatars",
           Key: `${user.cid}-default.png`,
           Body: data,
           ContentType: "image/png",

@@ -47,7 +47,7 @@ userSchema.plugin(softDelete, {
 userSchema.plugin(mlv);
 
 userSchema.virtual('isMem').get(function() {
-	return !!this.member;
+	return this.member;
 });
 
 userSchema.virtual('isMgt').get(function() {

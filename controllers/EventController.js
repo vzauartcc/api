@@ -8,6 +8,7 @@ import Event from '../models/Event.js';
 import User from '../models/User.js';
 import getUser from '../middleware/getUser.js';
 import auth from '../middleware/auth.js';
+import StaffingRequest from '../models/StaffingRequest.js'
 
 const upload = multer({
 	storage: multer.diskStorage({
@@ -66,6 +67,49 @@ router.get('/archive', async(req, res) => {
 	}
 
 	return res.json(res.stdRes);
+});
+
+router.get('/staffingRequest', async (req, res) => {
+	try {
+	  const page = +req.query.page || 1;
+	  const limit = +req.query.limit || 10;
+  
+	  const count = await StaffingRequest.countDocuments({ deleted: false });
+	  let requests = [];
+  
+	  if (count > 0) {
+		requests = await StaffingRequest.find({ deleted: false })
+		  .skip(limit * (page - 1))
+		  .limit(limit)
+		  .sort({ date: 'desc' })
+		  .lean();
+	  }
+	  return res.status(200).json({
+		ret_det: { code: 200, message: '' },
+		data: {
+		  amount: count,
+		  requests: requests
+		}
+	  });
+	} catch (e) {
+	  console.error(e);
+	  return res.status(500).json({ ret_det: { code: 500, message: 'An error occurred while retrieving staffing requests' }});
+	}
+});
+
+router.get('/staffingRequest/:id', async (req, res) => {
+	try {
+	  const staffingRequest = await StaffingRequest.findById(req.params.id);
+  
+	  if (!staffingRequest) {
+		return res.status(404).json({ error: 'Staffing request not found' });
+	  }
+  
+	  return res.status(200).json({ staffingRequest });
+	} catch (e) {
+	  console.error(e);
+	  return res.status(500).json({ error: 'An error occurred while retrieving the staffing request' });
+	}
 });
 
 router.get('/:slug', async(req, res) => {
@@ -264,7 +308,7 @@ router.post('/', getUser, auth(['atm', 'datm', 'ec', 'wm']), upload.single('bann
 		const tmpFile = await fs.readFile(req.file.path);
 
 		await req.app.s3.putObject({
-			Bucket: 'zauartcc/events',
+			Bucket: `zauartcc/${process.env.SPACE}/events`,
 			Key: req.file.filename,
 			Body: tmpFile,
 			ContentType: req.file.mimetype,
@@ -382,7 +426,7 @@ router.put('/:slug', getUser, auth(['atm', 'datm', 'ec', 'wm']), upload.single('
 			}
 			const tmpFile = await fs.readFile(req.file.path);
 			await req.app.s3.putObject({
-				Bucket: 'zauartcc/events',
+				Bucket: `zauartcc/${process.env.SPACE}/events`,
 				Key: req.file.filename,
 				Body: tmpFile,
 				ContentType: req.file.mimetype,
@@ -537,6 +581,164 @@ router.put('/:slug/close', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (re
 	}
 
 	return res.json(res.stdRes);
+});
+
+router.post('/staffingRequest', async (req, res) => { // Submit staffing request
+	try {
+		if(!req.body.vaName || !req.body.name || !req.body.email || !req.body.date || !req.body.pilots || !req.body.route || !req.body.description) { // Validation
+			throw {
+				code: 400,
+				message: "You must fill out all required fields"
+			};
+		}
+
+		if(isNaN(req.body.pilots)) {
+			throw {
+				code: 400,
+				message: "Pilots must be a number"
+			};
+		}
+
+		const count = await StaffingRequest.countDocuments({ 
+			accepted: false,
+			name: req.body.name,
+			email: req.body.email
+		  });
+		  
+		console.log(count);
+		if (count >= 3) {
+			throw {
+				code: 400,
+				message: "You have reached the maximum limit of staffing requests with a pending status."
+			};
+		}
+
+		const newRequest = await StaffingRequest.create({
+			vaName: req.body.vaName,
+			name: req.body.name,
+			email: req.body.email,
+			date: req.body.date,
+			pilots: req.body.pilots,
+			route: req.body.route,
+			description: req.body.description,
+			accepted: false,
+		});
+
+		const newRequestID = newRequest._id; // Access the new object's ID
+
+		// Send an email notification to the specified email address
+	  	await transporter.sendMail({
+			to: 'ec@zauartcc.org, aec@zauartcc.org',
+			from: {
+		  		name: 'Chicago ARTCC',
+		  		address: 'no-reply@zauartcc.org'
+			},
+			subject: `New Staffing Request from ${req.body.vaName} | Chicago ARTCC`,
+			template: `staffingRequest`,
+			context: {
+				vaName: req.body.vaName,
+				name: req.body.name,
+				email: req.body.email,
+				date: req.body.date,
+				pilots: req.body.pilots,
+				route: req.body.route,
+				description: req.body.description,
+				slug: newRequestID,
+			},
+	  	});
+
+	// Send a response to the client
+	} catch(e) {
+		req.app.Sentry.captureException(e);
+		res.stdRes.ret_det = e;
+	}
+
+	return res.json(res.stdRes);
+});
+
+router.put('/staffingRequest/:id/accept', async (req, res) => {
+	try {
+	  const staffingRequest = await StaffingRequest.findById(req.params.id);
+  
+	  if (!staffingRequest) {
+		return res.status(404).json({ ret_det: { code: 404, message: 'Staffing request not found' }});
+	  }
+  
+	  staffingRequest.accepted = req.body.accepted;
+  
+	  await staffingRequest.save();
+  
+	  return res.status(200).json({ ret_det: { code: 200, message: 'Staffing request updated successfully' }});
+	} catch (e) {
+	  console.error(e);
+	  return res.status(500).json({ ret_det: { code: 500, message: 'An error occurred while updating the staffing request' }});
+	}
+});
+
+
+router.put('/staffingRequest/:id', async (req, res) => {
+	try {
+	  const staffingRequest = await StaffingRequest.findById(req.params.id);
+  
+	  if (!staffingRequest) {
+		return res.status(404).json({ ret_det: { code: 404, message: 'Staffing request not found' }});
+	  }
+  
+	  staffingRequest.vaName = req.body.vaName;
+	  staffingRequest.name = req.body.name;
+	  staffingRequest.email = req.body.email;
+	  staffingRequest.date = req.body.date;
+	  staffingRequest.pilots = req.body.pilots;
+	  staffingRequest.route = req.body.route;
+	  staffingRequest.description = req.body.description;
+	  staffingRequest.accepted = req.body.accepted;
+  
+	  await staffingRequest.save();
+  
+	  if (req.body.accepted) {
+		// Send an email notification to the specified email address
+		await transporter.sendMail({
+		  to: req.body.email,
+		  from: {
+			name: 'Chicago ARTCC',
+			address: 'no-reply@zauartcc.org'
+		  },
+		  subject: `Staffing Request for ${req.body.vaName} accepted | Chicago ARTCC`,
+		  template: `staffingRequestAccepted`,
+		  context: {
+			vaName: req.body.vaName,
+			name: req.body.name,
+			email: req.body.email,
+			date: req.body.date,
+			pilots: req.body.pilots,
+			route: req.body.route,
+			description: req.body.description,
+		  },
+		});
+	  }
+  
+	  return res.status(200).json({ ret_det: { code: 200, message: 'Staffing request updated successfully' }});
+	} catch (e) {
+	  console.error(e);
+	  return res.status(500).json({ ret_det: { code: 500, message: 'An error occurred while updating the staffing request' }});
+	}
+});
+
+router.delete('/staffingRequest/:id', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req, res) => {
+	try {
+	  const staffingRequest = await StaffingRequest.findById(req.params.id);
+	  
+	  if (!staffingRequest) {
+		return res.status(404).json({ ret_det: { code: 404, message: 'Staffing request not found' }});
+	  }
+	  
+	  await staffingRequest.delete(); // Soft-delete the staffing request using the mongoose-delete plugin
+  
+	  return res.status(200).json({ ret_det: { code: 200, message: 'Staffing request deleted successfully' }});
+	} catch (e) {
+	  console.error(e);
+	  return res.status(500).json({ ret_det: { code: 500, message: 'An error occurred while deleting the staffing request' }});
+	}
 });
 
 export default router;

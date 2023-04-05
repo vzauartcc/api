@@ -124,7 +124,6 @@ router.post('/vatis', async (req, res) => {
 	  console.log(`Invalid airport: ${Facility}`);
 	  return res.status(400).send({ error: `Invalid airport: ${Facility}` });
 	}
-  
 	console.log("Facility is present and acceptable");
   
 	let redisAtis = await req.app.redis.get('AtisLetter');
