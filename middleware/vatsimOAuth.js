@@ -28,12 +28,20 @@ export default function (req, res, next) {
   }
 
   const params = new URLSearchParams();
-  params.append("grant_type", "authorization_code");
-  params.append("client_id", process.env.VATSIM_AUTH_CLIENT_ID);
-  params.append("client_secret", process.env.VATSIM_AUTH_CLIENT_SECRET);
-  params.append("code", code);
-  params.append("redirect_uri", redirectUrl);
+params.append("grant_type", "authorization_code");
+params.append("code", code);
+params.append("redirect_uri", redirectUrl);
 
+let clientId = process.env.VATSIM_AUTH_CLIENT_ID;
+let clientSecret = process.env.VATSIM_AUTH_CLIENT_SECRET;
+
+if (req.headers.origin === "https://ids.zauartcc.org") {
+  clientId = process.env.VATSIM_AUTH_CLIENT_ID_IDS;
+  clientSecret = process.env.VATSIM_AUTH_CLIENT_SECRET_IDS;
+}
+
+params.append("client_id", clientId);
+params.append("client_secret", clientSecret);
   axios
     .post(vatsimOauthTokenEndpoint, params)
     .then((response) => {
