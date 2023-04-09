@@ -16,6 +16,25 @@ import vatsimApiHelper from "../helpers/vatsimApiHelper.js";
 
 dotenv.config();
 
+import DiscordJS from 'discord.js';
+
+const { Client, GatewayIntentBits  } = DiscordJS;
+
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers,
+        ],
+});
+
+client.once('ready', () => {
+    console.log('Bot is online!');
+});
+
+
+client.login(process.env.DISCORD_TOKEN);
 router.get("/", async (req, res) => {
   try {
     if (!req.cookies.token) {
@@ -315,6 +334,29 @@ router.post("/discord", async (req, res) => {
       affected: -1,
       action: `%b connected their Discord.`,
     });
+
+    const guildId = '485491681903247361';
+    const roleId = '1094643593102246008';
+    const guild = client.guilds.cache.get(guildId);
+    const member = await guild.members.fetch(discordUser.id);
+
+    if (member) {
+        const role = guild.roles.cache.get(roleId);
+        if (!role) {
+            console.error(`Role with ID '${roleId}' not found.`);
+        } else if (member.roles.cache.has(role.id)) {
+            console.log(`User ${member.user.tag} already has the role.`);
+        } else {
+            try {
+                await member.roles.add(role);
+                console.log(`Assigned role '${role.name}' to ${member.user.tag}.`);
+            } catch (error) {
+                console.error(`Error assigning role: ${error.message}`);
+            }
+        }
+    } else {
+        console.log(`User ${discordUser.username}#${discordUser.discriminator} is not in the guild.`);
+    }
   } catch (e) {
     req.app.Sentry.captureException(e);
     res.stdRes.ret_det = e;
