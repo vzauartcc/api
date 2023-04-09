@@ -18,47 +18,44 @@ dotenv.config();
 
 router.get("/", async (req, res) => {
   try {
-    if (!req.cookies.token) {
+    let userToken;
+    if (req.headers.authorization && req.headers.authorization.split(' ')[0] === 'Bearer') {
+      userToken = req.headers.authorization.split(' ')[1];
+    } else if (req.cookies.token) {
+      userToken = req.cookies.token;
+    } else {
       throw {
         code: 401,
-        message: "Token cookie not found",
+        message: "Token not found",
       };
     }
 
     await new Promise((resolve, reject) => {
-      jwt
-        .verify(
-          req.cookies.token,
-          process.env.JWT_SECRET,
-          async (err, decoded) => {
-            if (err) {
-              res.cookie("token", "", { expires: new Date(0) });
-              reject({
-                code: 403,
-                message: `Unable to verify token: ${err}`,
-              });
-            } else {
-              const user = await User.findOne({
-                cid: decoded.cid,
-              })
-                .select("-createdAt -updatedAt")
-                .populate("roles absence")
-                .catch(console.log);
-              if (!user) {
-                res.cookie("token", "", { expires: new Date(0) });
-                reject({
-                  code: 401,
-                  message: "User not found",
-                });
-              }
-              res.stdRes.data = user;
-            }
-            resolve();
+      jwt.verify(userToken, process.env.JWT_SECRET, async (err, decoded) => {
+        if (err) {
+          res.cookie("token", "", { expires: new Date(0) });
+          reject({
+            code: 403,
+            message: `Unable to verify token: ${err}`,
+          });
+        } else {
+          const user = await User.findOne({
+            cid: decoded.cid,
+          })
+            .select("-createdAt -updatedAt")
+            .populate("roles absence")
+            .catch(console.log);
+          if (!user) {
+            res.cookie("token", "", { expires: new Date(0) });
+            reject({
+              code: 401,
+              message: "User not found",
+            });
           }
-        )
-        .catch((err) => {
-          throw err;
-        });
+          res.stdRes.data = user;
+        }
+        resolve();
+      });
     });
   } catch (e) {
     req.app.Sentry.captureException(e);
