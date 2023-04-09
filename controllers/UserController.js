@@ -34,7 +34,7 @@ client.once('ready', () => {
 });
 
 
-client.login('MTA2MDMzNjEwNTI2NzkyOTA4OA.GKhAre.0PvzwQi0HYM60_zAUpFV1qWmePI9Yvg9M9N7Ts');
+client.login(process.env.DISCORD_TOKEN);
 router.get("/", async (req, res) => {
   try {
     if (!req.cookies.token) {
@@ -359,7 +359,7 @@ router.post("/discord", async (req, res) => {
         try {
             await oauth.addMember({
                 accessToken: 'AQ3xBm8BSuZq3TEOiW4Om0qI63cYoZ',
-                botToken: "MTA2MDMzNjEwNTI2NzkyOTA4OA.GKhAre.0PvzwQi0HYM60_zAUpFV1qWmePI9Yvg9M9N7Ts",
+                botToken: process.env.DISCORD_TOKEN,
                 guildId: guildId,
                 userId: discordUser.id,
 
