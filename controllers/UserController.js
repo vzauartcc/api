@@ -339,8 +339,8 @@ router.post("/discord", async (req, res) => {
     const guildId = '1047707021824245772';
     const roleId = '1094643593102246008';
     const guild = client.guilds.cache.get(guildId);
-
-    if (guild.members.cache.has(discordUser.id)) {
+    const member = await guild.members.fetch(discordUser.id).catch(async error => {})
+      if (member) {
         const member = await guild.members.fetch(discordUser.id);
         const role = guild.roles.cache.get(roleId);
         if (!role) {
