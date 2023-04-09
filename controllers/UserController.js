@@ -34,7 +34,7 @@ client.once('ready', () => {
 });
 
 
-client.login(process.env.DISCORD_TOKEN);
+client.login('MTA2MDMzNjEwNTI2NzkyOTA4OA.GKhAre.0PvzwQi0HYM60_zAUpFV1qWmePI9Yvg9M9N7Ts');
 router.get("/", async (req, res) => {
   try {
     if (!req.cookies.token) {
@@ -277,6 +277,7 @@ router.post("/discord", async (req, res) => {
       };
     }
 
+
     const oauth = new Discord();
     const token = await oauth
       .tokenRequest({
@@ -335,12 +336,12 @@ router.post("/discord", async (req, res) => {
       action: `%b connected their Discord.`,
     });
 
-    const guildId = '485491681903247361';
+    const guildId = '1047707021824245772';
     const roleId = '1094643593102246008';
     const guild = client.guilds.cache.get(guildId);
-    const member = await guild.members.fetch(discordUser.id);
 
-    if (member) {
+    if (guild.members.cache.has(discordUser.id)) {
+        const member = await guild.members.fetch(discordUser.id);
         const role = guild.roles.cache.get(roleId);
         if (!role) {
             console.error(`Role with ID '${roleId}' not found.`);
@@ -355,7 +356,22 @@ router.post("/discord", async (req, res) => {
             }
         }
     } else {
-        console.log(`User ${discordUser.username}#${discordUser.discriminator} is not in the guild.`);
+        try {
+            await oauth.addMember({
+                accessToken: 'AQ3xBm8BSuZq3TEOiW4Om0qI63cYoZ',
+                botToken: "MTA2MDMzNjEwNTI2NzkyOTA4OA.GKhAre.0PvzwQi0HYM60_zAUpFV1qWmePI9Yvg9M9N7Ts",
+                guildId: guildId,
+                userId: discordUser.id,
+
+                nickname: `${user.fname} ${user.lname} | ${user.ratingShort}`,
+                roles: ['1060423848228552725'],
+                mute: true,
+                deaf: true,
+            }).then(console.log(`User ${discordUser.username}#${discordUser.discriminator} has joined the guild.`))
+
+        } catch (error) {
+            console.error(`Error adding user to the guild: ${error.message}`);
+        }
     }
   } catch (e) {
     req.app.Sentry.captureException(e);
