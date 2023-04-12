@@ -383,6 +383,7 @@ router.post("/discord", async (req, res) => {
 router.delete("/discord", getUser, async (req, res) => {
   try {
     res.user.discordInfo = undefined;
+    res.user.discord = undefined;
     await res.user.save();
   } catch (e) {
     req.app.Sentry.captureException(e);
