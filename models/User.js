@@ -31,6 +31,7 @@ const userSchema = new m.Schema({
 		tokenType: String,
 		expires: Date,
 	},
+	discord: String,
 	idsToken: String,
 	certCodes: [],
 	roleCodes: [],

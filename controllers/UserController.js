@@ -323,6 +323,7 @@ router.post("/discord", async (req, res) => {
     user.discordInfo.accessToken = token.access_token;
     user.discordInfo.refreshToken = token.refresh_token;
     user.discordInfo.tokenType = token.token_type;
+    user.discord = discordUser.id;
 
     let currentTime = new Date();
     currentTime = new Date(currentTime.getTime() + token.expires_in * 1000);
@@ -336,7 +337,7 @@ router.post("/discord", async (req, res) => {
       action: `%b connected their Discord.`,
     });
 
-    const guildId = '1047707021824245772';
+    const guildId = '485491681903247361';
     const roleId = '1094643593102246008';
     const guild = client.guilds.cache.get(guildId);
     const member = await guild.members.fetch(discordUser.id).catch(async error => {})
@@ -346,11 +347,9 @@ router.post("/discord", async (req, res) => {
         if (!role) {
             console.error(`Role with ID '${roleId}' not found.`);
         } else if (member.roles.cache.has(role.id)) {
-            console.log(`User ${member.user.tag} already has the role.`);
         } else {
             try {
                 await member.roles.add(role);
-                console.log(`Assigned role '${role.name}' to ${member.user.tag}.`);
             } catch (error) {
                 console.error(`Error assigning role: ${error.message}`);
             }
@@ -364,9 +363,9 @@ router.post("/discord", async (req, res) => {
                 userId: discordUser.id,
 
                 nickname: `${user.fname} ${user.lname} | ${user.ratingShort}`,
-                roles: ['1060423848228552725'],
-                mute: true,
-                deaf: true,
+                roles: ['1094643593102246008'],
+                mute: false,
+                deaf: false,
             }).then(console.log(`User ${discordUser.username}#${discordUser.discriminator} has joined the guild.`))
 
         } catch (error) {
