@@ -16,6 +16,7 @@ import vatsimApiHelper from "../helpers/vatsimApiHelper.js";
 
 dotenv.config();
 
+
 router.get("/", async (req, res) => {
   try {
     if (!req.cookies.token) {
@@ -228,112 +229,7 @@ router.get("/sessions", getUser, async (req, res) => {
   return res.json(res.stdRes);
 });
 
-router.get("/discord", getUser, async (req, res) => {
-  try {
-    res.stdRes.data = !!res.user.discordInfo.clientId;
-  } catch (e) {
-    req.app.Sentry.captureException(e);
-    res.stdRes.ret_det = e;
-  }
 
-  return res.json(res.stdRes);
-});
-
-router.post("/discord", async (req, res) => {
-  try {
-    if (!req.body.code || !req.body.cid) {
-      throw {
-        code: 400,
-        message: "Incomplete request",
-      };
-    }
-
-    const { cid, code } = req.body;
-    const user = await User.findOne({ cid });
-
-    if (!user) {
-      throw {
-        code: 401,
-        message: "User not found",
-      };
-    }
-
-    const oauth = new Discord();
-    const token = await oauth
-      .tokenRequest({
-        clientId: process.env.DISCORD_CLIENT_ID,
-        clientSecret: process.env.DISCORD_CLIENT_SECRET,
-        redirectUri: process.env.DISCORD_REDIRECT_URI,
-        grantType: "authorization_code",
-        code,
-        scope: "identify",
-      })
-      .catch((err) => {
-        console.log(err);
-        return false;
-      });
-
-    if (!token) {
-      throw {
-        code: 403,
-        message: "Unable to authenticate with Discord",
-      };
-    }
-
-    const { data: discordUser } = await axios
-      .get("https://discord.com/api/users/@me", {
-        headers: {
-          Authorization: `${token.token_type} ${token.access_token}`,
-          "User-Agent": "Chicago ARTCC API",
-        },
-      })
-      .catch((err) => {
-        console.log(err);
-        return false;
-      });
-
-    if (!discordUser) {
-      throw {
-        code: 403,
-        message: "Unable to retrieve Discord info",
-      };
-    }
-
-    user.discordInfo.clientId = discordUser.id;
-    user.discordInfo.accessToken = token.access_token;
-    user.discordInfo.refreshToken = token.refresh_token;
-    user.discordInfo.tokenType = token.token_type;
-
-    let currentTime = new Date();
-    currentTime = new Date(currentTime.getTime() + token.expires_in * 1000);
-    user.discordInfo.expires = currentTime;
-
-    await user.save();
-
-    await req.app.dossier.create({
-      by: user.cid,
-      affected: -1,
-      action: `%b connected their Discord.`,
-    });
-  } catch (e) {
-    req.app.Sentry.captureException(e);
-    res.stdRes.ret_det = e;
-  }
-
-  return res.json(res.stdRes);
-});
-
-router.delete("/discord", getUser, async (req, res) => {
-  try {
-    res.user.discordInfo = undefined;
-    await res.user.save();
-  } catch (e) {
-    req.app.Sentry.captureException(e);
-    res.stdRes.ret_det = e;
-  }
-
-  return res.json(res.stdRes);
-});
 
 router.get("/notifications", getUser, async (req, res) => {
   try {
