@@ -87,7 +87,7 @@ router.delete('/withyou', microAuth, async (req, res) => {
 
 	return res.json(res.stdRes);
 });
-router.get("/discord", getUser, async (req, res) => {
+router.get("/user", getUser, async (req, res) => {
 	try {
 		res.stdRes.data = !!res.user.discordInfo.clientId;
 	} catch (e) {
@@ -98,7 +98,7 @@ router.get("/discord", getUser, async (req, res) => {
 	return res.json(res.stdRes);
 });
 
-router.post("/discord", async (req, res) => {
+router.post("/info", async (req, res) => {
 	try {
 		if (!req.body.code || !req.body.cid) {
 			throw {
@@ -220,7 +220,7 @@ router.post("/discord", async (req, res) => {
 	return res.json(res.stdRes);
 });
 
-router.delete("/discord", getUser, async (req, res) => {
+router.delete("/user", getUser, async (req, res) => {
 	try {
 		res.user.discordInfo = undefined;
 		res.user.discord = undefined;
