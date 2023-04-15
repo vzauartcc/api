@@ -1,16 +1,22 @@
 import e from "express";
 const router = e.Router();
 import jwt from "jsonwebtoken";
-import User from '../models/User';
-import vatsimApiHelper from "../helpers/vatsimApiHelper.js";
+import User from '../models/User.js';
+import dotenv from "dotenv"
 
+dotenv.config();
 
 router.post('/login', async (req, res) => {
     try {
-        const { access_token } = req.headers;
-    
+        const secret = req.headers['x-secret'];
+        console.log(secret);
+        if (secret !== process.env.MOBILE_LOGIN_SECRET) {
+          res.status(401).send('Unauthorized');
+          return;
+        }
+
         // Use access token to attempt to get user data.
-        let vatsimUserData = await vatsimApiHelper.getUserInformation(access_token);
+        let vatsimUserData = req.body;
     
         // VATSIM API returns 200 codes on some errors, use CID as a check to see if there was an error.
         if (vatsimUserData?.data?.cid == null) {
@@ -50,7 +56,6 @@ router.post('/login', async (req, res) => {
         const token = jwt.sign({ cid: user.cid }, process.env.JWT_SECRET, {
             expiresIn: '30d',
         });
-  
         // Return the token to the client
         return res.json({ token });
     } catch (err) {
