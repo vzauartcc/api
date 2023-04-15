@@ -197,7 +197,7 @@ router.post("/info", async (req, res) => {
 		} else {
 			try {
 				await oauth.addMember({
-					accessToken: 'AQ3xBm8BSuZq3TEOiW4Om0qI63cYoZ',
+					accessToken: token.access_token,
 					botToken: process.env.DISCORD_TOKEN,
 					guildId: guildId,
 					userId: discordUser.id,
