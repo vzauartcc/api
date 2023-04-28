@@ -16,7 +16,8 @@ const trainingSessionSchema = new m.Schema({
 	studentNotes: String,
 	insNotes: String,
 	submitted: Boolean,
-	synced: Boolean
+	synced: Boolean,
+	deleted: Boolean
 }, {
 	collection: "trainingSessions",
 	timestamps: true

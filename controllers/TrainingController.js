@@ -252,7 +252,8 @@ router.get('/session/open', getUser, auth(['atm', 'datm', 'ta', 'ins', 'mtr', 'i
 	try {
 		const sessions = await TrainingSession.find({
 			instructorCid: res.user.cid,
-			submitted: false
+			submitted: false,
+			deleted: false
 		}).populate('student', 'fname lname cid vis').populate('milestone', 'name code').lean();
 
 		res.stdRes.data = sessions;
@@ -484,6 +485,29 @@ router.put('/session/submit/:id', getUser, auth(['atm', 'datm', 'ta', 'ins', 'mt
 			title: 'Training Notes Submitted',
 			content: `The training notes from your session with <b>${instructor.fname + ' ' + instructor.lname}</b> have been submitted.`,
 			link: `/dash/training/session/${req.params.id}`
+		});
+	} catch(e) {
+		req.app.Sentry.captureException(e);
+		res.stdRes.ret_det = e;
+	}
+
+	return res.json(res.stdRes);
+});
+
+router.delete('/session/delete/:id', getUser, auth(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']), async(req, res) => {
+	try {
+
+		const session = await TrainingSession.findByIdAndUpdate(req.params.id, {
+			deleted: true
+		});
+
+		const instructor = await User.findOne({cid: session.instructorCid}).select('fname lname').lean();
+
+		await Notification.create({
+			recipient: session.studentCid,
+			read: false,
+			title: 'Training Session Cancelled',
+			content: `The training session with <b>${instructor.fname + ' ' + instructor.lname}</b> has been cancelled. Reach out to <b>${instructor.fname + ' ' + instructor.lname}</b> for more information.`,
 		});
 	} catch(e) {
 		req.app.Sentry.captureException(e);
