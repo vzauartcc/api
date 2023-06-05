@@ -205,24 +205,46 @@ router.post('/request/take/:id', getUser, auth(['atm', 'datm', 'ta', 'ins', 'mtr
 
 	return res.json(res.stdRes);
 });
-
-router.delete('/request/:id', getUser, auth(['atm', 'datm', 'ta']), async (req, res) => {
+router.delete('/request/:id', getUser, async (req, res) => {
 	try {
-		const request = await TrainingRequest.findById(req.params.id);
-		request.delete();
-
-		await req.app.dossier.create({
-			by: res.user.cid,
-			affected: request.studentCid,
-			action: `%b deleted a training request from %a.`
+	  const request = await TrainingRequest.findById(req.params.id);
+	  
+	  if (!request) {
+		return res.status(404).json({ error: 'Training request not found' });
+	  }
+  
+	  const isSelf = res.user.cid === request.studentCid;
+  
+	  if (!isSelf) {
+		auth(['atm', 'datm', 'ta'])(req, res, () => {}); // Call the auth middleware
+	  }
+  
+	  request.deleted = true;
+	  await request.save();
+  
+	  if (isSelf) {
+		await Notification.create({
+		  recipient: res.user.cid,
+		  read: false,
+		  title: "Training Request Cancelled",
+		  content: 'You have deleted your training request.'
 		});
-	} catch(e) {
-		req.app.Sentry.captureException(e);
-		res.stdRes.ret_det = e;
+	  } else {
+		await Notification.create({
+		  recipient: request.studentCid,
+		  read: false,
+		  title: "Training Request Cancelled",
+		  content: `Your training request has been deleted by ${res.user.fname + ' ' + res.user.lname}.`
+		});
+	  }
+	} catch (e) {
+	  console.log('Error:', e);
+	  req.app.Sentry.captureException(e);
+	  res.stdRes.ret_det = e;
 	}
-
+  
 	return res.json(res.stdRes);
-});
+  });
 
 router.get('/request/:date', getUser, auth(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']), async (req, res) => {
 	try {
