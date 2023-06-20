@@ -164,7 +164,7 @@ router.post("/login", oAuth, async (req, res) => {
 
       await req.app.s3
         .putObject({
-          Bucket: "zauartcc/${process.env.SPACE}/avatars",
+          Bucket: "zauartcc/avatars",
           Key: `${user.cid}-default.png`,
           Body: data,
           ContentType: "image/png",

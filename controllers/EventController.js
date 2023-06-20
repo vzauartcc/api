@@ -308,7 +308,7 @@ router.post('/', getUser, auth(['atm', 'datm', 'ec', 'wm']), upload.single('bann
 		const tmpFile = await fs.readFile(req.file.path);
 
 		await req.app.s3.putObject({
-			Bucket: `zauartcc/${process.env.SPACE}/events`,
+			Bucket: `zauartcc/events`,
 			Key: req.file.filename,
 			Body: tmpFile,
 			ContentType: req.file.mimetype,
@@ -426,7 +426,7 @@ router.put('/:slug', getUser, auth(['atm', 'datm', 'ec', 'wm']), upload.single('
 			}
 			const tmpFile = await fs.readFile(req.file.path);
 			await req.app.s3.putObject({
-				Bucket: `zauartcc/${process.env.SPACE}/events`,
+				Bucket: `zauartcc/events`,
 				Key: req.file.filename,
 				Body: tmpFile,
 				ContentType: req.file.mimetype,
