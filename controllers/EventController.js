@@ -286,6 +286,24 @@ router.put('/:slug/mansignup/:cid', getUser, auth(['atm', 'datm', 'ec', 'wm']), 
 	return res.json(res.stdRes);
 });
 
+router.post('/updateEvent', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req, res) => {
+	const { url, messageId } = req.body;
+
+	const event = await Event.findOne({ url: url });
+
+	if (event) {
+		event.discordId = String(messageId);
+
+		await event.save();
+
+		res.status(200).json({ message: 'Event updated successfully' });
+	} else {
+		res.status(404).json({ message: 'Event not found' });
+	}
+
+
+});
+
 router.post('/', getUser, auth(['atm', 'datm', 'ec', 'wm']), upload.single('banner'), async (req, res) => {
 	try {
 		const url = req.body.name.replace(/\s+/g, '-').toLowerCase().replace(/^-+|-+(?=-|$)/g, '').replace(/[^a-zA-Z0-9-_]/g, '') + '-' + Date.now().toString().slice(-5);
