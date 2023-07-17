@@ -9,6 +9,9 @@ import User from '../models/User.js';
 import getUser from '../middleware/getUser.js';
 import auth from '../middleware/auth.js';
 import StaffingRequest from '../models/StaffingRequest.js'
+import mongoose from 'mongoose';
+const db = mongoose.connection;
+import fetch from "node-fetch";
 
 const upload = multer({
 	storage: multer.diskStorage({
@@ -20,6 +23,10 @@ const upload = multer({
 		}
 	})
 })
+
+
+
+
 
 router.get('/', async ({res}) => {
 	try {
@@ -286,23 +293,99 @@ router.put('/:slug/mansignup/:cid', getUser, auth(['atm', 'datm', 'ec', 'wm']), 
 	return res.json(res.stdRes);
 });
 
-router.post('/updateEvent', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req, res) => {
-	const { url, messageId } = req.body;
+router.post('/sendEvent', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req, res) => {
+	const url = req.body.url
+	const eventData = await db.collection('events').findOne({ url: url });
+	const positions = eventData.positions;
+	const positionFields = await Promise.all(positions.map(async position => {
+		if (typeof position.takenBy === 'undefined' || position.takenBy === null) {
+			return {
+				name: position.pos,
+				value: 'Open',
+				inline: true
+			};
+		} else {
+			try {
+				const res = await db.collection('users').findOne({ cid: position.takenBy });
+				const name = res.fname + ' ' + res.lname;
+				return {
+					name: position.pos,
+					value: name,
+					inline: true
+				};
+			} catch (err) {
+				console.log(err);
+			}
+		}
+	}));
 
-	const event = await Event.findOne({ url: url });
+	const params = {
+		username: "WATSN",
+		avatar_url: "https://cdn.discordapp.com/avatars/1011884072479502406/feac626c2bdf43bfa8337cd3165e5a92.png?size=1024",
+		content: "",
+		embeds: [
+			{
+				title: eventData.name,
+				description: eventData.description,
+				color: 2003199,
+				footer: { text: 'Position information provided by WATSN' },
+				fields: positionFields,
+				url: 'www.zauartcc.org/events/' + eventData.url,
+				image: {
+					url: 'https://zauartcc.sfo3.digitaloceanspaces.com/events/' + eventData.bannerUrl
+				}
+			}
+		]
+	};
 
-	if (event) {
-		event.discordId = String(messageId);
+	if(eventData.discordId === undefined) {
+		fetch(process.env.DISCORD_WEBHOOK + '?wait=true', {
+			method: "POST",
+			headers: {
+				'Content-type': 'application/json'
+			},
+			body: JSON.stringify(params)
+		})
+			.then(res => res.json())
+			.then(async data => {
 
-		await event.save();
 
-		res.status(200).json({ message: 'Event updated successfully' });
-	} else {
-		res.status(404).json({ message: 'Event not found' });
+				let url = eventData.url
+				let messageId = data.id
+
+
+				const event1 = await db.collection('events').findOneAndUpdate(
+					{ url: url },
+					{ $set: { discordId: String(messageId) } },
+					{ returnOriginal: false }
+				);
+				if (event1) {
+					res.status(200).json({ message: 'Event updated successfully' });
+				} else {
+					res.status(404).json({ message: 'Event not found' });
+				}
+
+			})
+			.catch(error => {
+				console.log(error);
+			});
+	}else{
+		fetch(process.env.DISCORD_WEBHOOK + `/messages/${eventData.discordId}`, {
+			method: "PATCH",
+			headers: {
+				'Content-type': 'application/json'
+			},
+			body: JSON.stringify(params)
+		})
+			.then(res => res.json())
+			.then(data => {
+
+			})
 	}
-
-
 });
+
+
+
 
 router.post('/', getUser, auth(['atm', 'datm', 'ec', 'wm']), upload.single('banner'), async (req, res) => {
 	try {
