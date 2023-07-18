@@ -9,8 +9,6 @@ import User from '../models/User.js';
 import getUser from '../middleware/getUser.js';
 import auth from '../middleware/auth.js';
 import StaffingRequest from '../models/StaffingRequest.js'
-import mongoose from 'mongoose';
-const db = mongoose.connection;
 import fetch from "node-fetch";
 
 const upload = multer({
@@ -295,7 +293,7 @@ router.put('/:slug/mansignup/:cid', getUser, auth(['atm', 'datm', 'ec', 'wm']), 
 
 router.post('/sendEvent', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req, res) => {
 	const url = req.body.url
-	const eventData = await db.collection('events').findOne({ url: url });
+	const eventData = await Event.findOne({ url: url });
 	const positions = eventData.positions;
 	const positionFields = await Promise.all(positions.map(async position => {
 		if (typeof position.takenBy === 'undefined' || position.takenBy === null) {
@@ -306,7 +304,7 @@ router.post('/sendEvent', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req
 			};
 		} else {
 			try {
-				const res = await db.collection('users').findOne({ cid: position.takenBy });
+				const res = await User.findOne({ cid: position.takenBy });
 				const name = res.fname + ' ' + res.lname;
 				return {
 					name: position.pos,
@@ -354,7 +352,7 @@ router.post('/sendEvent', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req
 				let messageId = data.id
 
 
-				const event1 = await db.collection('events').findOneAndUpdate(
+				const event1 = await Event.findOneAndUpdate(
 					{ url: url },
 					{ $set: { discordId: String(messageId) } },
 					{ returnOriginal: false }
