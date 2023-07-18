@@ -292,6 +292,7 @@ router.put('/:slug/mansignup/:cid', getUser, auth(['atm', 'datm', 'ec', 'wm']), 
 });
 
 router.post('/sendEvent', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req, res) => {
+	try{
 	const url = req.body.url
 	const eventData = await Event.findOne({ url: url });
 	const positions = eventData.positions;
@@ -380,6 +381,12 @@ router.post('/sendEvent', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req
 
 			})
 	}
+} catch (e) {
+	req.app.Sentry.captureException(e);
+	res.stdRes.ret_det = e;
+}
+
+return res.json(res.stdRes);
 });
 
 
