@@ -818,6 +818,12 @@ router.put('/staffingRequest/:id', async (req, res) => {
 			description: req.body.description,
 		  },
 		});
+
+		await req.app.dossier.create({
+			by: res.user.cid,
+			affected: -1,
+			action: `%b approved a staffing request for ${req.body.vaName}.`,
+		  });
 	  }
   
 	  return res.status(200).json({ ret_det: { code: 200, message: 'Staffing request updated successfully' }});
