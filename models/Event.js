@@ -16,6 +16,7 @@ const eventSchema = new m.Schema({
 	signups: [EventSignups], // who has signed up?
 	open: Boolean, // open for sign ups
 	submitted: Boolean, // have emails etc. been sent out?
+	discordId: String, // the ID of the discord message sent by the webhook
 
 }, {
 	timestamps: true,

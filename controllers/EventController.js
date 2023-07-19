@@ -9,6 +9,7 @@ import User from '../models/User.js';
 import getUser from '../middleware/getUser.js';
 import auth from '../middleware/auth.js';
 import StaffingRequest from '../models/StaffingRequest.js'
+import fetch from "node-fetch";
 
 const upload = multer({
 	storage: multer.diskStorage({
@@ -20,6 +21,10 @@ const upload = multer({
 		}
 	})
 })
+
+
+
+
 
 router.get('/', async ({res}) => {
 	try {
@@ -285,6 +290,104 @@ router.put('/:slug/mansignup/:cid', getUser, auth(['atm', 'datm', 'ec', 'wm']), 
 
 	return res.json(res.stdRes);
 });
+
+router.post('/sendEvent', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req, res) => {
+
+	try{
+		const url = req.body.url
+	const eventData = await Event.findOne({ url: url });
+	const positions = eventData.positions;
+	const positionFields = await Promise.all(positions.map(async position => {
+		if (typeof position.takenBy === 'undefined' || position.takenBy === null) {
+			return {
+				name: position.pos,
+				value: 'Open',
+				inline: true
+			};
+		} else {
+			try {
+				const res1 = await User.findOne({ cid: position.takenBy });
+				const name = res1.fname + ' ' + res1.lname;
+				return {
+					name: position.pos,
+					value: name,
+					inline: true
+				};
+			} catch (err) {
+				console.log(err);
+			}
+		}
+	}));
+
+	const params = {
+		username: "WATSN",
+		avatar_url: "https://cdn.discordapp.com/avatars/1011884072479502406/feac626c2bdf43bfa8337cd3165e5a92.png?size=1024",
+		content: "",
+		embeds: [
+			{
+				title: eventData.name,
+				description: eventData.description,
+				color: 2003199,
+				footer: { text: 'Position information provided by WATSN' },
+				fields: positionFields,
+				url: 'https://www.zauartcc.org/events/' + eventData.url,
+				image: {
+					url: 'https://zauartcc.sfo3.digitaloceanspaces.com/events/' + eventData.bannerUrl
+				}
+			}
+		]
+	};
+	if(eventData.discordId === undefined) {
+
+		fetch(process.env.DISCORD_WEBHOOK + '?wait=true', {
+			method: "POST",
+			headers: {
+				'Content-type': 'application/json'
+			},
+			body: JSON.stringify(params)
+		})
+			.then(res2 => res2.json())
+			.then(async data => {
+				let url = eventData.url
+				let messageId = data.id
+				if (messageId !== undefined) {
+					await Event.findOneAndUpdate(
+						{ url: url },
+						{ $set: { discordId: String(messageId) } },
+						{ returnOriginal: false }
+					)
+				} else {
+					return res.status(404).json({ message: 'Event could not be sent', status: 404 });
+				}
+				return res.status(200).json({ message: 'Event sent successfully', status: 200 });
+
+
+			})
+			.catch(error => {
+				console.log(error);
+			});
+	}else{
+		fetch(process.env.DISCORD_WEBHOOK + `/messages/${eventData.discordId}`, {
+			method: "PATCH",
+			headers: {
+				'Content-type': 'application/json'
+			},
+			body: JSON.stringify(params)
+		})
+			.then(res => res.json())
+			.then(data => {
+				return res.status(201).json({ message: 'Event updated successfully', status: 201 });
+			})
+	}
+} catch (e) {
+	req.app.Sentry.captureException(e);
+	res.stdRes.ret_det = e;
+}
+
+});
+
+
+
 
 router.post('/', getUser, auth(['atm', 'datm', 'ec', 'wm']), upload.single('banner'), async (req, res) => {
 	try {
