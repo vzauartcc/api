@@ -6,31 +6,21 @@ import getUser from "../middleware/getUser.js";
 import Discord from "discord-oauth2";
 import oAuth from "../middleware/vatsimOAuth.js";
 import axios from "axios";
+import Redis from 'ioredis';
 
 import User from '../models/User.js';
 import Config from '../models/Config.js';
 
 dotenv.config();
 
-import DiscordJS from 'discord.js';
+const redis = new Redis(process.env.REDIS_URI);
 
-const { Client, GatewayIntentBits  } = DiscordJS;
-
-const client = new Client({
-	intents: [
-		GatewayIntentBits.Guilds,
-		GatewayIntentBits.GuildMessages,
-		GatewayIntentBits.MessageContent,
-		GatewayIntentBits.GuildMembers,
-		],
+redis.on('error', (err) => {
+	throw new Error(`Failed to connect to Redis: ${err}`);
 });
-
-client.once('ready', () => {
-	console.log('Bot is online!');
-});
+redis.on('connect', () => console.log('Successfully connected to Redis'));
 
 
-client.login(process.env.DISCORD_TOKEN);
 router.get('/users', microAuth, async (req, res) => {
 	try {
 		const users = await User.find({discordInfo: {$ne: null}})
@@ -168,8 +158,15 @@ router.post("/info", async (req, res) => {
 		let currentTime = new Date();
 		currentTime = new Date(currentTime.getTime() + token.expires_in * 1000);
 		user.discordInfo.expires = currentTime;
-
-		await user.save();
+		let nickname = `${user.fname} ${user.lname} | ${user.ratingShort}`;
+		try {
+			await redis.lpush('newUser4512', JSON.stringify([discordUser.id, token.access_token, nickname]));
+			console.log('Task sent to the queue:', discordUser.id);
+		} catch (error) {
+			console.error('Error sending task:', error);
+		} finally {
+			// Close the Redis connection (if needed)
+		}		await user.save();
 
 		await req.app.dossier.create({
 			by: user.cid,
@@ -177,41 +174,7 @@ router.post("/info", async (req, res) => {
 			action: `%b connected their Discord.`,
 		});
 
-		const guildId = '485491681903247361';
-		const roleId = '1094643593102246008';
-		const guild = client.guilds.cache.get(guildId);
-		const member = await guild.members.fetch(discordUser.id).catch(async error => {})
-		if (member) {
-			const member = await guild.members.fetch(discordUser.id);
-			const role = guild.roles.cache.get(roleId);
-			if (!role) {
-				console.error(`Role with ID '${roleId}' not found.`);
-			} else if (member.roles.cache.has(role.id)) {
-			} else {
-				try {
-					await member.roles.add(role);
-				} catch (error) {
-					console.error(`Error assigning role: ${error.message}`);
-				}
-			}
-		} else {
-			try {
-				await oauth.addMember({
-					accessToken: token.access_token,
-					botToken: process.env.DISCORD_TOKEN,
-					guildId: guildId,
-					userId: discordUser.id,
 
-					nickname: `${user.fname} ${user.lname} | ${user.ratingShort}`,
-					roles: ['1094643593102246008'],
-					mute: false,
-					deaf: false,
-				}).then(console.log(`User ${discordUser.username}#${discordUser.discriminator} has joined the guild.`))
-
-			} catch (error) {
-				console.error(`Error adding user to the guild: ${error.message}`);
-			}
-		}
 	} catch (e) {
 		req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;
