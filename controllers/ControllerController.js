@@ -66,14 +66,38 @@ router.get('/', async ({res}) => {
 			select: '-reason'
 		}).lean({virtuals: true});
 
-		if(!home || !visiting) {
+		const removed = await User.find({member: false}).select('-email -idsToken -discordInfo').sort({
+			lname: 'asc',
+			fname: 'asc'
+		}).populate({
+			path: 'certifications',
+			options: {
+				sort: {order: 'desc'}
+			}
+		}).populate({
+			path: 'roles',
+			options: {
+				sort: {order: 'asc'}
+			}
+		}).populate({
+			path: 'absence',
+			match: {
+				expirationDate: {
+					$gte: new Date()
+				},
+				deleted: false
+			},
+			select: '-reason'
+		}).lean({virtuals: true});
+
+		if(!home || !visiting || !removed) {
 			throw {
 				code: 503,
 				message: "Unable to retrieve controllers"
 			};
 		}
 
-		res.stdRes.data = {home, visiting};
+		res.stdRes.data = {home, visiting, removed};
 	}
 	catch(e) {
 		req.app.Sentry.captureException(e);
@@ -722,6 +746,7 @@ router.put('/:cid/member', microAuth, async (req, res) => {
 		user.member = req.body.member;
 		user.oi = (req.body.member) ? generateOperatingInitials(user.fname, user.lname, oi.map(oi => oi.oi)) : null;
 		user.joinDate = req.body.member ? new Date() : null;
+		user.removalDate = null;
 
 		await user.save();
 		const ratings = ['Unknown', 'OBS', 'S1', 'S2', 'S3', 'C1', 'C2', 'C3', 'I1', 'I2', 'I3', 'SUP', 'ADM'];
@@ -872,6 +897,27 @@ router.put('/:cid', getUser, auth(['atm', 'datm', 'ta', 'fe', 'ec', 'wm', 'ins',
 	return res.json(res.stdRes);
 });
 
+router.put('/remove-cert/:cid', microAuth, async (req, res) => {
+	try {
+	  // Find the user by CID and remove their certCodes
+	  const cid = req.params.cid;
+	  const user = await User.findOne({ cid }).exec();
+  
+	  if (!user) {
+		return res.status(404).json({ message: 'User not found' });
+	  }
+  
+	  // Remove the user's certCodes
+	  user.certCodes = [];
+	  await user.save();
+  
+	  res.status(200).json({ message: 'Certs removed successfully' });
+	} catch (error) {
+	  console.error('Error removing certs', error);
+	  res.status(500).json({ message: 'Internal server error' });
+	}
+  });
+
 router.delete('/:cid', getUser, auth(['atm', 'datm']), async (req, res) => {
 	try {
 		if(!req.body.reason) {
@@ -882,7 +928,8 @@ router.delete('/:cid', getUser, auth(['atm', 'datm']), async (req, res) => {
 		}
 
 		const user = await User.findOneAndUpdate({cid: req.params.cid}, {
-			member: false
+			member: false,
+			removalDate: new Date().toISOString()
 		});
 
 		if(user.vis) {
