@@ -4,12 +4,15 @@ import transporter from '../config/mailer.js';
 import TrainingSession from '../models/TrainingSession.js';
 import TrainingRequest from '../models/TrainingRequest.js';
 import TrainingMilestone from '../models/TrainingMilestone.js';
+import TrainingModule from '../models/TrainingModule.js';
+import TrainingProgress from '../models/TrainingProgress.js';
 import Notification from '../models/Notification.js';
 import User from '../models/User.js';
 import getUser from '../middleware/getUser.js';
 import auth from '../middleware/auth.js';
 import axios from 'axios';
 import dayjs from 'dayjs';
+import m from 'mongoose'
 
 router.get('/request/upcoming', getUser, async (req, res) => {
 	try {
@@ -513,6 +516,43 @@ router.put('/session/submit/:id', getUser, auth(['atm', 'datm', 'ta', 'ins', 'mt
 	}
 
 	return res.json(res.stdRes);
+});
+
+router.get('/modules/:cid', getUser, auth(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']), async(req, res) => {
+    try {
+        const cid = req.params.cid;    
+
+		const populatedProgress = await TrainingProgress.findOne({ cid: cid})
+  			.populate({
+    			path: 'modulesInProgress.moduleId',
+    			model: 'TrainingModule' // Ensure this matches the name used in mongoose.model() when registering the TrainingModule model
+  			});
+
+			  if (populatedProgress && populatedProgress.modulesInProgress) {
+				populatedProgress.modulesInProgress.forEach(progressItem => {
+				  if (progressItem.moduleId && progressItem.moduleId.courses) {
+					progressItem.moduleId.courses.forEach(course => {
+					  console.log(course.courseName); // Logs the name of each course
+					});
+				  }
+				});
+			  }
+
+        if (!populatedProgress) {
+            return res.status(404).json({ message: "Training progress not found for the given CID." });
+        }
+
+        // Additional logic remains unchanged
+        if (populatedProgress != null) {
+            res.json({ populatedProgress });
+        } else {
+            res.json({ message: "No modules in progress for the given CID.", modulesInProgress: [] });
+        }
+    } catch (error) {
+        console.error("Error fetching modules in progress:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+	
 });
 
 export default router;
