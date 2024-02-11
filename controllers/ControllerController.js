@@ -2,6 +2,7 @@ import e from 'express';
 const router = e.Router();
 import User from '../models/User.js';
 import ControllerHours from '../models/ControllerHours.js';
+import TrainingProgress from '../models/TrainingProgress.js';
 import Role from '../models/Role.js';
 import VisitApplication from '../models/VisitApplication.js';
 import Absence from '../models/Absence.js';
@@ -596,6 +597,8 @@ router.put('/visit/:cid', getUser, auth(['atm', 'datm']), async (req, res) => {
 
 		await user.save();
 
+		await initializeUserProgress(user.cid);
+
 		await axios.post(`https://api.vatusa.net/v2/facility/ZAU/roster/manageVisitor/${req.params.cid}?apikey=${process.env.VATUSA_API_KEY}`)
 
 		await transporter.sendMail({
@@ -751,44 +754,46 @@ router.put('/:cid/member', microAuth, async (req, res) => {
 		await user.save();
 		const ratings = ['Unknown', 'OBS', 'S1', 'S2', 'S3', 'C1', 'C2', 'C3', 'I1', 'I2', 'I3', 'SUP', 'ADM'];
 		if(req.body.member){
-		await transporter.sendMail({
-			to: 'atm@zauartcc.org, datm@zauartcc.org, ta@zauartcc.org',
-			from: {
-				name: "Chicago ARTCC",
-				address: 'no-reply@zauartcc.org'
-			},
-			subject: `New ${user.vis ? 'Visitor' : 'Member'}: ${user.fname} ${user.lname} | Chicago ARTCC`,
-			template: 'newController',
-			context: {
-				name: `${user.fname} ${user.lname}`,
-				email: user.email,
-				cid: user.cid,
-				rating: ratings[user.rating],
-				vis: user.vis,
-				type: user.vis ? 'visitor' : 'member',
-				home: 'NA'
-			}
-		});
+			await initializeUserProgress(user.cid);
+			await transporter.sendMail({
+				to: 'atm@zauartcc.org, datm@zauartcc.org, ta@zauartcc.org',
+				from: {
+					name: "Chicago ARTCC",
+					address: 'no-reply@zauartcc.org'
+				},
+				subject: `New ${user.vis ? 'Visitor' : 'Member'}: ${user.fname} ${user.lname} | Chicago ARTCC`,
+				template: 'newController',
+				context: {
+					name: `${user.fname} ${user.lname}`,
+					email: user.email,
+					cid: user.cid,
+					rating: ratings[user.rating],
+					vis: user.vis,
+					type: user.vis ? 'visitor' : 'member',
+					home: 'NA'
+				}
+			});
 		}
 		if(req.body.vis){
-		await transporter.sendMail({
-			to: 'atm@zauartcc.org, datm@zauartcc.org, ta@zauartcc.org',
-			from: {
-				name: "Chicago ARTCC",
-				address: 'no-reply@zauartcc.org'
-			},
-			subject: `New ${user.vis ? 'Visitor' : 'Member'}: ${user.fname} ${user.lname} | Chicago ARTCC`,
-			template: 'newController',
-			context: {
-				name: `${user.fname} ${user.lname}`,
-				email: user.email,
-				cid: user.cid,
-				rating: ratings[user.rating],
-				vis: user.vis,
-				type: user.vis ? 'visitor' : 'member',
-				home: 'NA'
-			}
-		});
+			await initializeUserProgress(user.cid);
+			await transporter.sendMail({
+				to: 'atm@zauartcc.org, datm@zauartcc.org, ta@zauartcc.org',
+				from: {
+					name: "Chicago ARTCC",
+					address: 'no-reply@zauartcc.org'
+				},
+				subject: `New ${user.vis ? 'Visitor' : 'Member'}: ${user.fname} ${user.lname} | Chicago ARTCC`,
+				template: 'newController',
+				context: {
+					name: `${user.fname} ${user.lname}`,
+					email: user.email,
+					cid: user.cid,
+					rating: ratings[user.rating],
+					vis: user.vis,
+					type: user.vis ? 'visitor' : 'member',
+					home: 'NA'
+				}
+			});
 		}
 
 		await req.app.dossier.create({
@@ -818,6 +823,7 @@ router.put('/:cid/visit', microAuth, async (req, res) => {
 
 		user.vis = req.body.vis;
 		user.joinDate = new Date();
+		await initializeUserProgress(req.params.cid);
 
 		await user.save();
 
@@ -1017,6 +1023,31 @@ const generateOperatingInitials = (fname, lname, usedOi) => {
 
 	return false;
 };
+
+async function initializeUserProgress(cid) {
+	try {
+	  // Check if the user's progress document already exists
+	  let progress = await TrainingProgress.findOne({ cid });
+	  if (!progress) {
+		// If not, create a new progress document
+		progress = new TrainingProgress({
+		  cid,
+		  modulesInProgress: [],
+		  completedModules: [],
+		});
+		await progress.save();
+		console.log("New training progress document created for user:", cid);
+	  } else {
+		console.log("User's training progress document already exists.");
+	  }
+	  return progress;
+	} catch (error) {
+	  console.error("Error initializing user's training progress:", error);
+	  throw error; // Consider how you want to handle errors in your application
+	}
+}
+
+
 
 /**
  * Selects a number of random characters from a given string.
