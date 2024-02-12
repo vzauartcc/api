@@ -4,6 +4,7 @@ import m from 'mongoose';
 const courseProgressSchema = new m.Schema({
   courseName: { type: String }, // Use this to match with _id of the course within a module
   isCompleted: { type: Boolean, default: false }, // Tracks completion status of each course
+  completionDate: { type: Date }
 });
 
 const trainingProgressSchema = new m.Schema({
