@@ -13,14 +13,6 @@ import Config from '../models/Config.js';
 
 dotenv.config();
 
-const redis = new Redis(process.env.REDIS_URI);
-
-redis.on('error', (err) => {
-	throw new Error(`Failed to connect to Redis: ${err}`);
-});
-redis.on('connect', () => console.log('Successfully connected to Redis'));
-
-
 router.get('/users', microAuth, async (req, res) => {
 	try {
 		const users = await User.find({discordInfo: {$ne: null}})
