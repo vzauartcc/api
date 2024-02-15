@@ -543,8 +543,9 @@ router.get('/modules/:cid', getUser, auth(['atm', 'datm', 'ta', 'ins', 'mtr', 'i
         }
 
         // Additional logic remains unchanged
-        if (populatedProgress != null) {
-            res.json({ populatedProgress });
+		if (populatedProgress != null) {
+			// Send populatedProgress as part of the response
+			res.status(200).json({ data: populatedProgress });
         } else {
             res.json({ message: "No modules in progress for the given CID.", modulesInProgress: [] });
         }

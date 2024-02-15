@@ -21,6 +21,7 @@ import IdsController from './controllers/IdsController.js';
 import TrainingController from './controllers/TrainingController.js';
 import DiscordController from './controllers/DiscordController.js';
 import StatsController from './controllers/StatsController.js';
+import ExamController from './controllers/ExamController.js';
 
 // Global Dossier Model
 import Dossier from './models/Dossier.js';
@@ -132,6 +133,7 @@ app.dossier = Dossier;
 // Connect to MongoDB
 mongoose.set('toJSON', {virtuals: true});
 mongoose.set('toObject', {virtuals: true});
+mongoose.set('strictQuery', true);
 mongoose.connect(process.env.MONGO_URI);
 const db = mongoose.connection;
 db.once('open', () => console.log('Successfully connected to MongoDB'));
@@ -147,6 +149,7 @@ app.use('/ids', IdsController);
 app.use('/training', TrainingController);
 app.use('/discord', DiscordController);
 app.use('/stats', StatsController);
+app.use('/exam', ExamController);
 
 if(process.env.NODE_ENV === 'production') app.use(Sentry.Handlers.errorHandler());
 
