@@ -5,7 +5,7 @@ import User from '../models/User.js';
 import getUser from '../middleware/getUser.js';
 import auth from '../middleware/auth.js';
 import { Exam, Question, ExamAttempt } from '../models/Exam.js'; // Adjust the path as needed
-import TrainingProgress from '../models/TrainingProgress.js';
+//import TrainingProgress from '../models/TrainingProgress.js';
 import { body, validationResult} from 'express-validator';
 
 // Define validation chain for creating a new exam
