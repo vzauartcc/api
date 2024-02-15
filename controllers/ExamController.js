@@ -65,13 +65,12 @@ router.post('/exams', getUser, auth(['atm', 'datm', 'ta']), createExamValidation
     }
     
     try {
-        const { title, description, questions, timeLimit, createdBy, questionSubsetSize } = req.body;
         const newExam = new Exam({
-            title,
-            description,
-            questions,
-            timeLimit,
-            questionSubsetSize,
+            title: req.body.title,
+            description: req.body.description,
+            questions: req.body.questions,
+            timeLimit: req.body.timeLimit,
+            questionSubsetSize: req.body.questionSubsetSize,
             createdBy: res.user._id,
         });
         await newExam.save();
@@ -85,7 +84,7 @@ router.post('/exams', getUser, auth(['atm', 'datm', 'ta']), createExamValidation
 // Update Exam
 router.patch('/exams/:examId', getUser, auth(['atm', 'datm', 'ta']), async (req, res) => {
     const { examId } = req.params; // Get the exam ID from the URL parameter
-    const { title, description, questions, timeLimit } = req.body; // Extract updated fields from the request body
+    const { title, description, questions, timeLimit, questionSubsetSize } = req.body; // Extract updated fields from the request body
 
     try {
         // Find the exam by ID and update it with new values
