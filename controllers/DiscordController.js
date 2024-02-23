@@ -7,7 +7,7 @@ import Discord from "discord-oauth2";
 import oAuth from "../middleware/vatsimOAuth.js";
 import axios from "axios";
 import Redis from 'ioredis';
-
+const redis = new Redis(process.env.REDIS_URI);
 import User from '../models/User.js';
 import Config from '../models/Config.js';
 
