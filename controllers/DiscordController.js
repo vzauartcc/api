@@ -6,8 +6,6 @@ import getUser from "../middleware/getUser.js";
 import Discord from "discord-oauth2";
 import oAuth from "../middleware/vatsimOAuth.js";
 import axios from "axios";
-import Redis from 'ioredis';
-const redis = new Redis(process.env.REDIS_URI);
 import User from '../models/User.js';
 import Config from '../models/Config.js';
 
@@ -152,7 +150,7 @@ router.post("/info", async (req, res) => {
 		user.discordInfo.expires = currentTime;
 		let nickname = `${user.fname} ${user.lname} | ${user.ratingShort}`;
 		try {
-			await redis.lpush('newUser4512', JSON.stringify([discordUser.id, token.access_token, nickname]));
+			await req.app.redis.lpush('newUser4512', JSON.stringify([discordUser.id, token.access_token, nickname]));			
 			console.log('Task sent to the queue:', discordUser.id);
 		} catch (error) {
 			console.error('Error sending task:', error);
