@@ -8,5 +8,8 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="module" module-name="ChicagoBOT" />
+    <orderEntry type="module" module-name="ui" />
+    <orderEntry type="module" module-name="vatusa-sync" />
   </component>
 </module>
