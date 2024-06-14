@@ -6,13 +6,14 @@ import TrainingRequest from '../models/TrainingRequest.js';
 import TrainingMilestone from '../models/TrainingMilestone.js';
 import TrainingModule from '../models/TrainingModule.js';
 import TrainingProgress from '../models/TrainingProgress.js';
+import TrainerProfile from '../models/TrainerProfile.js';
 import Notification from '../models/Notification.js';
 import User from '../models/User.js';
 import getUser from '../middleware/getUser.js';
 import auth from '../middleware/auth.js';
 import axios from 'axios';
 import dayjs from 'dayjs';
-import m from 'mongoose'
+
 
 router.get('/request/upcoming', getUser, async (req, res) => {
 	try {
@@ -518,41 +519,358 @@ router.put('/session/submit/:id', getUser, auth(['atm', 'datm', 'ta', 'ins', 'mt
 	return res.json(res.stdRes);
 });
 
-router.get('/modules/:cid', getUser, auth(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']), async(req, res) => {
+router.get('/modules', getUser, auth(['atm', 'datm', 'ta']), async (req, res) => {
     try {
-        const cid = req.params.cid;    
+        const modules = await TrainingModule.find()
+            .populate('prerequisites')
+            .populate('extensionModule');
 
-		const populatedProgress = await TrainingProgress.findOne({ cid: cid})
-  			.populate({
-    			path: 'modulesInProgress.moduleId',
-    			model: 'TrainingModule' // Ensure this matches the name used in mongoose.model() when registering the TrainingModule model
-  			});
+        const modulesWithSortedCourses = modules.map(module => {
+            // Sort courses by their 'order' field
+            const sortedCourses = module.courses.sort((a, b) => a.order - b.order);
+            return {
+                ...module._doc, // Use the _doc property to get the raw document
+                courses: sortedCourses,
+                numberOfCourses: sortedCourses.length // Include the number of courses
+            };
+        });
 
-			  if (populatedProgress && populatedProgress.modulesInProgress) {
-				populatedProgress.modulesInProgress.forEach(progressItem => {
-				  if (progressItem.moduleId && progressItem.moduleId.courses) {
-					progressItem.moduleId.courses.forEach(course => {
-					  console.log(course.courseName); // Logs the name of each course
-					});
-				  }
-				});
-			  }
+        res.stdRes.data = modulesWithSortedCourses;
+        res.stdRes.ret_det.code = 200;
+        res.stdRes.ret_det.message = 'Modules fetched successfully';
+    } catch (error) {
+        res.stdRes.ret_det.code = 500;
+        res.stdRes.ret_det.message = 'Error fetching training modules: ' + error.message;
+    }
+    res.json(res.stdRes);
+});
+
+
+// POST: Create a new training module
+router.post('/modules', getUser, auth(['atm', 'datm', 'ta' ]), async (req, res) => {
+    try {
+        const newModule = new TrainingModule(req.body);
+        await newModule.save();
+        res.stdRes.data = newModule;
+        res.stdRes.ret_det.code = 201;
+        res.stdRes.ret_det.message = 'Module created successfully';
+    } catch (error) {
+        res.stdRes.ret_det.code = 400;
+        res.stdRes.ret_det.message = 'Error creating training module: ' + error.message;
+    }
+    res.json(res.stdRes);
+});
+
+router.patch('modules/:moduleId', getUser, auth(['atm', 'datm', 'ta' ]), async (req, res) => {
+    try {
+        const updatedModule = await TrainingModule.findByIdAndUpdate(req.params.moduleId, req.body, { new: true });
+        res.stdRes.data = updatedModule;
+        res.stdRes.ret_det.code = 200;
+        res.stdRes.ret_det.message = 'Module updated successfully';
+    } catch (error) {
+        res.stdRes.ret_det.code = 400;
+        res.stdRes.ret_det.message = 'Error updating training module: ' + error.message;
+    }
+    res.json(res.stdRes);
+});
+
+// DELETE: Delete a training module
+router.delete('modules/:moduleId', getUser, auth(['atm', 'datm', 'ta' ]), async (req, res) => {
+    try {
+        await TrainingModule.findByIdAndDelete(req.params.moduleId);
+        res.stdRes.ret_det.code = 200;
+        res.stdRes.ret_det.message = 'Module deleted successfully';
+    } catch (error) {
+        res.stdRes.ret_det.code = 500;
+        res.stdRes.ret_det.message = 'Error deleting training module: ' + error.message;
+    }
+    res.json(res.stdRes);
+});
+
+router.get('/modules/:cid', getUser, auth(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']), async (req, res) => {
+    try {
+        const cid = req.params.cid;
+
+        const populatedProgress = await TrainingProgress.findOne({ cid: cid })
+            .populate({
+                path: 'modulesInProgress.moduleId',
+                model: 'TrainingModule' // Ensure this matches the name used in mongoose.model() when registering the TrainingModule model
+            });
 
         if (!populatedProgress) {
-            return res.status(404).json({ message: "Training progress not found for the given CID." });
+            res.stdRes.ret_det.code = 404;
+            res.stdRes.ret_det.message = "Training progress not found for the given CID.";
+            return res.json(res.stdRes);
         }
 
-        // Additional logic remains unchanged
-        if (populatedProgress != null) {
-            res.json({ populatedProgress });
-        } else {
-            res.json({ message: "No modules in progress for the given CID.", modulesInProgress: [] });
+        // Assuming you want to include the logic to console log course names
+        if (populatedProgress && populatedProgress.modulesInProgress) {
+            populatedProgress.modulesInProgress.forEach(progressItem => {
+                if (progressItem.moduleId && progressItem.moduleId.courses) {
+                    progressItem.moduleId.courses.forEach(course => {
+                        console.log(course.courseName); // Logs the name of each course
+                    });
+                }
+            });
         }
+
+        // Set the successful response
+        res.stdRes.ret_det.code = 200;
+        res.stdRes.ret_det.message = "Modules in progress fetched successfully.";
+        res.stdRes.data = populatedProgress;
+
     } catch (error) {
         console.error("Error fetching modules in progress:", error);
-        res.status(500).json({ message: "Internal Server Error" });
+        res.stdRes.ret_det.code = 500;
+        res.stdRes.ret_det.message = "Internal Server Error";
     }
-	
+
+    res.json(res.stdRes);
 });
+
+router.get('/trainers/assignments', getUser, auth(['atm', 'datm', 'ta']), async (req, res) => {
+  try {
+    const instructorRoles = ['atm', 'datm', 'ta', 'ins', 'mtr', 'ia'];
+    const trainers = await User.find({ roleCodes: { $in: instructorRoles } });
+
+    const trainerAssignments = await Promise.all(trainers.map(async (trainer) => {
+      const assignments = await TrainingProgress.find({ "modulesInProgress.trainingTeam.trainers": trainer._id });
+
+      // Find the corresponding TrainerProfile for each trainer
+      const trainerProfile = await TrainerProfile.findOne({ trainerId: trainer._id });
+
+      // Return the combined data
+      return { trainer, assignments, trainerProfile }; // Include trainerProfile in the returned object
+    }));
+
+    res.stdRes.data = trainerAssignments; // Set the data part of the standardized response
+    res.stdRes.ret_det.message = 'Successfully retrieved trainer assignments.';
+    res.json(res.stdRes); // Send the standardized response
+  } catch (error) {
+    res.stdRes.ret_det.code = 500;
+    res.stdRes.ret_det.message = error.toString();
+    res.status(500).json(res.stdRes); // Send the standardized response with error details
+  }
+});
+
+router.get('/trainers/:cid', getUser, auth(['atm', 'datm', 'ta']), async (req, res) => {
+	try {
+		const cid = req.params.cid;
+		// Use findOne to fetch the trainer by cid instead of _id
+		const trainer = await User.findOne({ cid: cid });
+		if (!trainer) {
+				return res.status(404).json({ message: 'Trainer not found' });
+		}
+
+		// Fetch the trainer's profile and populate the assignableModules with TrainingModule details
+		const trainerProfile = await TrainerProfile.findOne({ trainerId: trainer._id })
+		.populate('assignableModules.moduleId');
+
+		const assignments = await TrainingProgress.find({ "modulesInProgress.trainingTeam.trainers": trainer._id });
+			
+		const response = {
+			trainer: {
+				_id: trainer._id,
+				cid: trainer.cid,
+				fname: trainer.fname,
+				lname: trainer.lname,
+				roleCodes: trainer.roleCodes,
+				ratingShort: trainer.ratingShort,
+				oi: trainer.oi,
+			},
+				assignments,
+				trainerProfile: trainerProfile ? trainerProfile.toObject() : null, // Convert to plain object if found
+		};
+
+		res.stdRes.data = response;
+		res.stdRes.ret_det.message = 'Successfully retrieved trainer details.';
+		res.json(res.stdRes);
+	} catch (error) {
+		res.stdRes.ret_det.code = 500;
+		res.stdRes.ret_det.message = error.toString();
+		res.status(500).json(res.stdRes);
+	}
+});
+
+router.put('/trainerProfile/:trainerId', getUser, auth(['atm', 'datm', 'ta']), async (req, res) => {
+	try {
+			const { trainerId } = req.params;
+			console.log(`Updating trainer profile for trainerId: ${trainerId}`); // Log the trainerId being updated
+
+			const { assignableModules, canConductEVAL } = req.body;
+			console.log('Received assignableModules:', assignableModules); // Log the received assignableModules
+			console.log('Received canConductEVAL:', canConductEVAL); // Log the received canConductEVAL status
+
+			// Optionally, add data validation here
+
+			// Find and update the trainer profile
+			const updatedProfile = await TrainerProfile.findOneAndUpdate(
+					{ trainerId: trainerId }, // Ensure 'trainerId' matches your schema's reference field
+					{ 
+							assignableModules: assignableModules, 
+							canConductEVAL: canConductEVAL 
+					},
+					{ new: true, runValidators: true } // Return the updated document and run schema validators
+			);
+
+			if (!updatedProfile) {
+					console.log('Trainer profile not found for trainerId:', trainerId); // Log if no profile found
+					res.stdRes.ret_det.code = 404;
+					res.stdRes.ret_det.message = 'Trainer profile not found.';
+					return res.status(404).json(res.stdRes);
+			}
+
+			console.log('Updated trainer profile:', updatedProfile); // Log the updated trainer profile
+			res.stdRes.data = updatedProfile;
+			res.stdRes.ret_det.message = 'Trainer profile updated successfully.';
+			res.json(res.stdRes);
+	} catch (error) {
+			console.error('Error updating trainer profile:', error); // Log any errors encountered
+			res.stdRes.ret_det.code = 500;
+			res.stdRes.ret_det.message = error.toString();
+			res.status(500).json(res.stdRes);
+	}
+});
+
+router.delete('/trainer/:trainerId', getUser, auth(['atm', 'datm', 'ta']), async (req, res) => {
+	try {
+			const { trainerId } = req.params;
+			const objectId = m.Types.ObjectId(trainerId);
+
+			// Check for any TrainingProgress documents where this trainer is part of the training team
+			const activeTrainingAssignments = await TrainingProgress.find({
+					"modulesInProgress.trainers": objectId
+			}).exec();
+
+			if (activeTrainingAssignments.length > 0) {
+					// Return an error message if the trainer is part of any training teams
+					return res.status(400).json({ message: 'Cannot remove trainer with active training assignments.' });
+			}
+
+			// Proceed with role removal and TrainerProfile deletion as before
+			await User.updateOne({ _id: objectId }, { $pull: { roleCodes: { $in: ['ins', 'mtr', 'ia'] } } });
+			const deletionResult = await TrainerProfile.findOneAndDelete({ trainerId: objectId });
+
+			if (!deletionResult) {
+					return res.status(404).json({ message: 'Trainer profile not found for the provided ID.' });
+			}
+
+			res.status(200).json({ message: 'Trainer and their profile removed successfully.' });
+	} catch (error) {
+			console.error("Failed to remove trainer:", error);
+			res.status(500).json({ message: 'Failed to remove trainer.', error: error.message });
+	}
+});
+
+router.get('/training-progress', getUser, auth(['atm', 'datm', 'ta', ]), async (req, res) => {
+  try {
+    // Fetch all entries from the TrainingProgress collection
+    const trainingProgress = await TrainingProgress.find()
+			.populate({
+				path: 'modulesInProgress.moduleId', // First, populate the moduleId field with the name from the TrainingModule collection
+				select: 'name'
+			})
+			.populate({ // Now, add another populate to fetch trainer details
+				path: 'modulesInProgress.trainingTeam.trainers', // Specify the path to the trainers array
+				select: 'fname lname' // Only fetch the first and last name of each trainer
+			});
+		res.stdRes.data = trainingProgress;
+
+	} catch (e) {
+    console.error(e);
+    res.stdRes.ret_det = e;
+  }
+
+	return res.json(res.stdRes)
+});
+
+router.get('/trainers/by-module/:moduleId', getUser, auth(['atm', 'datm', 'ta']), async (req, res) => {
+  const { moduleId } = req.params;
+  
+  try {
+    // Find trainers who can teach the specific module and populate only specific fields from the User document
+    const trainers = await TrainerProfile.find({
+      "assignableModules.moduleId": moduleId,
+      "assignableModules.canTeach": true
+    })
+    .populate('trainerId', 'cid fname lname email') // Example: Only include the 'cid', 'fname' 'lname' and 'email' fields from the User document
+    .select('trainerId -_id'); // Example: Only include 'trainerId' in the results, exclude '_id' of TrainerProfile
+
+		res.stdRes.data = trainers.map(trainer => trainer.trainerId); // Assuming you want to return an array of User details directly
+    
+  } catch (e) {
+    console.error(e);
+		res.stdRes.ret_det = e;
+  }
+
+	return res.json(res.stdRes);
+});
+
+router.get('/modules/extensions/by-module/:moduleId', async (req, res) => {
+  const { moduleId } = req.params;
+  
+  try {
+    const extensions = await TrainingModule.find({
+      extensionModule: moduleId,
+      isExtension: true
+    });
+
+    res.stdRes.data = extensions;
+
+  } catch (e) {
+    console.error(e);
+		res.stdRes.ret_det = e;
+  }
+
+	return res.json(res.stdRes);
+});
+
+router.put('/trainingProgress/:cid', getUser, auth(['atm', 'datm', 'ta']), async (req, res) => {
+  // Convert CID from params to Number
+  const cid = Number(req.params.cid);
+  const { moduleInProgressUpdate } = req.body;
+
+  // Log incoming CID and module update payload
+  console.log('CID:', cid);
+  console.log('Module In Progress Update:', moduleInProgressUpdate);
+
+  try {
+    // Prepare query and update objects for logging
+    const query = { cid, "modulesInProgress.moduleId": moduleInProgressUpdate.moduleId };
+    const update = {
+      $set: {
+        "modulesInProgress.$.status": moduleInProgressUpdate.status,
+        "modulesInProgress.$.trainingTeam": moduleInProgressUpdate.trainingTeam
+      }
+    };
+
+    // Log the query and update objects
+    console.log('Query:', query);
+    console.log('Update:', update);
+
+    const result = await TrainingProgress.findOneAndUpdate(query, update, { new: true });
+
+    // Log the result of the findOneAndUpdate operation
+    console.log('findOneAndUpdate Result:', result);
+
+    if (!result) {
+      res.stdRes.ret_det.code = 404;
+      res.stdRes.ret_det.message = 'Training progress not found.';
+      return res.status(404).json(res.stdRes);
+    }
+
+    res.stdRes.ret_det.message = 'Training progress updated successfully.';
+    res.stdRes.data = result;
+  } catch (e) {
+    console.error('Failed to update training progress:', e);
+    res.stdRes.ret_det.code = 500;
+    res.stdRes.ret_det.message = 'Internal server error';
+    return res.status(500).json(res.stdRes);
+  }
+
+  return res.json(res.stdRes);
+});
+
+
 
 export default router;

@@ -6,7 +6,13 @@ const courseSchema = new m.Schema({
   courseName: { type: String },
   description: { type: String },
   type: { type: String },
-  facility: { type: String }
+  facility: { type: String },
+  order: { 
+    type: Number,
+    required: true
+  },
+  certifications: [{ type: String }], // Or [{ type: m.Schema.Types.ObjectId, ref: 'Certification' }] if referencing other entities
+  examId: { type: m.Schema.Types.ObjectId, ref: 'Exam', default: null }, // Optional reference to an Exam
 });
 
 // Use courseSchema for the courses array in your TrainingModule schema

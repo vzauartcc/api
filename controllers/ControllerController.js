@@ -5,6 +5,7 @@ import ControllerHours from '../models/ControllerHours.js';
 import TrainingProgress from '../models/TrainingProgress.js';
 import Role from '../models/Role.js';
 import VisitApplication from '../models/VisitApplication.js';
+import TrainerProfile from '../models/TrainerProfile.js';
 import Absence from '../models/Absence.js';
 import Notification from '../models/Notification.js';
 import transporter from '../config/mailer.js';
@@ -13,7 +14,8 @@ import auth from '../middleware/auth.js';
 import microAuth from '../middleware/microAuth.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { DateTime as L } from 'luxon'
+import { DateTime as L } from 'luxon';
+import zab from '../config/zab.js';
 
 dotenv.config();
 
@@ -106,6 +108,33 @@ router.get('/', async ({res}) => {
 	}
 
 	return res.json(res.stdRes);
+});
+
+router.get('/active', getUser, async (req, res) => {
+  try {
+    console.log("Fetching active controllers...");
+
+    // Fetch only active controllers with the specified fields
+    const activeControllers = await User.find({ member: true, certCodes: { "$nin": ["zau"] } })
+      .select('cid fname lname rating certCodes member vis -_id')
+      .sort({ lname: 'asc', fname: 'asc' })
+      .lean();
+
+    // Adding virtuals manually since 'lean' option is used
+    const controllersWithVirtuals = activeControllers.map(controller => ({
+      ...controller,
+      ratingShort: zab.ratings[controller.rating], // Assuming zab.ratings is accessible here
+    }));
+
+    res.stdRes.data = controllersWithVirtuals;
+
+		console.log('This is the completion of the fetch:', controllersWithVirtuals )
+  } catch (e) {
+    console.error(e);
+    res.stdRes.ret_det = e;
+  }
+
+  return res.json(res.stdRes);
 });
 
 router.get('/staff', async (req, res) => {
@@ -850,6 +879,14 @@ router.put('/:cid', getUser, auth(['atm', 'datm', 'ta', 'fe', 'ec', 'wm', 'ins',
 			};
 		}
 
+		const currentUser = await User.findOne({ cid: req.params.cid });
+    if (!currentUser) {
+      throw {
+        code: 404,
+        message: "User not found"
+      };
+    }
+
 		const {fname, lname, email, oi, roles, certs, vis} = req.body.form;
 		const toApply = {
 			roles: [],
@@ -888,6 +925,25 @@ router.put('/:cid', getUser, auth(['atm', 'datm', 'ta', 'fe', 'ec', 'wm', 'ins',
 			roleCodes: toApply.roles,
 			certCodes: toApply.certifications,
 		});
+
+		const trainerRoles = ['ins', 'mtr']; // Define your training roles
+    const hasTrainerRole = toApply.roles.some(role => trainerRoles.includes(role));
+    const hadTrainerRole = toApply.roles.some(role => trainerRoles.includes(role));
+    const isRemovingTrainerRole = hadTrainerRole && !hasTrainerRole;
+
+		if (hasTrainerRole && !hadTrainerRole) {
+			// If adding a trainer role for the first time, create a blank TrainerProfile
+			const newTrainerProfile = new TrainerProfile({
+					trainerId: currentUser._id,
+					assignableModules: [],
+					canConductEVAL: false,
+			});
+			await newTrainerProfile.save();
+		} else if (isRemovingTrainerRole) {
+			// If removing the last trainer role, delete the TrainerProfile
+			await TrainerProfile.findOneAndDelete({ trainerId: currentUser._id });
+		}
+
 
 		await req.app.dossier.create({
 			by: res.user.cid,

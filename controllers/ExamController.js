@@ -5,8 +5,9 @@ import User from '../models/User.js';
 import getUser from '../middleware/getUser.js';
 import auth from '../middleware/auth.js';
 import { Exam, Question, ExamAttempt } from '../models/Exam.js'; // Adjust the path as needed
-//import TrainingProgress from '../models/TrainingProgress.js';
+import TrainingProgress from '../models/TrainingProgress.js';
 import { body, validationResult} from 'express-validator';
+import microAuth from '../middleware/microAuth.js';
 
 // Define validation chain for creating a new exam
 const createExamValidation = [
@@ -17,7 +18,7 @@ const createExamValidation = [
     body('questions.*.options.*.text').notEmpty().withMessage('Option text is required'),
     body('questions.*.options.*.isCorrect').isBoolean().withMessage('isCorrect must be a boolean'),
     body('timeLimit').isNumeric().withMessage('Time limit must be a number'),
-    body('questionSubsetSize').isNumeric().withMessage('Question subset size must be a number'),
+    body('questionSubsetSize').isNumeric().withMessage('Question subset size must be a number').isInt().withMessage('Question subset size must be a whole number'),
     // Custom validation logic here
     (req, res, next) => {
         const questions = req.body.questions || [];
@@ -185,62 +186,86 @@ router.post('/exams/:examId/start', getUser, async (req, res) => {
     res.status(201).json({ message: "Exam started successfully", attemptId: newAttempt._id, timeRemaining });
 });
 
-// Submit Exam Attempt
-router.post('/exams/:examId/submit', getUser, async (req, res) => {
+// Patch Exam Attempt (update answers, time spent, and submit)
+router.patch('/exams/:examId/attempt', getUser, async (req, res) => {
+    const { examId } = req.params;
+    const userId = req.user._id;
+    const { responses, submit } = req.body; // `submit` indicates if this is a final submission
+
     try {
-        const { responses } = req.body; // Expected format: [{ questionId, selectedOption }]
-        const examId = req.params.examId;
-        const userId = req.user._id;
-
-        const exam = await Exam.findById(examId).populate('questions');
-        if (!exam) {
-            return res.status(404).json({ message: "Exam not found" });
-        }
-
-        // Initialize exam attempt
-        let correctAnswers = 0;
-        const questions = exam.questions; // Assuming this is an array of questions with correct options
-
-        // Validate and score responses
-        const scoredResponses = responses.map(response => {
-            const question = questions.find(q => q._id.equals(response.questionId));
-            if (!question) {
-                return { ...response, isCorrect: false };
-            }
-
-            const isCorrect = question.options.some(option => option._id.equals(response.selectedOption) && option.isCorrect);
-            if (isCorrect) correctAnswers++;
-            return { ...response, isCorrect };
-        });
-
-        // Calculate score
-        const score = (correctAnswers / questions.length) * 100;
-        const passingScore = 80; // Define the passing score threshold
-        const passed = score >= passingScore; // Correctly 
-
-        // Record the attempt
-        const examAttempt = new ExamAttempt({
+        // Fetch the existing exam attempt
+        let examAttempt = await ExamAttempt.findOne({
             exam: examId,
             user: userId,
-            responses: scoredResponses,
-            score,
-            startTime: req.body.startTime, // Assuming startTime was passed in the request
-            endTime: new Date(), // Mark the end time of the attempt
-            passed,
-            status: 'completed',
+            status: { $in: ['in_progress'] }
         });
+
+        if (!examAttempt) {
+            return res.status(404).json({ message: "Exam attempt not found or already submitted." });
+        }
+
+        // If responses are provided, update them
+        if (responses && Array.isArray(responses)) {
+            responses.forEach(response => {
+                // Find the matching question in the attempt and update it
+                let attemptResponse = examAttempt.responses.find(r => r.question.toString() === response.questionId);
+                if (attemptResponse) {
+                    if (response.selectedOption) {
+                        attemptResponse.selectedOption = response.selectedOption;
+                    }
+                    if (response.timeSpent) {
+                        attemptResponse.timeSpent += response.timeSpent; // Accumulate time spent
+                    }
+                    // Update correctness based on the new answer, if needed
+                    // This requires fetching the question details or having that information available
+                }
+            });
+        }
+
+        // If this is a final submission, update the attempt's status and potentially calculate the score
+        if (submit) {
+            examAttempt.status = 'completed';
+            examAttempt.endTime = new Date();
+        
+            // Load the exam document to access the questions and their options
+            const exam = await Exam.findById(examAttempt.exam).exec();
+            if (!exam) {
+                return res.status(404).json({ message: "Exam not found." });
+            }
+        
+            let correctAnswers = 0;
+        
+            // Iterate over the responses in the exam attempt
+            examAttempt.responses.forEach(response => {
+                // Find the corresponding question in the exam document
+                const question = exam.questions.find(q => q._id.equals(response.question));
+        
+                if (question) {
+                    // Use the adjusted calculateCorrectness function
+                    const isCorrect = calculateCorrectness(question.options, response.selectedOption);
+                    if (isCorrect) correctAnswers++;
+        
+                    // Update the correctness status in the response object if necessary
+                    response.isCorrect = isCorrect;
+                }
+            });
+        
+            const score = (correctAnswers / examAttempt.responses.length) * 100;
+            examAttempt.score = score;
+            examAttempt.passed = score >= 80; // Assuming 80 is the passing score
+        }
+
         await examAttempt.save();
 
-        // Respond with score and detailed results
-        res.status(200).json({
-            message: "Exam submitted successfully",
-            score,
-            passed,
-            responses: scoredResponses,
+        res.json({
+            message: submit ? "Exam submitted successfully" : "Exam attempt updated",
+            examAttemptId: examAttempt._id,
+            status: examAttempt.status,
+            ...(submit && { score: examAttempt.score, passed: examAttempt.passed }) // Include score and passed only on submission
         });
     } catch (error) {
-        console.error("Error submitting exam:", error);
-        res.status(500).json({ message: "Internal server error" });
+        console.error("Error updating exam attempt:", error);
+        res.status(500).json({ message: "Internal server error", error: error.toString() });
     }
 });
 
@@ -301,38 +326,6 @@ router.get('/exams/:id/results', getUser, async (req, res) => {
     }
 });
 
-router.patch('/exams/:examId/questions/:questionId/time', getUser, async (req, res) => {
-    const { examId, questionId } = req.params;
-    const { additionalTimeSpent } = req.body; // The additional time spent on the question
-    const userId = req.user._id;
-
-    try {
-        // Find the exam attempt
-        const attempt = await ExamAttempt.findOne({
-            exam: examId,
-            user: userId,
-            status: 'in_progress' // Assuming you want to update an in-progress attempt
-        });
-
-        if (!attempt) {
-            return res.status(404).json({ message: "Exam attempt not found or not in progress." });
-        }
-
-        // Find the response for the question and update time spent
-        const response = attempt.responses.find(r => r.question.toString() === questionId);
-        if (response) {
-            response.timeSpent += additionalTimeSpent; // Add the additional time to the current time spent
-            await attempt.save(); // Save the updated attempt
-            return res.status(200).json({ message: "Time spent updated successfully." });
-        } else {
-            return res.status(404).json({ message: "Question not found in the current attempt." });
-        }
-    } catch (error) {
-        console.error("Error updating time spent:", error);
-        return res.status(500).json({ message: "Internal server error" });
-    }
-});
-
 router.put('/exams/:examId/resetAttempts', getUser, auth(['atm', 'datm', 'ta', 'ins']), async (req, res) => {
     const { examId } = req.params;
     const { userId } = req.body; // Assume the userId to reset attempts for is sent in the request
@@ -375,5 +368,12 @@ async function selectRandomSubset(allQuestions, questionSubsetSize) {
   
     return subset;
 };
+
+function calculateCorrectness(options, selectedOptionId) {
+    // Assuming `options` is an array of option objects from the question
+    // and `selectedOptionId` is the ID of the option selected by the user
+    const selectedOption = options.find(option => option._id.equals(selectedOptionId));
+    return Boolean(selectedOption && selectedOption.isCorrect);
+}
 
 export default router;
