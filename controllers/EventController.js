@@ -1,6 +1,5 @@
 import e from 'express';
 import transporter from '../config/mailer.js';
-import multer from 'multer';
 import { fileTypeFromFile } from 'file-type';
 import fs from 'fs/promises';
 const router = e.Router();
@@ -10,21 +9,7 @@ import getUser from '../middleware/getUser.js';
 import auth from '../middleware/auth.js';
 import StaffingRequest from '../models/StaffingRequest.js'
 import fetch from "node-fetch";
-
-const upload = multer({
-	storage: multer.diskStorage({
-		destination: (req, file, cb) => {
-			cb(null, '/tmp');
-		},
-		filename: (req, file, cb) => {
-			cb(null, `${Date.now()}-${file.originalname}`);
-		}
-	})
-})
-
-
-
-
+import { PutObjectCommand } from '@aws-sdk/client-s3';
 
 router.get('/', async ({res}) => {
 	try {
@@ -389,170 +374,153 @@ router.post('/sendEvent', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req
 
 
 
-router.post('/', getUser, auth(['atm', 'datm', 'ec', 'wm']), upload.single('banner'), async (req, res) => {
-	try {
-		const url = req.body.name.replace(/\s+/g, '-').toLowerCase().replace(/^-+|-+(?=-|$)/g, '').replace(/[^a-zA-Z0-9-_]/g, '') + '-' + Date.now().toString().slice(-5);
-		const allowedTypes = ['image/jpg', 'image/jpeg', 'image/png', 'image/gif'];
-		const fileType = await fileTypeFromFile(req.file.path);
+router.post('/', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req, res) => {
+  const form = new formidable.IncomingForm();
+  form.parse(req, async (err, fields, files) => {
+    if (err) {
+      req.app.Sentry.captureException(err);
+      res.stdRes.ret_det = err;
+      return res.json(res.stdRes);
+    }
 
-		if(fileType === undefined || !allowedTypes.includes(fileType.mime)) {
-			throw {
-				code: 400,
-				message: "Banner type not supported"
-			}
-		}
-		if(req.file.size > (6 * 10240 * 10240)) {	// 6MiB
-			throw {
-				code: 400,
-				message: "Banner too large"
-			}
-		}
+    try {
+      const url = fields.name.replace(/\s+/g, '-').toLowerCase().replace(/^-+|-+(?=-|$)/g, '').replace(/[^a-zA-Z0-9-_]/g, '') + '-' + Date.now().toString().slice(-5);
+      const allowedTypes = ['image/jpg', 'image/jpeg', 'image/png', 'image/gif'];
+      const file = files.banner;
 
-		const tmpFile = await fs.readFile(req.file.path);
+      if (file.size > (6 * 1024 * 1024)) { // 6MiB
+        throw {
+          code: 400,
+          message: "Banner too large"
+        };
+      }
 
-		await req.app.s3.putObject({
-			Bucket: `zauartcc/events`,
-			Key: req.file.filename,
-			Body: tmpFile,
-			ContentType: req.file.mimetype,
-			ACL: 'public-read',
-			ContentDisposition: 'inline',
-		}).promise();
+      const fileType = await fileTypeFromFile(file.path);
+      if (!fileType || !allowedTypes.includes(fileType.mime)) {
+        throw {
+          code: 400,
+          message: "Banner type not supported"
+        };
+      }
 
-		await Event.create({
-			name: req.body.name,
-			description: req.body.description,
-			url: url,
-			bannerUrl: req.file.filename,
-			eventStart: req.body.startTime,
-			eventEnd: req.body.endTime,
-			createdBy: res.user.cid,
-			open: true,
-			submitted: false
-		});
+      const tmpFile = await fs.readFile(file.path);
 
-		await req.app.dossier.create({
-			by: res.user.cid,
-			affected: -1,
-			action: `%b created the event *${req.body.name}*.`
-		});
-	} catch(e) {
-		req.app.Sentry.captureException(e);
-		res.stdRes.ret_det = e;
-	}
-	return res.json(res.stdRes);
+      await s3.send(new PutObjectCommand({
+        Bucket: `zauartcc/events`,
+        Key: file.newFilename,
+        Body: tmpFile,
+        ContentType: file.mimetype,
+        ACL: 'public-read',
+        ContentDisposition: 'inline',
+      }));
+
+      await Event.create({
+        name: fields.name,
+        description: fields.description,
+        url: url,
+        bannerUrl: file.newFilename,
+        eventStart: fields.startTime,
+        eventEnd: fields.endTime,
+        createdBy: res.user.cid,
+        open: true,
+        submitted: false
+      });
+
+      await req.app.dossier.create({
+        by: res.user.cid,
+        affected: -1,
+        action: `%b created the event *${fields.name}*.`
+      });
+
+      res.stdRes.data = { message: "Event created successfully" };
+    } catch (e) {
+      req.app.Sentry.captureException(e);
+      res.stdRes.ret_det = e;
+    }
+
+    return res.json(res.stdRes);
+  });
 });
 
-router.put('/:slug', getUser, auth(['atm', 'datm', 'ec', 'wm']), upload.single('banner'), async (req, res) => {
-	try {
-		const event = await Event.findOne({url: req.params.slug});
-		const {name, description, startTime, endTime, positions} = req.body;
-		if(event.name !== name) {
-			event.name = name;
-			event.url = name.replace(/\s+/g, '-').toLowerCase().replace(/^-+|-+(?=-|$)/g, '').replace(/[^a-zA-Z0-9-_]/g, '') + '-' + Date.now().toString().slice(-5);
-		}
-		event.description = description;
-		event.eventStart = startTime;
-		event.eventEnd = endTime;
+router.put('/:slug', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req, res) => {
+  const form = new formidable.IncomingForm();
+  form.parse(req, async (err, fields, files) => {
+    if (err) {
+      req.app.Sentry.captureException(err);
+      res.stdRes.ret_det = err;
+      return res.json(res.stdRes);
+    }
 
-		const computedPositions = [];
+    try {
+      const event = await Event.findOne({ url: req.params.slug });
+      const { name, description, startTime, endTime, positions } = fields;
 
-		for(const pos of JSON.parse(positions)) {
-			const thePos = pos.match(/^([A-Z]{3})_(?:[A-Z0-9]{1,3}_)?([A-Z]{3})$/); // 🤮 so basically this extracts the first part and last part of a callsign.
-			if(['CTR'].includes(thePos[2])) {
-				computedPositions.push({
-					pos,
-					type: thePos[2],
-					code: 'zau',
-				})
-			}
-			if(['APP', 'DEP'].includes(thePos[2])) {
-				computedPositions.push({
-					pos,
-					type: thePos[2],
-					code: (thePos[1] === "ORD") ? 'ordapp' : 'app',
-				})
-			}
-			if(['TWR'].includes(thePos[2])) {
-				computedPositions.push({
-					pos,
-					type: thePos[2],
-					code: (thePos[1] === "ORD") ? 'ordtwr' : 'twr',
-				})
-			}
-			if(['GND', 'DEL'].includes(thePos[2])) {
-				computedPositions.push({
-					pos,
-					type: thePos[2],
-					code: (thePos[1] === "ORD") ? 'ordgnd' : 'gnd',
-				})
-			}
-		}
+      if (event.name !== name) {
+        event.name = name;
+        event.url = name.replace(/\s+/g, '-').toLowerCase().replace(/^-+|-+(?=-|$)/g, '').replace(/[^a-zA-Z0-9-_]/g, '') + '-' + Date.now().toString().slice(-5);
+      }
+      event.description = description;
+      event.eventStart = startTime;
+      event.eventEnd = endTime;
 
-		if(event.positions.length > 0) {
+      const computedPositions = JSON.parse(positions).map(pos => {
+        const thePos = pos.match(/^([A-Z]{3})_(?:[A-Z0-9]{1,3}_)?([A-Z]{3})$/);
+        const type = thePos[2];
+        const code = ['ORD'].includes(thePos[1]) ? 'ord' + type.toLowerCase() : type.toLowerCase();
+        return { pos, type, code };
+      });
 
-			const newPositions = [];
+      event.positions = event.positions.length > 0 ? event.positions.map(epos => {
+        const newPos = computedPositions.find(npos => npos.pos === epos.pos);
+        return newPos ? { ...newPos, takenBy: epos.takenBy } : epos;
+      }) : computedPositions;
 
-			for(let position of computedPositions) {
-				newPositions.push(position);
-				for(let i = 0; i < event.positions.length; i++) {
-					if(event.positions[i].pos === position.pos) {
+      if (files.banner) {
+        const file = files.banner;
+        if (file.size > (6 * 1024 * 1024)) { // 6MiB
+          throw {
+            code: 400,
+            message: "Banner too large"
+          };
+        }
 
-						if(event.positions[i].takenBy) {
-							console.log(event.positions[i].takenBy);
-							const j = newPositions.indexOf(position);
-							newPositions[j].takenBy = event.positions[i].takenBy;
-						}
-					}
-				}
-			}
+        const fileType = await fileTypeFromFile(file.path);
+        if (!fileType || !allowedTypes.includes(fileType.mime)) {
+          throw {
+            code: 400,
+            message: "File type not supported"
+          };
+        }
 
-			event.positions = newPositions;
-		} else {
-			event.positions = computedPositions;
-		}
+        const tmpFile = await fs.readFile(file.path);
+        await s3.send(new PutObjectCommand({
+          Bucket: `zauartcc/events`,
+          Key: file.newFilename,
+          Body: tmpFile,
+          ContentType: file.mimetype,
+          ACL: 'public-read',
+          ContentDisposition: 'inline',
+        }));
 
-		if(req.file) {
-			const allowedTypes = ['image/jpg', 'image/jpeg', 'image/png', 'image/gif'];
-			const fileType = await fileTypeFromFile(req.file.path);
-			if(fileType === undefined || !allowedTypes.includes(fileType.mime)) {
-				throw {
-					code: 400,
-					message: "File type not supported"
-				}
-			}
-			if(req.file.size > (6 * 10240 * 10240)) {	// 6MiB
-				throw {
-					code: 400,
-					message: "File too large"
-				}
-			}
-			const tmpFile = await fs.readFile(req.file.path);
-			await req.app.s3.putObject({
-				Bucket: `zauartcc/events`,
-				Key: req.file.filename,
-				Body: tmpFile,
-				ContentType: req.file.mimetype,
-				ACL: 'public-read',
-				ContentDisposition: 'inline',
-			}).promise();
+        event.bannerUrl = file.newFilename;
+      }
 
-			event.bannerUrl = req.file.filename;
-		}
+      await event.save();
 
-		await event.save();
+      await req.app.dossier.create({
+        by: res.user.cid,
+        affected: -1,
+        action: `%b updated the event *${event.name}*.`
+      });
 
-		await req.app.dossier.create({
-			by: res.user.cid,
-			affected: -1,
-			action: `%b updated the event *${event.name}*.`
-		});
-	} catch(e) {
-		req.app.Sentry.captureException(e);
-		res.stdRes.ret_det = e;
-	}
+      res.stdRes.data = { message: "Event updated successfully" };
+    } catch (e) {
+      req.app.Sentry.captureException(e);
+      res.stdRes.ret_det = e;
+    }
 
-	return res.json(res.stdRes);
+    return res.json(res.stdRes);
+  });
 });
 
 router.delete('/:slug', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req, res) => {

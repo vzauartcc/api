@@ -7,7 +7,7 @@ import cors from 'cors';
 import env from 'dotenv';
 import mongoose from 'mongoose';
 import Redis from 'ioredis';
-import aws from 'aws-sdk';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 // Route Controllers
 import UserController from './controllers/UserController.js';
@@ -123,10 +123,13 @@ app.use((req, res, next) => {
 });
 
 
-app.s3 = new aws.S3({
-	endpoint: new aws.Endpoint('sfo3.digitaloceanspaces.com'),
-	accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-	secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+app.s3 = new S3Client({
+  endpoint: 'https://sfo3.digitaloceanspaces.com',
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+  region: 'us-west-1', // specify your region
 });
 app.dossier = Dossier;
 

@@ -1,337 +1,582 @@
 import e from 'express';
 const router = e.Router();
-import aws from 'aws-sdk';
-import multer from 'multer';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import formidable from 'formidable';
 import fs from 'fs/promises';
 import Downloads from '../models/Download.js';
 import Document from '../models/Document.js';
 import getUser from '../middleware/getUser.js';
 import auth from '../middleware/auth.js';
 
-const s3 = new aws.S3({
-    endpoint: new aws.Endpoint('sfo3.digitaloceanspaces.com'),
+const s3 = new S3Client({
+  endpoint: 'https://sfo3.digitaloceanspaces.com',
+  credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+  region: 'us-west-1', // specify your region
 });
-
-const upload = multer({
-    storage: multer.diskStorage({
-        destination: (req, file, cb) => {
-            cb(null, '/tmp');
-            },
-        filename: (req, file, cb) => {
-            cb(null, `${Date.now()}-${file.originalname}`);
-        }
-    })
-})
 
 // Downloads
 router.get('/downloads', async ({res}) => {
-    try {
-        const downloads = await Downloads.find({deletedAt: null}).sort({category: "asc", name: "asc"}).lean();
-        res.stdRes.data = downloads;
-    } catch(e) {
-        req.app.Sentry.captureException(e);
-        res.stdRes.ret_det = e;
-    }
+  try {
+    const downloads = await Downloads.find({deletedAt: null}).sort({category: "asc", name: "asc"}).lean();
+    res.stdRes.data = downloads;
+  } catch(e) {
+    req.app.Sentry.captureException(e);
+    res.stdRes.ret_det = e;
+  }
 
-    return res.json(res.stdRes);
+  return res.json(res.stdRes);
 });
 
 router.get('/downloads/:id', async (req, res) => {
-    try {
-        const download = await Downloads.findById(req.params.id).lean();
-        res.stdRes.data = download;
-    } catch(e) {
-        req.app.Sentry.captureException(e);
-        res.stdRes.ret_det = e;
-    }
+  try {
+    const download = await Downloads.findById(req.params.id).lean();
+    res.stdRes.data = download;
+  } catch(e) {
+    req.app.Sentry.captureException(e);
+    res.stdRes.ret_det = e;
+  }
 
-    return res.json(res.stdRes);
+  return res.json(res.stdRes);
 });
 
-router.post('/downloads', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), upload.single('download'), async (req, res) => {
-    try {
-        if(!req.body.category) {
-            throw {
-                code: 400,
-                message: 'You must select a category'
-            }
-        }
-        if(req.file.size > (100 * 1024 * 1024)) {	// 100MiB
-            throw {
-                code: 400,
-                message: 'File too large'
-            }
-        }
-        const tmpFile = await fs.readFile(req.file.path);
-        await s3.putObject({
-            Bucket: `zauartcc/downloads`,
-            Key: req.file.filename,
-            Body: tmpFile,
-            ContentType: req.file.mimetype,
-            ACL: 'public-read',
-        }).promise();
-
-        await Downloads.create({
-            name: req.body.name,
-            description: req.body.description,
-            fileName: req.file.filename,
-            category: req.body.category,
-            author: req.body.author
-        });
-
-
-        await req.app.dossier.create({
-            by: res.user.cid,
-            affected: -1,
-            action: `%b created the file *${req.body.name}*.`
-        });
-    } catch(e) {
-        req.app.Sentry.captureException(e);
-        res.stdRes.ret_det = e;
+router.post('/downloads', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), async (req, res) => {
+  const form = formidable();
+  form.parse(req, async (err, fields, files) => {
+    if (err) {
+      res.status(500).send(err);
+      return;
     }
+  
+    try {
+      if (!fields.category) {
+        throw {
+          code: 400,
+          message: 'You must select a category'
+        };
+      }
+      const file = files.download;
+      if (file.size > (100 * 1024 * 1024)) { // 100MiB
+        throw {
+          code: 400,
+          message: 'File too large'
+        };
+      }
+      const tmpFile = await fs.readFile(file.path);
+      await s3.send(new PutObjectCommand({
+        Bucket: `zauartcc/downloads`,
+        Key: file.newFilename,
+        Body: tmpFile,
+        ContentType: file.mimetype,
+        ACL: 'public-read',
+      }));
+  
+      await Downloads.create({
+        name: fields.name,
+        description: fields.description,
+        fileName: file.newFilename,
+        category: fields.category,
+        author: fields.author
+      });
+  
+      await req.app.dossier.create({
+        by: res.user.cid,
+        affected: -1,
+        action: `%b created the file *${fields.name}*.`
+			});
 
-    return res.json(res.stdRes);
+  	} catch (e) {
+    	req.app.Sentry.captureException(e);
+			res.stdRes.ret_det = e;
+  	}
+  
+  	return res.json(res.stdRes);
+  });
 });
 
-router.put('/downloads/:id', upload.single('download'), getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), async (req, res) => {
+router.put('/downloads/:id', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), async (req, res) => {
+  const form = formidable();
+  form.parse(req, async (err, fields, files) => {
+    if (err) {
+      res.status(500).send(err);
+      return;
+    }
+
     try {
-        if(!req.file) { // no updated file provided
-            await Downloads.findByIdAndUpdate(req.params.id, {
-                name: req.body.name,
-                description: req.body.description,
-                category: req.body.category
-            });
-        } else {
-
-            if(req.file.size > (100 * 1024 * 1024)) {	// 100MiB
-                throw {
-                    code: 400,
-                    message: 'File too large'
-                }
-            }
-            const tmpFile = await fs.readFile(req.file.path);
-            await s3.putObject({
-                Bucket: `zauartcc/downloads`,
-                Key: req.file.filename,
-                Body: tmpFile,
-                ContentType: req.file.mimetype,
-                ACL: 'public-read',
-            }).promise();
-
-            await Downloads.findByIdAndUpdate(req.params.id, {
-                name: req.body.name,
-                description: req.body.description,
-                category: req.body.category,
-                fileName: req.file.filename
-            })
-        }
-        await req.app.dossier.create({
-            by: res.user.cid,
-            affected: -1,
-            action: `%b updated the file *${req.body.name}*.`
+      if (!files.download) { // no updated file provided
+        await Downloads.findByIdAndUpdate(req.params.id, {
+          name: fields.name,
+          description: fields.description,
+          category: fields.category
         });
-    } catch(e) {
-        req.app.Sentry.captureException(e);
-        res.stdRes.ret_det = e;
+      } else {
+        const file = files.download;
+        if (file.size > (100 * 1024 * 1024)) { // 100MiB
+          throw {
+            code: 400,
+            message: 'File too large'
+          };
+        }
+        const tmpFile = await fs.readFile(file.path);
+        await s3.send(new PutObjectCommand({
+          Bucket: `zauartcc/downloads`,
+          Key: file.newFilename,
+          Body: tmpFile,
+          ContentType: file.mimetype,
+          ACL: 'public-read',
+        }));
+
+        await Downloads.findByIdAndUpdate(req.params.id, {
+          name: fields.name,
+          description: fields.description,
+          category: fields.category,
+          fileName: file.newFilename
+        });
+      }
+      await req.app.dossier.create({
+        by: res.user.cid,
+        affected: -1,
+        action: `%b updated the file *${fields.name}*.`
+      });
+    } catch (e) {
+      req.app.Sentry.captureException(e);
+      res.stdRes.ret_det = e;
     }
 
     return res.json(res.stdRes);
+  });
 });
 
 router.delete('/downloads/:id', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), async (req, res) => {
-    try {
-        const download = await Downloads.findByIdAndDelete(req.params.id).lean();
-        await req.app.dossier.create({
-            by: res.user.cid,
-            affected: -1,
-            action: `%b deleted the file *${download.name}*.`
-        });
-    } catch(e) {
-        req.app.Sentry.captureException(e);
-        res.stdRes.std_res = e;
-    }
+  try {
+    const download = await Downloads.findByIdAndDelete(req.params.id).lean();
+    await req.app.dossier.create({
+      by: res.user.cid,
+      affected: -1,
+      action: `%b deleted the file *${download.name}*.`
+    });
+  } catch (e) {
+    req.app.Sentry.captureException(e);
+    res.stdRes.std_res = e;
+  }
 
-    return res.json(res.stdRes);
+  return res.json(res.stdRes);
 });
 
 // Documents
-router.get('/documents', async ({res}) => {
-    try {
-        const documents = await Document.find({deletedAt: null}).select('-content').sort({category: "asc"}).sort({name: 'asc'}).lean();
-        res.stdRes.data = documents;
-    } catch(e) {
-        req.app.Sentry.captureException(e);
-        res.stdRes.ret_det = e;
-    }
+router.get('/documents', async (req, res) => {
+  try {
+    const documents = await Document.find({ deletedAt: null }).select('-content').sort({ category: "asc", name: 'asc' }).lean();
+    res.stdRes.data = documents;
+  } catch (e) {
+    req.app.Sentry.captureException(e);
+    res.stdRes.ret_det = e;
+  }
 
-    return res.json(res.stdRes);
+  return res.json(res.stdRes);
 });
 
 router.get('/documents/:slug', async (req, res) => {
-    try {
-        const document = await Document.findOne({slug: req.params.slug, deletedAt: null}).lean();
-        res.stdRes.data = document;
-    } catch(e) {
-        req.app.Sentry.captureException(e);
-        res.stdRes.ret_det = e;
-    }
+  try {
+    const document = await Document.findOne({ slug: req.params.slug, deletedAt: null }).lean();
+    res.stdRes.data = document;
+  } catch (e) {
+    req.app.Sentry.captureException(e);
+    res.stdRes.ret_det = e;
+  }
 
-    return res.json(res.stdRes);
+  return res.json(res.stdRes);
 });
 
-router.post('/documents', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), upload.single('download'), async (req, res) => {
-    try {
-        const {name, category, description, content, type} = req.body;
-        if(!category) {
-            throw {
-                code: 400,
-                message: 'You must select a category'
-            }
-        }
+router.post('/documents', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), async (req, res) => {
+  console.log('Received request to /documents');
 
-        if(!content && type === 'doc') {
-            throw {
-                code: 400,
-                message: 'You must include content'
-            }
-        }
+  if (req.headers['content-type'].includes('application/json')) {
+    // Handle JSON request
+    const { name, category, description, content, type } = req.body;
 
-        const slug = name.replace(/\s+/g, '-').toLowerCase().replace(/^-+|-+(?=-|$)/g, '').replace(/[^a-zA-Z0-9-_]/g, '') + '-' + Date.now().toString().slice(-5);
+    console.log('Parsed JSON body:', { name, category, description, content, type });
 
-        if(type === "file") {
-            if(req.file.size > (100 * 1024 * 1024)) {	// 100MiB
-                throw {
-                    code: 400,
-                    message: 'File too large'
-                }
-            }
-
-            const tmpFile = await fs.readFile(req.file.path);
-            await s3.putObject({
-                Bucket: `zauartcc/documents`,
-                Key: req.file.filename,
-                Body: tmpFile,
-                ContentType: req.file.mimetype,
-                ACL: 'public-read',
-            }).promise();
-
-            await Document.create({
-                name,
-                category,
-                description,
-                slug,
-                author: res.user.cid,
-                type: 'file',
-                fileName: req.file.filename
-            });
-        } else {
-            await Document.create({
-                name,
-                category,
-                description,
-                content,
-                slug,
-                author: res.user.cid,
-                type: 'doc'
-            });
-        }
-
-        await req.app.dossier.create({
-            by: res.user.cid,
-            affected: -1,
-            action: `%b created the document *${req.body.name}*.`
-        });
-
-    } catch(e) {
-        req.app.Sentry.captureException(e);
-        res.stdRes.ret_det = e;
+    if (!category) {
+      res.stdRes.ret_det.code = 400;
+      res.stdRes.ret_det.message = 'You must select a category';
+      return res.json(res.stdRes);
     }
 
-    return res.json(res.stdRes);
-});
+    if (typeof name !== 'string') {
+      res.stdRes.ret_det.code = 400;
+      res.stdRes.ret_det.message = 'Name must be a string';
+      return res.json(res.stdRes);
+    }
 
-router.put('/documents/:slug', upload.single('download'), getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), async (req, res) => {
+    const slug = name.replace(/\s+/g, '-').toLowerCase().replace(/^-+|-+(?=-|$)/g, '').replace(/[^a-zA-Z0-9-_]/g, '') + '-' + Date.now().toString().slice(-5);
+    console.log('Generated slug:', slug);
+
     try {
-        const document = await Document.findOne({slug: req.params.slug});
-        const {name, category, description, content, type} = req.body;
-
-        if(type === 'doc') {
-            if(document.name !== name) {
-                document.name = name;
-                document.slug = name.replace(/\s+/g, '-').toLowerCase().replace(/^-+|-+(?=-|$)/g, '').replace(/[^a-zA-Z0-9-_]/g, '') + '-' + Date.now().toString().slice(-5);
-            }
-
-            document.type = 'doc';
-            document.category = category;
-            document.description = description;
-            document.content = content;
-
-            await document.save();
-        } else {
-            if(!req.file) { // no updated file provided
-                await Document.findOneAndUpdate({slug: req.params.slug}, {
-                    name: req.body.name,
-                    description: req.body.description,
-                    category: req.body.category,
-                    type: 'file'
-                });
-            } else {
-                if(req.file.size > (100 * 1024 * 1024)) {	// 100MiB
-                    throw {
-                        code: 400,
-                        message: 'File too large.'
-                    }
-                }
-                const tmpFile = await fs.readFile(req.file.path);
-                await s3.putObject({
-                    Bucket: `zauartcc/documents`,
-                    Key: req.file.filename,
-                    Body: tmpFile,
-                    ContentType: req.file.mimetype,
-                    ACL: 'public-read',
-                }).promise();
-
-                await Document.findOneAndUpdate({slug: req.params.slug}, {
-                    name: req.body.name,
-                    description: req.body.description,
-                    category: req.body.category,
-                    fileName: req.file.filename,
-                    type: 'file'
-                })
-            }
-        }
-
-        await req.app.dossier.create({
-            by: res.user.cid,
-            affected: -1,
-            action: `%b updated the document *${req.body.name}*.`
-        });
-
+      if (type === "doc") {
+        await handleDocumentUpload({ name, category, description, content, slug, req, res });
+      } else {
+        res.stdRes.ret_det.code = 400;
+        res.stdRes.ret_det.message = 'Invalid document type';
         return res.json(res.stdRes);
-    } catch(e) {
-        req.app.Sentry.captureException(e);
-        res.stdRes.std_res = e;
+      }
+    } catch (e) {
+      console.error('Error processing document:', e);
+      req.app.Sentry.captureException(e);
+      res.stdRes.ret_det.code = 500;
+      res.stdRes.ret_det.message = 'Internal Server Error';
+      res.stdRes.data = { details: e.message };
+      return res.json(res.stdRes);
     }
+  } else {
+    // Handle multipart/form-data request
+    const form = formidable({
+      multiples: true,
+      keepExtensions: true,
+      maxFileSize: 200 * 1024 * 1024, // 200 MB
+      maxFieldsSize: 10 * 1024 * 1024, // 10 MB
+      maxFields: 1000,
+      allowEmptyFiles: true,
+    });
 
+    form.parse(req, async (err, fields, files) => {
+      if (err) {
+        console.error('Form parse error:', err);
+        res.stdRes.ret_det.code = 500;
+        res.stdRes.ret_det.message = 'Form parse error';
+        return res.json(res.stdRes);
+      }
+
+      console.log('Form parsed successfully:', { fields, files });
+
+      // Extract the first element from the arrays
+      const name = Array.isArray(fields.name) ? fields.name[0] : fields.name;
+      const category = Array.isArray(fields.category) ? fields.category[0] : fields.category;
+      const description = Array.isArray(fields.description) ? fields.description[0] : fields.description;
+      const content = fields.content ? (Array.isArray(fields.content) ? fields.content[0] : fields.content) : null;
+      const type = Array.isArray(fields.type) ? fields.type[0] : fields.type;
+
+      console.log('Parsed fields:', { name, category, description, content, type });
+
+      if (!category) {
+        res.stdRes.ret_det.code = 400;
+        res.stdRes.ret_det.message = 'You must select a category';
+        return res.json(res.stdRes);
+      }
+
+      if (typeof name !== 'string') {
+        res.stdRes.ret_det.code = 400;
+        res.stdRes.ret_det.message = 'Name must be a string';
+        return res.json(res.stdRes);
+      }
+
+      const slug = name.replace(/\s+/g, '-').toLowerCase().replace(/^-+|-+(?=-|$)/g, '').replace(/[^a-zA-Z0-9-_]/g, '') + '-' + Date.now().toString().slice(-5);
+      console.log('Generated slug:', slug);
+
+      try {
+        if (type === "file") {
+          await handleFileUpload({ name, category, description, slug, files, req, res });
+        } else if (type === "doc") {
+          await handleDocumentUpload({ name, category, description, content, slug, req, res });
+        } else {
+          res.stdRes.ret_det.code = 400;
+          res.stdRes.ret_det.message = 'Invalid document type';
+          return res.json(res.stdRes);
+        }
+      } catch (e) {
+        console.error('Error processing document:', e);
+        req.app.Sentry.captureException(e);
+        res.stdRes.ret_det.code = 500;
+        res.stdRes.ret_det.message = 'Internal Server Error';
+        res.stdRes.data = { details: e.message };
+        return res.json(res.stdRes);
+      }
+    });
+  }
+});
+
+async function handleFileUpload({ name, category, description, slug, files, req, res }) {
+  const file = Array.isArray(files.download) ? files.download[0] : files.download;
+  console.log('File to upload:', file);
+
+  // Ensure the file object and file path are defined
+  if (!file || !file.filepath) {
+    throw {
+      code: 400,
+      message: 'No file uploaded or file path is undefined'
+    };
+  }
+
+  console.log('File details:', file);
+
+  if (file.size > (100 * 1024 * 1024)) { // 100MiB
+    throw {
+      code: 400,
+      message: 'File too large'
+    };
+  }
+
+  const tmpFile = await fs.readFile(file.filepath);
+  console.log('Read temp file');
+
+  const fileKey = `${Date.now()}-${file.originalFilename}`;
+  await s3.send(new PutObjectCommand({
+    Bucket: 'zauartcc', // Correct bucket name without slash
+    Key: `documents/${fileKey}`, // Use descriptive key
+    Body: tmpFile,
+    ContentType: file.mimetype,
+    ACL: 'public-read',
+  }));
+  console.log('Uploaded file to S3');
+
+  await Document.create({
+    name,
+    category,
+    description,
+    slug,
+    author: res.user.cid,
+    type: 'file',
+    fileName: fileKey // Save the key used in S3
+  });
+  console.log('Created document in database');
+
+  await req.app.dossier.create({
+    by: res.user.cid,
+    affected: -1,
+    action: `%b created the document *${name}*.`
+  });
+  console.log('Created dossier entry');
+
+  res.stdRes.ret_det.message = 'Document created successfully';
+  return res.json(res.stdRes);
+}
+
+async function handleDocumentUpload({ name, category, description, content, slug, req, res }) {
+  console.log('Handling document upload');
+
+  if (!content) {
+    res.stdRes.ret_det.code = 400;
+    res.stdRes.ret_det.message = 'You must include content for document type';
     return res.json(res.stdRes);
-})
+  }
+
+  await Document.create({
+    name,
+    category,
+    description,
+    content,
+    slug,
+    author: res.user.cid,
+    type: 'doc'
+  });
+  console.log('Created document in database');
+
+  await req.app.dossier.create({
+    by: res.user.cid,
+    affected: -1,
+    action: `%b created the document *${name}*.`
+  });
+  console.log('Created dossier entry');
+
+  res.stdRes.ret_det.message = 'Text Document created successfully';
+  return res.json(res.stdRes);
+}
+
+router.put('/documents/:slug', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), async (req, res) => {
+  console.log('Received PUT request to /documents/:slug');
+
+  if (req.is('multipart/form-data')) {
+    const form = formidable();
+    form.parse(req, async (err, fields, files) => {
+      if (err) {
+        console.error('Form parse error:', err);
+        res.stdRes.ret_det.code = 500;
+        res.stdRes.ret_det.message = 'Form parse error';
+        return res.json(res.stdRes);
+      }
+
+      console.log('Form parsed successfully:', { fields, files });
+
+      try {
+        const document = await Document.findOne({ slug: req.params.slug });
+        console.log('Document found:', document);
+        if (!document) {
+          res.stdRes.ret_det.code = 404;
+          res.stdRes.ret_det.message = 'Document not found';
+          return res.json(res.stdRes);
+        }
+
+        const { name, category, description, type, oldFileName } = fields;
+        const file = files.download ? (Array.isArray(files.download) ? files.download[0] : files.download) : null;
+
+        console.log('Parsed fields:', { name, category, description, type, oldFileName });
+        console.log('Parsed file:', file);
+
+        if (type === 'file' && file) {
+          console.log('Processing file upload');
+
+          if (file.size > (100 * 1024 * 1024)) { // 100MiB
+            console.error('File too large');
+            res.stdRes.ret_det.code = 400;
+            res.stdRes.ret_det.message = 'File too large';
+            return res.json(res.stdRes);
+          }
+
+          // Delete the old file from S3 if an old file name is provided
+          if (oldFileName) {
+            console.log(`Deleting old file from S3: documents/${oldFileName}`);
+            await s3.send(new DeleteObjectCommand({
+              Bucket: 'zauartcc',
+              Key: `documents/${oldFileName}`
+            }));
+            console.log(`Deleted old file from S3: documents/${oldFileName}`);
+          }
+
+          console.log('Reading temp file');
+          const tmpFile = await fs.readFile(file.filepath);
+          console.log('Read temp file');
+
+          const fileKey = `${Date.now()}-${file.originalFilename}`;
+          console.log('Uploading new file to S3 with key:', fileKey);
+          await s3.send(new PutObjectCommand({
+            Bucket: 'zauartcc',
+            Key: `documents/${fileKey}`,
+            Body: tmpFile,
+            ContentType: file.mimetype,
+            ACL: 'public-read',
+          }));
+          console.log('Uploaded new file to S3');
+
+          document.name = name;
+          document.category = category;
+          document.description = description;
+          document.fileName = fileKey;
+          document.type = 'file';
+
+          console.log('Saving updated document to database');
+          await document.save();
+          console.log('Updated document in database');
+
+          await req.app.dossier.create({
+            by: res.user.cid,
+            affected: -1,
+            action: `%b updated the document *${name}*.`
+          });
+          console.log('Created dossier entry');
+
+          res.stdRes.ret_det.message = 'Document updated successfully';
+          return res.json(res.stdRes);
+        } else {
+          console.error('Invalid document type for form-data');
+          res.stdRes.ret_det.code = 400;
+          res.stdRes.ret_det.message = 'Invalid document type for form-data';
+          return res.json(res.stdRes);
+        }
+      } catch (e) {
+        console.error('Error processing document:', e);
+        req.app.Sentry.captureException(e);
+        res.stdRes.ret_det.code = 500;
+        res.stdRes.ret_det.message = 'Internal Server Error';
+        res.stdRes.data = { details: e.message };
+        return res.json(res.stdRes);
+      }
+    });
+  } else if (req.is('application/json')) {
+    try {
+      console.log('Processing JSON request');
+      const document = await Document.findOne({ slug: req.params.slug });
+      console.log('Document found:', document);
+      if (!document) {
+        res.stdRes.ret_det.code = 404;
+        res.stdRes.ret_det.message = 'Document not found';
+        return res.json(res.stdRes);
+      }
+
+      const { name, category, description, content, type } = req.body;
+      console.log('Parsed JSON fields:', { name, category, description, content, type });
+
+      if (type === 'doc') {
+        document.name = name;
+        document.slug = name.replace(/\s+/g, '-').toLowerCase().replace(/^-+|-+(?=-|$)/g, '').replace(/[^a-zA-Z0-9-_]/g, '') + '-' + Date.now().toString().slice(-5);
+        document.category = category;
+        document.description = description;
+        document.content = content;
+        document.type = 'doc';
+
+        console.log('Saving updated document to database');
+        await document.save();
+        console.log('Updated document in database');
+
+        await req.app.dossier.create({
+          by: res.user.cid,
+          affected: -1,
+          action: `%b updated the document *${name}*.`
+        });
+        console.log('Created dossier entry');
+
+        res.stdRes.ret_det.message = 'Document updated successfully';
+        return res.json(res.stdRes);
+      } else {
+        console.error('Invalid document type for JSON');
+        res.stdRes.ret_det.code = 400;
+        res.stdRes.ret_det.message = 'Invalid document type for JSON';
+        return res.json(res.stdRes);
+      }
+    } catch (e) {
+      console.error('Error processing document:', e);
+      req.app.Sentry.captureException(e);
+      res.stdRes.ret_det.code = 500;
+      res.stdRes.ret_det.message = 'Internal Server Error';
+      res.stdRes.data = { details: e.message };
+      return res.json(res.stdRes);
+    }
+  } else {
+    console.error('Unsupported content type');
+    res.stdRes.ret_det.code = 400;
+    res.stdRes.ret_det.message = 'Unsupported content type';
+    return res.json(res.stdRes);
+  }
+});
 
 router.delete('/documents/:id', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), async (req, res) => {
-    try {
-        const doc = await Document.findByIdAndDelete(req.params.id);
-        await req.app.dossier.create({
-            by: res.user.cid,
-            affected: -1,
-            action: `%b deleted the document *${doc.name}*.`
-        });
-    } catch(e) {
-        req.app.Sentry.captureException(e);
-        res.stdRes.std_res = e;
+  try {
+    const doc = await Document.findById(req.params.id);
+    
+    if (!doc) {
+      res.stdRes.ret_det.code = 404;
+      res.stdRes.ret_det.message = 'Document not found';
+      return res.json(res.stdRes);
     }
 
-    return res.json(res.stdRes);
+    // Check if the document is a file and delete it from S3
+    if (doc.type === 'file' && doc.fileName) {
+      const deleteParams = {
+        Bucket: 'zauartcc',
+        Key: `documents/${doc.fileName}`
+      };
+      await s3.send(new DeleteObjectCommand(deleteParams));
+      console.log('Deleted file from S3');
+    }
+
+    await Document.findByIdAndDelete(req.params.id);
+    await req.app.dossier.create({
+      by: res.user.cid,
+      affected: -1,
+      action: `%b deleted the document *${doc.name}*.`
+    });
+
+    res.stdRes.ret_det.message = 'Document deleted successfully';
+  } catch (e) {
+    console.error('Error deleting document:', e);
+    req.app.Sentry.captureException(e);
+    res.stdRes.ret_det.code = 500;
+    res.stdRes.ret_det.message = 'Internal Server Error';
+    res.stdRes.data = { details: e.message };
+  }
+
+  return res.json(res.stdRes);
 });
 
 export default router;
