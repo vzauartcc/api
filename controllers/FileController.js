@@ -18,11 +18,11 @@ const s3 = new S3Client({
 });
 
 // Downloads
-router.get('/downloads', async ({res}) => {
+router.get('/downloads', async (req, res) => {
   try {
-    const downloads = await Downloads.find({deletedAt: null}).sort({category: "asc", name: "asc"}).lean();
+    const downloads = await Downloads.find({ deletedAt: null }).sort({ category: "asc", name: "asc" }).lean();
     res.stdRes.data = downloads;
-  } catch(e) {
+  } catch (e) {
     req.app.Sentry.captureException(e);
     res.stdRes.ret_det = e;
   }
@@ -34,7 +34,7 @@ router.get('/downloads/:id', async (req, res) => {
   try {
     const download = await Downloads.findById(req.params.id).lean();
     res.stdRes.data = download;
-  } catch(e) {
+  } catch (e) {
     req.app.Sentry.captureException(e);
     res.stdRes.ret_det = e;
   }
@@ -44,125 +44,211 @@ router.get('/downloads/:id', async (req, res) => {
 
 router.post('/downloads', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), async (req, res) => {
   const form = formidable();
+  console.log('Received POST request to /downloads');
+  
   form.parse(req, async (err, fields, files) => {
     if (err) {
-      res.status(500).send(err);
-      return;
+      console.error('Form parse error:', err);
+      res.stdRes.ret_det.code = 500;
+      res.stdRes.ret_det.message = 'Form parse error';
+      return res.json(res.stdRes);
     }
-  
+
+    console.log('Form parsed successfully:', { fields, files });
+
+    const name = Array.isArray(fields.name) ? fields.name[0] : fields.name;
+    const category = Array.isArray(fields.category) ? fields.category[0] : fields.category;
+    const description = Array.isArray(fields.description) ? fields.description[0] : fields.description;
+    const author = Array.isArray(fields.author) ? fields.author[0] : fields.author;
+   
+
+    console.log('Parsed fields:', { name, category, description, author });
+
     try {
-      if (!fields.category) {
-        throw {
-          code: 400,
-          message: 'You must select a category'
-        };
+      if (!category) {
+        res.stdRes.ret_det.code = 400;
+        res.stdRes.ret_det.message = 'You must select a category';
+        return res.json(res.stdRes);
       }
-      const file = files.download;
+
+      const file = Array.isArray(files.download) ? files.download[0] : files.download;
+      console.log('File to upload:', file);
+
+      if (!file || !file.filepath) {
+        res.stdRes.ret_det.code = 400;
+        res.stdRes.ret_det.message = 'No file uploaded or file path is undefined';
+        return res.json(res.stdRes);
+      }
+
+      console.log('File details:', file);
+
       if (file.size > (100 * 1024 * 1024)) { // 100MiB
-        throw {
-          code: 400,
-          message: 'File too large'
-        };
+        res.stdRes.ret_det.code = 400;
+        res.stdRes.ret_det.message = 'File too large';
+        return res.json(res.stdRes);
       }
-      const tmpFile = await fs.readFile(file.path);
+
+      const tmpFile = await fs.readFile(file.filepath);
+      const fileKey = `${Date.now()}-${file.originalFilename}`;
       await s3.send(new PutObjectCommand({
-        Bucket: `zauartcc/downloads`,
-        Key: file.newFilename,
+        Bucket: 'zauartcc',
+        Key: `${process.env.S3_FOLDER_PREFIX}/downloads/${fileKey}`,
         Body: tmpFile,
         ContentType: file.mimetype,
         ACL: 'public-read',
       }));
-  
+      console.log('Uploaded file to S3');
+
       await Downloads.create({
-        name: fields.name,
-        description: fields.description,
-        fileName: file.newFilename,
-        category: fields.category,
-        author: fields.author
+        name: name,
+        description: description,
+        fileName: fileKey,
+        category: category,
+        author: author
       });
-  
+      console.log('Created download record in database');
+
       await req.app.dossier.create({
         by: res.user.cid,
         affected: -1,
-        action: `%b created the file *${fields.name}*.`
-			});
+        action: `%b created the file *${name}*.`
+      });
 
-  	} catch (e) {
-    	req.app.Sentry.captureException(e);
-			res.stdRes.ret_det = e;
-  	}
-  
-  	return res.json(res.stdRes);
+      res.stdRes.ret_det.message = 'Download created successfully';
+      return res.json(res.stdRes);
+
+    } catch (e) {
+      console.error('Error processing download:', e);
+      req.app.Sentry.captureException(e);
+      res.stdRes.ret_det.code = 500;
+      res.stdRes.ret_det.message = 'Internal Server Error';
+      res.stdRes.data = { details: e.message };
+      return res.json(res.stdRes);
+    }
   });
 });
 
 router.put('/downloads/:id', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), async (req, res) => {
   const form = formidable();
+  console.log('Received PUT request to /downloads/:id');
+
   form.parse(req, async (err, fields, files) => {
     if (err) {
-      res.status(500).send(err);
-      return;
+      console.error('Form parse error:', err);
+      res.stdRes.ret_det.code = 500;
+      res.stdRes.ret_det.message = 'Form parse error';
+      return res.json(res.stdRes);
     }
 
+    console.log('Form parsed successfully:', { fields, files });
+
     try {
-      if (!files.download) { // no updated file provided
+      const download = await Downloads.findById(req.params.id);
+      if (!download) {
+        res.stdRes.ret_det.code = 404;
+        res.stdRes.ret_det.message = 'Download not found';
+        return res.json(res.stdRes);
+      }
+
+      const name = Array.isArray(fields.name) ? fields.name[0] : fields.name;
+      const category = Array.isArray(fields.category) ? fields.category[0] : fields.category;
+      const description = Array.isArray(fields.description) ? fields.description[0] : fields.description;
+      const oldFileName = Array.isArray(fields.oldFileName) ? fields.oldFileName[0] : fields.oldFileName;
+
+      console.log('Parsed fields:', { name, category, description, oldFileName });
+
+      if (!files.download) {
+        // No file uploaded, update the document details
         await Downloads.findByIdAndUpdate(req.params.id, {
-          name: fields.name,
-          description: fields.description,
-          category: fields.category
+          name: name,
+          description: description,
+          category: category
         });
+        console.log(`Updated download details for: ${name}`);
       } else {
-        const file = files.download;
+        const file = Array.isArray(files.download) ? files.download[0] : files.download;
         if (file.size > (100 * 1024 * 1024)) { // 100MiB
-          throw {
-            code: 400,
-            message: 'File too large'
-          };
+          res.stdRes.ret_det.code = 400;
+          res.stdRes.ret_det.message = 'File too large';
+          return res.json(res.stdRes);
         }
-        const tmpFile = await fs.readFile(file.path);
+
+        // Delete the old file from S3
+        if (oldFileName) {
+          await s3.send(new DeleteObjectCommand({
+            Bucket: 'zauartcc',
+            Key: `${process.env.S3_FOLDER_PREFIX}/downloads/${oldFileName}`
+          }));
+          console.log(`Deleted old file from S3: ${process.env.FOLDER_PREFIX}/downloads/${download.name}`);
+        }
+
+        const tmpFile = await fs.readFile(file.filepath);
+        const fileKey = `${Date.now()}-${file.originalFilename}`;
         await s3.send(new PutObjectCommand({
-          Bucket: `zauartcc/downloads`,
-          Key: file.newFilename,
+          Bucket: 'zauartcc',
+          Key: `${process.env.S3_FOLDER_PREFIX}/downloads/${fileKey}`,
           Body: tmpFile,
           ContentType: file.mimetype,
           ACL: 'public-read',
         }));
+        console.log('Uploaded new file to S3');
 
         await Downloads.findByIdAndUpdate(req.params.id, {
-          name: fields.name,
-          description: fields.description,
-          category: fields.category,
-          fileName: file.newFilename
+          name: name,
+          description: description,
+          category: category,
+          fileName: fileKey
         });
+        console.log(`Updated download details and file for: ${name}`);
       }
+
       await req.app.dossier.create({
         by: res.user.cid,
         affected: -1,
-        action: `%b updated the file *${fields.name}*.`
+        action: `%b updated the file *${name}*.`
       });
-    } catch (e) {
-      req.app.Sentry.captureException(e);
-      res.stdRes.ret_det = e;
-    }
 
-    return res.json(res.stdRes);
+      res.stdRes.ret_det.message = 'Download updated successfully';
+      return res.json(res.stdRes);
+
+    } catch (e) {
+      console.error('Error processing download update:', e);
+      req.app.Sentry.captureException(e);
+      res.stdRes.ret_det.code = 500;
+      res.stdRes.ret_det.message = 'Internal Server Error';
+      res.stdRes.data = { details: e.message };
+      return res.json(res.stdRes);
+    }
   });
 });
 
 router.delete('/downloads/:id', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), async (req, res) => {
   try {
     const download = await Downloads.findByIdAndDelete(req.params.id).lean();
+
+    // Delete the file from S3
+    if (download.fileName) {
+      await s3.send(new DeleteObjectCommand({
+        Bucket: 'zauartcc',
+        Key: `${process.env.S3_FOLDER_PREFIX}/downloads/${download.fileName}`
+      }));
+      console.log(`Deleted file from S3: ${process.env.FOLDER_PREFIX}/downloads/${download.fileName}`);
+    }
+
     await req.app.dossier.create({
       by: res.user.cid,
       affected: -1,
       action: `%b deleted the file *${download.name}*.`
     });
+
+    res.stdRes.ret_det.message = 'Download deleted successfully';
+    return res.json(res.stdRes);
+
   } catch (e) {
     req.app.Sentry.captureException(e);
-    res.stdRes.std_res = e;
+    res.stdRes.ret_det = e;
+    return res.json(res.stdRes);
   }
-
-  return res.json(res.stdRes);
 });
 
 // Documents
@@ -324,7 +410,7 @@ async function handleFileUpload({ name, category, description, slug, files, req,
   const fileKey = `${Date.now()}-${file.originalFilename}`;
   await s3.send(new PutObjectCommand({
     Bucket: 'zauartcc', // Correct bucket name without slash
-    Key: `documents/${fileKey}`, // Use descriptive key
+    Key: `${process.env.S3_FOLDER_PREFIX}/documents/${fileKey}`,
     Body: tmpFile,
     ContentType: file.mimetype,
     ACL: 'public-read',
@@ -396,9 +482,9 @@ router.put('/documents/:slug', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']),
         res.stdRes.ret_det.message = 'Form parse error';
         return res.json(res.stdRes);
       }
-
+    
       console.log('Form parsed successfully:', { fields, files });
-
+    
       try {
         const document = await Document.findOne({ slug: req.params.slug });
         console.log('Document found:', document);
@@ -407,10 +493,15 @@ router.put('/documents/:slug', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']),
           res.stdRes.ret_det.message = 'Document not found';
           return res.json(res.stdRes);
         }
-
-        const { name, category, description, type, oldFileName } = fields;
+    
+        // Ensure fields are correctly extracted
+        const name = Array.isArray(fields.name) ? fields.name[0] : fields.name;
+        const category = Array.isArray(fields.category) ? fields.category[0] : fields.category;
+        const description = Array.isArray(fields.description) ? fields.description[0] : fields.description;
+        const type = Array.isArray(fields.type) ? fields.type[0] : fields.type;
+        const oldFileName = Array.isArray(fields.oldFileName) ? fields.oldFileName[0] : fields.oldFileName;
         const file = files.download ? (Array.isArray(files.download) ? files.download[0] : files.download) : null;
-
+    
         console.log('Parsed fields:', { name, category, description, type, oldFileName });
         console.log('Parsed file:', file);
 
@@ -429,7 +520,7 @@ router.put('/documents/:slug', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']),
             console.log(`Deleting old file from S3: documents/${oldFileName}`);
             await s3.send(new DeleteObjectCommand({
               Bucket: 'zauartcc',
-              Key: `documents/${oldFileName}`
+              Key: `${process.env.S3_FOLDER_PREFIX}/documents/${oldFileName}`
             }));
             console.log(`Deleted old file from S3: documents/${oldFileName}`);
           }
@@ -442,7 +533,7 @@ router.put('/documents/:slug', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']),
           console.log('Uploading new file to S3 with key:', fileKey);
           await s3.send(new PutObjectCommand({
             Bucket: 'zauartcc',
-            Key: `documents/${fileKey}`,
+            Key: `${process.env.S3_FOLDER_PREFIX}/documents/${fileKey}`,
             Body: tmpFile,
             ContentType: file.mimetype,
             ACL: 'public-read',
@@ -554,7 +645,7 @@ router.delete('/documents/:id', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm'])
     if (doc.type === 'file' && doc.fileName) {
       const deleteParams = {
         Bucket: 'zauartcc',
-        Key: `documents/${doc.fileName}`
+        Key: `${process.env.S3_FOLDER_PREFIX}/documents/${doc.fileName}`
       };
       await s3.send(new DeleteObjectCommand(deleteParams));
       console.log('Deleted file from S3');
