@@ -9,7 +9,9 @@ import getUser from '../middleware/getUser.js';
 import auth from '../middleware/auth.js';
 import StaffingRequest from '../models/StaffingRequest.js'
 import fetch from "node-fetch";
-import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import formidable from 'formidable';
+import path from 'path';
 
 router.get('/', async ({res}) => {
 	try {
@@ -317,7 +319,7 @@ router.post('/sendEvent', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req
 				fields: positionFields,
 				url: 'https://www.zauartcc.org/events/' + eventData.url,
 				image: {
-					url: 'https://zauartcc.sfo3.digitaloceanspaces.com/events/' + eventData.bannerUrl
+					url: `https://zauartcc.sfo3.digitaloceanspaces.com/${process.env.S3_FOLDER_PREFIX}/events/` + eventData.bannerUrl
 				}
 			}
 		]
@@ -371,22 +373,40 @@ router.post('/sendEvent', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req
 
 });
 
-
-
-
 router.post('/', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req, res) => {
-  const form = new formidable.IncomingForm();
+  const form = formidable();
+
   form.parse(req, async (err, fields, files) => {
+
     if (err) {
+      console.error('Error during form parsing:', err);
       req.app.Sentry.captureException(err);
       res.stdRes.ret_det = err;
       return res.json(res.stdRes);
     }
 
+		const name = fields.name[0];
+    const description = fields.description[0];
+    const startTime = fields.startTime[0];
+    const endTime = fields.endTime[0];
+
     try {
-      const url = fields.name.replace(/\s+/g, '-').toLowerCase().replace(/^-+|-+(?=-|$)/g, '').replace(/[^a-zA-Z0-9-_]/g, '') + '-' + Date.now().toString().slice(-5);
+
+			if (typeof name !== 'string') {
+        throw new Error('Name field is not a string');
+      }
+
+      const url = name
+        .replace(/\s+/g, '-')
+        .toLowerCase()
+        .replace(/^-+|-+(?=-|$)/g, '')
+        .replace(/[^a-zA-Z0-9-_]/g, '') + '-' + Date.now().toString().slice(-5);
+
       const allowedTypes = ['image/jpg', 'image/jpeg', 'image/png', 'image/gif'];
-      const file = files.banner;
+      const file = files.banner[0];
+
+      // Log file size for debugging
+      console.log('File size:', file.size);
 
       if (file.size > (6 * 1024 * 1024)) { // 6MiB
         throw {
@@ -395,7 +415,8 @@ router.post('/', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req, res) =>
         };
       }
 
-      const fileType = await fileTypeFromFile(file.path);
+      const fileType = await fileTypeFromFile(file.filepath);
+
       if (!fileType || !allowedTypes.includes(fileType.mime)) {
         throw {
           code: 400,
@@ -403,24 +424,30 @@ router.post('/', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req, res) =>
         };
       }
 
-      const tmpFile = await fs.readFile(file.path);
+      const newFilename = `${Date.now()}-${file.originalFilename}`;
+      const newFilePath = path.join(path.dirname(file.filepath), newFilename);
 
-      await s3.send(new PutObjectCommand({
-        Bucket: `zauartcc/events`,
-        Key: file.newFilename,
+      // Rename the file
+      await fs.rename(file.filepath, newFilePath);
+
+      const tmpFile = await fs.readFile(newFilePath);
+
+      await req.app.s3.send(new PutObjectCommand({
+        Bucket: 'zauartcc',
+        Key: `${process.env.S3_FOLDER_PREFIX}/events/${newFilename}`,
         Body: tmpFile,
-        ContentType: file.mimetype,
+        ContentType: fileType.mime,
         ACL: 'public-read',
         ContentDisposition: 'inline',
       }));
 
       await Event.create({
-        name: fields.name,
-        description: fields.description,
+        name: name,
+        description: description,
         url: url,
-        bannerUrl: file.newFilename,
-        eventStart: fields.startTime,
-        eventEnd: fields.endTime,
+        bannerUrl: newFilename,
+        eventStart: startTime,
+        eventEnd: endTime,
         createdBy: res.user.cid,
         open: true,
         submitted: false
@@ -443,27 +470,44 @@ router.post('/', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req, res) =>
 });
 
 router.put('/:slug', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req, res) => {
-  const form = new formidable.IncomingForm();
+  const form = formidable();
+
   form.parse(req, async (err, fields, files) => {
+
     if (err) {
+      console.error('Error during form parsing:', err);
       req.app.Sentry.captureException(err);
       res.stdRes.ret_det = err;
       return res.json(res.stdRes);
     }
 
+    const allowedTypes = ['image/jpg', 'image/jpeg', 'image/png', 'image/gif'];
+
     try {
       const event = await Event.findOne({ url: req.params.slug });
-      const { name, description, startTime, endTime, positions } = fields;
+      if (!event) {
+        throw new Error('Event not found');
+      }
+
+      const name = fields.name[0];
+      const description = fields.description[0];
+      const startTime = fields.startTime[0];
+      const endTime = fields.endTime[0];
+      const positions = JSON.parse(fields.positions[0]);
 
       if (event.name !== name) {
         event.name = name;
-        event.url = name.replace(/\s+/g, '-').toLowerCase().replace(/^-+|-+(?=-|$)/g, '').replace(/[^a-zA-Z0-9-_]/g, '') + '-' + Date.now().toString().slice(-5);
+        event.url = name.replace(/\s+/g, '-')
+                        .toLowerCase()
+                        .replace(/^-+|-+(?=-|$)/g, '')
+                        .replace(/[^a-zA-Z0-9-_]/g, '') + '-' + Date.now().toString().slice(-5);
       }
+
       event.description = description;
       event.eventStart = startTime;
       event.eventEnd = endTime;
 
-      const computedPositions = JSON.parse(positions).map(pos => {
+      const computedPositions = positions.map(pos => {
         const thePos = pos.match(/^([A-Z]{3})_(?:[A-Z0-9]{1,3}_)?([A-Z]{3})$/);
         const type = thePos[2];
         const code = ['ORD'].includes(thePos[1]) ? 'ord' + type.toLowerCase() : type.toLowerCase();
@@ -476,7 +520,9 @@ router.put('/:slug', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req, res
       }) : computedPositions;
 
       if (files.banner) {
-        const file = files.banner;
+        const file = files.banner[0];
+        console.log('New banner file:', file);
+
         if (file.size > (6 * 1024 * 1024)) { // 6MiB
           throw {
             code: 400,
@@ -484,7 +530,8 @@ router.put('/:slug', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req, res
           };
         }
 
-        const fileType = await fileTypeFromFile(file.path);
+        const fileType = await fileTypeFromFile(file.filepath);
+
         if (!fileType || !allowedTypes.includes(fileType.mime)) {
           throw {
             code: 400,
@@ -492,17 +539,32 @@ router.put('/:slug', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req, res
           };
         }
 
-        const tmpFile = await fs.readFile(file.path);
-        await s3.send(new PutObjectCommand({
-          Bucket: `zauartcc/events`,
-          Key: file.newFilename,
+        // Remove the old banner from S3
+        if (event.bannerUrl) {
+          await req.app.s3.send(new DeleteObjectCommand({
+            Bucket: 'zauartcc',
+            Key: `${process.env.S3_FOLDER_PREFIX}/events/${event.bannerUrl}`
+          }));
+        }
+
+        const newFilename = `${Date.now()}-${file.originalFilename}`;
+        const newFilePath = path.join(path.dirname(file.filepath), newFilename);
+
+        // Rename the file
+        await fs.rename(file.filepath, newFilePath);
+
+        const tmpFile = await fs.readFile(newFilePath);
+
+        await req.app.s3.send(new PutObjectCommand({
+          Bucket: 'zauartcc',
+          Key: `${process.env.S3_FOLDER_PREFIX}/events/${newFilename}`,
           Body: tmpFile,
-          ContentType: file.mimetype,
+          ContentType: fileType.mime,
           ACL: 'public-read',
           ContentDisposition: 'inline',
         }));
 
-        event.bannerUrl = file.newFilename;
+        event.bannerUrl = newFilename;
       }
 
       await event.save();
@@ -515,6 +577,7 @@ router.put('/:slug', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req, res
 
       res.stdRes.data = { message: "Event updated successfully" };
     } catch (e) {
+      console.error('Error during event update:', e);
       req.app.Sentry.captureException(e);
       res.stdRes.ret_det = e;
     }
@@ -524,22 +587,43 @@ router.put('/:slug', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req, res
 });
 
 router.delete('/:slug', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req, res) => {
-	try {
-		const deleteEvent = await Event.findOne({url: req.params.slug});
-		await deleteEvent.delete();
+  console.log('Incoming DELETE request to remove event');
 
-		await req.app.dossier.create({
-			by: res.user.cid,
-			affected: -1,
-			action: `%b deleted the event *${deleteEvent.name}*.`
-		});
+  try {
+    const deleteEvent = await Event.findOne({ url: req.params.slug });
+    if (!deleteEvent) {
+      throw new Error('Event not found');
+    }
 
-	} catch(e) {
-		req.app.Sentry.captureException(e);
-		res.stdRes.ret_det = e;
-	}
+    console.log('Event found:', deleteEvent);
 
-	return res.json(res.stdRes);
+    // Remove the banner from S3
+    if (deleteEvent.bannerUrl) {
+      console.log('Removing banner from S3:', deleteEvent.bannerUrl);
+      await req.app.s3.send(new DeleteObjectCommand({
+        Bucket: 'zauartcc',
+        Key: `${process.env.S3_FOLDER_PREFIX}/events/${deleteEvent.bannerUrl}`
+      }));
+    }
+
+    // Delete the event from the database
+    await deleteEvent.delete();
+    console.log('Event deleted:', deleteEvent);
+
+    await req.app.dossier.create({
+      by: res.user.cid,
+      affected: -1,
+      action: `%b deleted the event *${deleteEvent.name}*.`
+    });
+
+    res.stdRes.data = { message: "Event deleted successfully" };
+  } catch (e) {
+    console.error('Error during event deletion:', e);
+    req.app.Sentry.captureException(e);
+    res.stdRes.ret_det = e;
+  }
+
+  return res.json(res.stdRes);
 });
 
 // router.put('/:slug/assign', getUser, auth(['atm', 'datm', 'ec']), async (req, res) => {

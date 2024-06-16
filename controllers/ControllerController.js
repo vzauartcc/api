@@ -714,8 +714,8 @@ router.post('/:cid', microAuth, async (req, res) => {
 		const {data} = await axios.get(`https://ui-avatars.com/api/?name=${userOi}&size=256&background=122049&color=ffffff`, {responseType: 'arraybuffer'});
 
 		await req.app.s3.send(new PutObjectCommand({
-			Bucket: `zauartcc/avatars`,
-			Key: `${req.body.cid}-default.png`,
+			Bucket: `zauartcc`,
+			Key: `${process.env.S3_FOLDER_PREFIX}/avatars/${req.body.cid}-default.png`,
 			Body: data,
 			ContentType: 'image/png',
 			ACL: 'public-read',
@@ -909,8 +909,8 @@ router.put('/:cid', getUser, auth(['atm', 'datm', 'ta', 'fe', 'ec', 'wm', 'ins',
 		const {data} = await axios.get(`https://ui-avatars.com/api/?name=${oi}&size=256&background=122049&color=ffffff`, {responseType: 'arraybuffer'});
 
 		await req.app.s3.send(new PutObjectCommand({
-			Bucket: `zauartcc/avatars`,
-			Key: `${req.body.cid}-default.png`,
+			Bucket: `zauartcc`,
+			Key: `${process.env.S3_FOLDER_PREFIX}/avatars/${req.body.cid}-default.png`,
 			Body: data,
 			ContentType: 'image/png',
 			ACL: 'public-read',

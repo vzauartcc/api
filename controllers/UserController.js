@@ -157,10 +157,10 @@ router.post("/login", oAuth, async (req, res) => {
       );
 
       await req.app.s3.send(new PutObjectCommand({
-				Bucket: `zauartcc/events`,
-				Key: req.file.filename,
-				Body: tmpFile,
-				ContentType: req.file.mimetype,
+				Bucket: `zauartcc`,
+        Key: `${process.env.S3_FOLDER_PREFIX}/avatars/${user.cid}-default.png`,
+				Body: data,
+        ContentType: "image/png",
 				ACL: 'public-read',
 				ContentDisposition: 'inline',
 			}));

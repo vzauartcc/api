@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
-import neh from 'nodemailer-express-handlebars';
+import exphbs from 'nodemailer-express-handlebars';
 import path from 'path';
+import { engine } from 'express-handlebars';
 import handlebars from 'handlebars';
 
 const emailDir = path.resolve();
@@ -30,19 +31,22 @@ const transport = nodemailer.createTransport({
     },
 });
 
-transport.use('compile', neh({
-    viewPath: emailDir+"/email",
+const hbsOptions = {
     viewEngine: {
-        extName: ".hbs",
-        layoutsDir: emailDir+"/email",
-        partialsDir: emailDir+"/email",
-        defaultLayout: "main"
+        extName: '.hbs',
+        partialsDir: path.join(emailDir, 'email'),
+        layoutsDir: path.join(emailDir, 'email'),
+        defaultLayout: 'main',
+        handlebars: engine() // This is the express-handlebars engine
     },
-    extName: ".hbs"
-}));
+    viewPath: path.join(emailDir, 'email'),
+    extName: '.hbs'
+};
+
+// Updated to use the new way of configuring handlebars with nodemailer
+transport.use('compile', exphbs(hbsOptions));
 
 export default transport;
-
 
 
 // organizational email list

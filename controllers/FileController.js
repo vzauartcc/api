@@ -44,7 +44,6 @@ router.get('/downloads/:id', async (req, res) => {
 
 router.post('/downloads', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), async (req, res) => {
   const form = formidable();
-  console.log('Received POST request to /downloads');
   
   form.parse(req, async (err, fields, files) => {
     if (err) {
@@ -54,16 +53,11 @@ router.post('/downloads', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), asyn
       return res.json(res.stdRes);
     }
 
-    console.log('Form parsed successfully:', { fields, files });
-
     const name = Array.isArray(fields.name) ? fields.name[0] : fields.name;
     const category = Array.isArray(fields.category) ? fields.category[0] : fields.category;
     const description = Array.isArray(fields.description) ? fields.description[0] : fields.description;
     const author = Array.isArray(fields.author) ? fields.author[0] : fields.author;
    
-
-    console.log('Parsed fields:', { name, category, description, author });
-
     try {
       if (!category) {
         res.stdRes.ret_det.code = 400;
@@ -72,15 +66,12 @@ router.post('/downloads', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), asyn
       }
 
       const file = Array.isArray(files.download) ? files.download[0] : files.download;
-      console.log('File to upload:', file);
 
       if (!file || !file.filepath) {
         res.stdRes.ret_det.code = 400;
         res.stdRes.ret_det.message = 'No file uploaded or file path is undefined';
         return res.json(res.stdRes);
       }
-
-      console.log('File details:', file);
 
       if (file.size > (100 * 1024 * 1024)) { // 100MiB
         res.stdRes.ret_det.code = 400;
@@ -97,7 +88,6 @@ router.post('/downloads', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), asyn
         ContentType: file.mimetype,
         ACL: 'public-read',
       }));
-      console.log('Uploaded file to S3');
 
       await Downloads.create({
         name: name,
@@ -106,7 +96,6 @@ router.post('/downloads', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), asyn
         category: category,
         author: author
       });
-      console.log('Created download record in database');
 
       await req.app.dossier.create({
         by: res.user.cid,
@@ -130,7 +119,6 @@ router.post('/downloads', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), asyn
 
 router.put('/downloads/:id', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), async (req, res) => {
   const form = formidable();
-  console.log('Received PUT request to /downloads/:id');
 
   form.parse(req, async (err, fields, files) => {
     if (err) {
@@ -139,8 +127,6 @@ router.put('/downloads/:id', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), a
       res.stdRes.ret_det.message = 'Form parse error';
       return res.json(res.stdRes);
     }
-
-    console.log('Form parsed successfully:', { fields, files });
 
     try {
       const download = await Downloads.findById(req.params.id);
@@ -155,8 +141,6 @@ router.put('/downloads/:id', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), a
       const description = Array.isArray(fields.description) ? fields.description[0] : fields.description;
       const oldFileName = Array.isArray(fields.oldFileName) ? fields.oldFileName[0] : fields.oldFileName;
 
-      console.log('Parsed fields:', { name, category, description, oldFileName });
-
       if (!files.download) {
         // No file uploaded, update the document details
         await Downloads.findByIdAndUpdate(req.params.id, {
@@ -164,7 +148,6 @@ router.put('/downloads/:id', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), a
           description: description,
           category: category
         });
-        console.log(`Updated download details for: ${name}`);
       } else {
         const file = Array.isArray(files.download) ? files.download[0] : files.download;
         if (file.size > (100 * 1024 * 1024)) { // 100MiB
@@ -179,7 +162,6 @@ router.put('/downloads/:id', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), a
             Bucket: 'zauartcc',
             Key: `${process.env.S3_FOLDER_PREFIX}/downloads/${oldFileName}`
           }));
-          console.log(`Deleted old file from S3: ${process.env.FOLDER_PREFIX}/downloads/${download.name}`);
         }
 
         const tmpFile = await fs.readFile(file.filepath);
@@ -191,7 +173,6 @@ router.put('/downloads/:id', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), a
           ContentType: file.mimetype,
           ACL: 'public-read',
         }));
-        console.log('Uploaded new file to S3');
 
         await Downloads.findByIdAndUpdate(req.params.id, {
           name: name,
@@ -199,7 +180,6 @@ router.put('/downloads/:id', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), a
           category: category,
           fileName: fileKey
         });
-        console.log(`Updated download details and file for: ${name}`);
       }
 
       await req.app.dossier.create({
@@ -232,7 +212,6 @@ router.delete('/downloads/:id', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm'])
         Bucket: 'zauartcc',
         Key: `${process.env.S3_FOLDER_PREFIX}/downloads/${download.fileName}`
       }));
-      console.log(`Deleted file from S3: ${process.env.FOLDER_PREFIX}/downloads/${download.fileName}`);
     }
 
     await req.app.dossier.create({
@@ -277,13 +256,10 @@ router.get('/documents/:slug', async (req, res) => {
 });
 
 router.post('/documents', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), async (req, res) => {
-  console.log('Received request to /documents');
 
   if (req.headers['content-type'].includes('application/json')) {
     // Handle JSON request
     const { name, category, description, content, type } = req.body;
-
-    console.log('Parsed JSON body:', { name, category, description, content, type });
 
     if (!category) {
       res.stdRes.ret_det.code = 400;
@@ -298,7 +274,6 @@ router.post('/documents', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), asyn
     }
 
     const slug = name.replace(/\s+/g, '-').toLowerCase().replace(/^-+|-+(?=-|$)/g, '').replace(/[^a-zA-Z0-9-_]/g, '') + '-' + Date.now().toString().slice(-5);
-    console.log('Generated slug:', slug);
 
     try {
       if (type === "doc") {
@@ -335,16 +310,12 @@ router.post('/documents', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), asyn
         return res.json(res.stdRes);
       }
 
-      console.log('Form parsed successfully:', { fields, files });
-
       // Extract the first element from the arrays
       const name = Array.isArray(fields.name) ? fields.name[0] : fields.name;
       const category = Array.isArray(fields.category) ? fields.category[0] : fields.category;
       const description = Array.isArray(fields.description) ? fields.description[0] : fields.description;
       const content = fields.content ? (Array.isArray(fields.content) ? fields.content[0] : fields.content) : null;
       const type = Array.isArray(fields.type) ? fields.type[0] : fields.type;
-
-      console.log('Parsed fields:', { name, category, description, content, type });
 
       if (!category) {
         res.stdRes.ret_det.code = 400;
@@ -359,7 +330,6 @@ router.post('/documents', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), asyn
       }
 
       const slug = name.replace(/\s+/g, '-').toLowerCase().replace(/^-+|-+(?=-|$)/g, '').replace(/[^a-zA-Z0-9-_]/g, '') + '-' + Date.now().toString().slice(-5);
-      console.log('Generated slug:', slug);
 
       try {
         if (type === "file") {
@@ -385,7 +355,6 @@ router.post('/documents', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), asyn
 
 async function handleFileUpload({ name, category, description, slug, files, req, res }) {
   const file = Array.isArray(files.download) ? files.download[0] : files.download;
-  console.log('File to upload:', file);
 
   // Ensure the file object and file path are defined
   if (!file || !file.filepath) {
@@ -395,8 +364,6 @@ async function handleFileUpload({ name, category, description, slug, files, req,
     };
   }
 
-  console.log('File details:', file);
-
   if (file.size > (100 * 1024 * 1024)) { // 100MiB
     throw {
       code: 400,
@@ -405,7 +372,6 @@ async function handleFileUpload({ name, category, description, slug, files, req,
   }
 
   const tmpFile = await fs.readFile(file.filepath);
-  console.log('Read temp file');
 
   const fileKey = `${Date.now()}-${file.originalFilename}`;
   await s3.send(new PutObjectCommand({
@@ -415,7 +381,6 @@ async function handleFileUpload({ name, category, description, slug, files, req,
     ContentType: file.mimetype,
     ACL: 'public-read',
   }));
-  console.log('Uploaded file to S3');
 
   await Document.create({
     name,
@@ -426,21 +391,18 @@ async function handleFileUpload({ name, category, description, slug, files, req,
     type: 'file',
     fileName: fileKey // Save the key used in S3
   });
-  console.log('Created document in database');
 
   await req.app.dossier.create({
     by: res.user.cid,
     affected: -1,
     action: `%b created the document *${name}*.`
   });
-  console.log('Created dossier entry');
 
   res.stdRes.ret_det.message = 'Document created successfully';
   return res.json(res.stdRes);
 }
 
 async function handleDocumentUpload({ name, category, description, content, slug, req, res }) {
-  console.log('Handling document upload');
 
   if (!content) {
     res.stdRes.ret_det.code = 400;
@@ -457,21 +419,18 @@ async function handleDocumentUpload({ name, category, description, content, slug
     author: res.user.cid,
     type: 'doc'
   });
-  console.log('Created document in database');
 
   await req.app.dossier.create({
     by: res.user.cid,
     affected: -1,
     action: `%b created the document *${name}*.`
   });
-  console.log('Created dossier entry');
 
   res.stdRes.ret_det.message = 'Text Document created successfully';
   return res.json(res.stdRes);
 }
 
 router.put('/documents/:slug', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), async (req, res) => {
-  console.log('Received PUT request to /documents/:slug');
 
   if (req.is('multipart/form-data')) {
     const form = formidable();
@@ -482,9 +441,7 @@ router.put('/documents/:slug', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']),
         res.stdRes.ret_det.message = 'Form parse error';
         return res.json(res.stdRes);
       }
-    
-      console.log('Form parsed successfully:', { fields, files });
-    
+        
       try {
         const document = await Document.findOne({ slug: req.params.slug });
         console.log('Document found:', document);
@@ -502,11 +459,7 @@ router.put('/documents/:slug', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']),
         const oldFileName = Array.isArray(fields.oldFileName) ? fields.oldFileName[0] : fields.oldFileName;
         const file = files.download ? (Array.isArray(files.download) ? files.download[0] : files.download) : null;
     
-        console.log('Parsed fields:', { name, category, description, type, oldFileName });
-        console.log('Parsed file:', file);
-
         if (type === 'file' && file) {
-          console.log('Processing file upload');
 
           if (file.size > (100 * 1024 * 1024)) { // 100MiB
             console.error('File too large');
@@ -517,20 +470,14 @@ router.put('/documents/:slug', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']),
 
           // Delete the old file from S3 if an old file name is provided
           if (oldFileName) {
-            console.log(`Deleting old file from S3: documents/${oldFileName}`);
             await s3.send(new DeleteObjectCommand({
               Bucket: 'zauartcc',
               Key: `${process.env.S3_FOLDER_PREFIX}/documents/${oldFileName}`
             }));
-            console.log(`Deleted old file from S3: documents/${oldFileName}`);
           }
 
-          console.log('Reading temp file');
           const tmpFile = await fs.readFile(file.filepath);
-          console.log('Read temp file');
-
           const fileKey = `${Date.now()}-${file.originalFilename}`;
-          console.log('Uploading new file to S3 with key:', fileKey);
           await s3.send(new PutObjectCommand({
             Bucket: 'zauartcc',
             Key: `${process.env.S3_FOLDER_PREFIX}/documents/${fileKey}`,
@@ -538,7 +485,6 @@ router.put('/documents/:slug', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']),
             ContentType: file.mimetype,
             ACL: 'public-read',
           }));
-          console.log('Uploaded new file to S3');
 
           document.name = name;
           document.category = category;
@@ -546,16 +492,13 @@ router.put('/documents/:slug', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']),
           document.fileName = fileKey;
           document.type = 'file';
 
-          console.log('Saving updated document to database');
           await document.save();
-          console.log('Updated document in database');
 
           await req.app.dossier.create({
             by: res.user.cid,
             affected: -1,
             action: `%b updated the document *${name}*.`
           });
-          console.log('Created dossier entry');
 
           res.stdRes.ret_det.message = 'Document updated successfully';
           return res.json(res.stdRes);
@@ -576,9 +519,7 @@ router.put('/documents/:slug', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']),
     });
   } else if (req.is('application/json')) {
     try {
-      console.log('Processing JSON request');
       const document = await Document.findOne({ slug: req.params.slug });
-      console.log('Document found:', document);
       if (!document) {
         res.stdRes.ret_det.code = 404;
         res.stdRes.ret_det.message = 'Document not found';
@@ -586,7 +527,6 @@ router.put('/documents/:slug', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']),
       }
 
       const { name, category, description, content, type } = req.body;
-      console.log('Parsed JSON fields:', { name, category, description, content, type });
 
       if (type === 'doc') {
         document.name = name;
@@ -596,16 +536,13 @@ router.put('/documents/:slug', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']),
         document.content = content;
         document.type = 'doc';
 
-        console.log('Saving updated document to database');
         await document.save();
-        console.log('Updated document in database');
 
         await req.app.dossier.create({
           by: res.user.cid,
           affected: -1,
           action: `%b updated the document *${name}*.`
         });
-        console.log('Created dossier entry');
 
         res.stdRes.ret_det.message = 'Document updated successfully';
         return res.json(res.stdRes);
@@ -648,7 +585,6 @@ router.delete('/documents/:id', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm'])
         Key: `${process.env.S3_FOLDER_PREFIX}/documents/${doc.fileName}`
       };
       await s3.send(new DeleteObjectCommand(deleteParams));
-      console.log('Deleted file from S3');
     }
 
     await Document.findByIdAndDelete(req.params.id);
