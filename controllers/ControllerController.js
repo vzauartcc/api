@@ -629,7 +629,11 @@ router.put('/visit/:cid', getUser, auth(['atm', 'datm']), async (req, res) => {
 
 		await initializeUserProgress(user.cid);
 
-		await axios.post(`https://api.vatusa.net/v2/facility/ZAU/roster/manageVisitor/${req.params.cid}?apikey=${process.env.VATUSA_API_KEY}`)
+		await axios.post(`https://api.vatusa.net/v2/facility/ZAU/roster/manageVisitor/${req.params.cid}`, null, {
+			params: {
+				apikey: process.env.VATUSA_API_KEY,
+			},
+		});
 
 		await transporter.sendMail({
 			to: user.email,
@@ -1003,7 +1007,7 @@ router.delete('/:cid', getUser, auth(['atm', 'datm']), async (req, res) => {
 				data: {
 					reason: req.body.reason,
 					by: res.user.cid
-				}
+				},
 			});
 		} else {
 			await axios.delete(`https://api.vatusa.net/v2/facility/ZAU/roster/${req.params.cid}`, {
@@ -1013,7 +1017,7 @@ router.delete('/:cid', getUser, auth(['atm', 'datm']), async (req, res) => {
 				data: {
 					reason: req.body.reason,
 					by: res.user.cid
-				}
+				},
 			});
 		}
 

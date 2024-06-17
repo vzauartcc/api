@@ -120,8 +120,7 @@ router.post("/login", oAuth, async (req, res) => {
     if (Object.values(userData).some((x) => x == null || x == "")) {
       throw {
         code: 400,
-        message:
-          "User must authorize all requested VATSIM data. [Authorize Data]",
+        message: "User must authorize all requested VATSIM data. [Authorize Data]",
       };
     }
 
@@ -157,13 +156,13 @@ router.post("/login", oAuth, async (req, res) => {
       );
 
       await req.app.s3.send(new PutObjectCommand({
-				Bucket: `zauartcc`,
+        Bucket: `zauartcc`,
         Key: `${process.env.S3_FOLDER_PREFIX}/avatars/${user.cid}-default.png`,
-				Body: data,
+        Body: data,
         ContentType: "image/png",
-				ACL: 'public-read',
-				ContentDisposition: 'inline',
-			}));
+        ACL: 'public-read',
+        ContentDisposition: 'inline',
+      }));
 
       user.avatar = `${user.cid}-default.png`;
     }
@@ -180,10 +179,16 @@ router.post("/login", oAuth, async (req, res) => {
       sameSite: true,
       domain: process.env.DOMAIN,
     }); // Expires in 30 days
+
+    res.stdRes.ret_det.message = 'Login successful';
+    res.stdRes.data = { token: apiToken };
   } catch (e) {
     req.app.Sentry.captureException(e);
-    res.stdRes.ret_det = e;
-    res.status(500);
+    res.stdRes.ret_det = {
+      code: e.code || 500,
+      message: e.message || 'An error occurred.',
+    };
+    res.status(e.code || 500);
   }
 
   return res.json(res.stdRes);

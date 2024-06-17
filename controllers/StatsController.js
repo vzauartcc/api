@@ -267,8 +267,14 @@ const getFiftyData = async cid => {
 	const today = L.utc();
 	const chkDate = today.minus({days: 60});
 
-	const {data: fiftyData} = await axios.get(`https://api.vatsim.net/api/ratings/${cid}/atcsessions/?start=${chkDate.toISODate()}&group_by_callsign`);
-
+	//TODO: Update to VATSIM V2 API.
+	const { data: fiftyData } = await axios.get(`https://api.vatsim.net/api/ratings/${cid}/atcsessions/`, {
+		params: {
+			start: chkDate.toISODate(),
+			group_by_callsign: true // Assuming this should be a boolean flag
+		}
+	});
+	
 	let total = 0;
 
 	for(const session of fiftyData.results) {

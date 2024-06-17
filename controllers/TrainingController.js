@@ -437,86 +437,86 @@ router.put('/session/save/:id', getUser, auth(['atm', 'datm', 'ta', 'ins', 'mtr'
 	return res.json(res.stdRes);
 });
 
-router.put('/session/submit/:id', getUser, auth(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']), async(req, res) => {
-	try {
-		if(req.body.position === '' || req.body.progress === null || req.body.movements === null || req.body.location === null || req.body.ots === null || req.body.studentNotes === null || (req.body.studentNotes && req.body.studentNotes.length > 3000) || (req.body.insNotes && req.body.insNotes.length > 3000)) {
-			throw {
-				code: 400,
-				message: "You must fill out all required forms"
-			};
-		}
+router.put('/session/submit/:id', getUser, auth(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']), async (req, res) => {
+  try {
+    if (req.body.position === '' || req.body.progress === null || req.body.movements === null || req.body.location === null || req.body.ots === null || req.body.studentNotes === null || (req.body.studentNotes && req.body.studentNotes.length > 3000) || (req.body.insNotes && req.body.insNotes.length > 3000)) {
+      throw {
+        code: 400,
+        message: "You must fill out all required forms"
+      };
+    }
 
-		const delta = Math.abs(new Date(req.body.endTime) - new Date(req.body.startTime)) / 1000;
-		const hours = Math.floor(delta / 3600);
-		const minutes = Math.floor(delta / 60) % 60;
+    const delta = Math.abs(new Date(req.body.endTime) - new Date(req.body.startTime)) / 1000;
+    const hours = Math.floor(delta / 3600);
+    const minutes = Math.floor(delta / 60) % 60;
 
-		const duration = `${('00' + hours).slice(-2)}:${('00' + minutes).slice(-2)}`;
+    const duration = `${('00' + hours).slice(-2)}:${('00' + minutes).slice(-2)}`;
 
-		const session = await TrainingSession.findByIdAndUpdate(req.params.id, {
-			sessiondate: req.body.startTime.slice(1,11),
-			position: req.body.position,
-			progress: req.body.progress,
-			duration: duration,
-			movements: req.body.movements,
-			location: req.body.location,
-			ots: req.body.ots,
-			studentNotes: req.body.studentNotes,
-			insNotes: req.body.insNotes,
-			submitted: true
-		});
+    const session = await TrainingSession.findByIdAndUpdate(req.params.id, {
+      sessiondate: req.body.startTime.slice(1, 11),
+      position: req.body.position,
+      progress: req.body.progress,
+      duration: duration,
+      movements: req.body.movements,
+      location: req.body.location,
+      ots: req.body.ots,
+      studentNotes: req.body.studentNotes,
+      insNotes: req.body.insNotes,
+      submitted: true
+    }, { new: true });
 
-		const instructor = await User.findOne({cid: session.instructorCid}).select('fname lname').lean();
+    const instructor = await User.findOne({ cid: session.instructorCid }).select('fname lname').lean();
 
-		// Send the training record to vatusa
-		const vatusaApi = axios.create({ baseUrl: 'https://api.vatusa.net/v2'}, {
-			params: { apiKey: process.env.VATUSA_API_KEY } }
-		);
+    // Send the training record to VATUSA
+    const vatusaApi = axios.create({
+      baseURL: 'https://api.vatusa.net/v2',
+      params: {
+        apiKey: process.env.VATUSA_API_KEY
+      }
+    });
 
-		const Response = await vatusaApi.post(`https://api.vatusa.net/v2/user/${session.studentCid}/training/record/?apikey=${process.env.VATUSA_API_KEY}` , 
-					{
-					instructor_id: session.instructorCid,
-                	session_date: dayjs(req.body.startTime).format("YYYY-MM-DD HH:mm"),
-					position: req.body.position,
-					duration: duration,
-					movements: req.body.movements,
-					score: req.body.progress,
-					notes: req.body.studentNotes,
-			     	ots_status: req.body.ots,
-				    location: req.body.location,
-                    is_cbt: false,
-                    solo_granted: false
-					});	
+    try {
+      const response = await vatusaApi.post(`/user/${session.studentCid}/training/record`, {
+        instructor_id: session.instructorCid,
+        session_date: dayjs(req.body.startTime).format("YYYY-MM-DD HH:mm"),
+        position: req.body.position,
+        duration: duration,
+        movements: req.body.movements,
+        score: req.body.progress,
+        notes: req.body.studentNotes,
+        ots_status: req.body.ots,
+        location: req.body.location,
+        is_cbt: false,
+        solo_granted: false
+      });
 
-		// If we get here, vatusa update was successful
-		console.log('VATUSA API Training note submitted - status: ' + Response.status);
+      console.log('Response:', response.data);
 
-		// update the database flag to submitted to prevent further updates.	
-		const sessionfinalize = await TrainingSession.findByIdAndUpdate(req.params.id, {
-			sessiondate: dayjs(req.body.startTime).format("YYYY-MM-DD HH:mm"),
-			position: req.body.position,
-			progress: req.body.progress,
-			duration: duration,
-			movements: req.body.movements,
-			location: req.body.location,
-			ots: req.body.ots,
-			studentNotes: req.body.studentNotes,
-			insNotes: req.body.insNotes,
-			submitted: true
-		});
+      // If we get here, VATUSA update was successful
+      console.log('VATUSA API Training note submitted - status:', response.status);
 
-		await Notification.create({
-			recipient: session.studentCid,
-			read: false,
-			title: 'Training Notes Submitted',
-			content: `The training notes from your session with <b>${instructor.fname + ' ' + instructor.lname}</b> have been submitted.`,
-			link: `/dash/training/session/${req.params.id}`
-		});
-	} catch(e) {
-		req.app.Sentry.captureException(e);
-		res.stdRes.ret_det = e;
-	}
+      // Update the database flag to submitted to prevent further updates.
+      await TrainingSession.findByIdAndUpdate(req.params.id, {
+        submitted: true
+      });
 
-	return res.json(res.stdRes);
+      await Notification.create({
+        recipient: session.studentCid,
+        read: false,
+        title: 'Training Notes Submitted',
+        content: `The training notes from your session with <b>${instructor.fname + ' ' + instructor.lname}</b> have been submitted.`,
+        link: `/dash/training/session/${req.params.id}`
+      });
+
+      res.json({ message: 'Training session submitted successfully.' });
+    } catch (error) {
+      console.error('Error sending training record to VATUSA:', error);
+      throw error;
+    }
+  } catch (e) {
+    req.app.Sentry.captureException(e);
+    res.status(500).json({ error: e.message || 'An error occurred.' });
+  }
 });
 
 router.get('/modules', getUser, auth(['atm', 'datm', 'ta']), async (req, res) => {

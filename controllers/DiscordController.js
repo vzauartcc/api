@@ -6,7 +6,6 @@ import getUser from "../middleware/getUser.js";
 import Discord from "discord-oauth2";
 import oAuth from "../middleware/vatsimOAuth.js";
 import axios from "axios";
-import Redis from 'ioredis';
 
 import User from '../models/User.js';
 import Config from '../models/Config.js';
@@ -122,17 +121,16 @@ router.post("/info", async (req, res) => {
 			};
 		}
 
-		const { data: discordUser } = await axios
-      .get("https://discord.com/api/users/@me", {
-		  headers: {
-			  Authorization: `${token.token_type} ${token.access_token}`,
-			  "User-Agent": "Chicago ARTCC API",
-		  },
-	  })
-      .catch((err) => {
-		  console.log(err);
-		  return false;
-	  });
+		const { data: discordUser } = await axios.get("https://discord.com/api/users/@me", {
+			headers: {
+				Authorization: `${token.token_type} ${token.access_token}`,
+				"User-Agent": "Chicago ARTCC API",
+			},
+		}).catch((err) => {
+			console.log(err);
+			return false;
+		});
+		
 
 		if (!discordUser) {
 			throw {
