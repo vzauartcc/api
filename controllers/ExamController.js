@@ -8,6 +8,7 @@ import { Exam, Question, ExamAttempt } from '../models/Exam.js'; // Adjust the p
 import TrainingProgress from '../models/TrainingProgress.js';
 import { body, validationResult} from 'express-validator';
 import microAuth from '../middleware/microAuth.js';
+import TrainingModule from '../models/TrainingModule.js';
 
 // Define validation chain for creating a new exam
 const createExamValidation = [
@@ -113,158 +114,332 @@ router.patch('/exams/:examId', getUser, auth(['atm', 'datm', 'ta']), async (req,
 
 
 // Start Exam Attempt
-router.post('/exams/:examId/start', getUser, async (req, res) => {
+router.post('/start/:examId', getUser, async (req, res) => {
     const { examId } = req.params;
-    const userId = req.user._id;
-
-    // Prevent starting another attempt if one is already in progress and not timed out
+    const userId = res.user._id;
     const now = new Date();
-    const existingAttempt = await ExamAttempt.findOne({
-        exam: examId,
-        user: userId,
-        status: 'in_progress',
-        endTime: { $gt: now } // Check if the attempt is still within the time limit
-    });
-
-    if (existingAttempt) {
-        // Calculate remaining time for the existing attempt
-        const timeRemaining = existingAttempt.endTime.getTime() - now.getTime();
-        return res.status(200).json({
-            message: "Existing exam attempt resumed.",
-            attemptId: existingAttempt._id,
-            timeRemaining,
-        });
-    }
-
-    // Fetch the exam details
-    const exam = await Exam.findById(examId);
-    if (!exam) {
-        return res.status(404).json({ message: "Exam not found." });
-    }
-
-    // Find the most recent attempt for this exam and user
-    const latestAttempt = await ExamAttempt.findOne({ exam: examId, user: userId })
-        .sort({ createdAt: -1 }); // Assuming createdAt is a field that tracks when the attempt was made
-
-    if (latestAttempt) {
-        // Check if the maximum attempts have been reached
-        if (latestAttempt.attemptNumber >= 3) {
-            return res.status(400).json({ message: "Maximum attempts reached." });
-        }
-
-        // Check if 24 hours have passed since the last attempt
-        const hoursSinceLastAttempt = (now - latestAttempt.lastAttemptTime) / (1000 * 60 * 60);
-        if (hoursSinceLastAttempt < 24) {
-            return res.status(400).json({ message: "24-hour waiting period has not passed since your last attempt." });
-        }
-    }
-
-    // Fetch questions for the test type and randomly select the required subset
-    const allQuestions = await Question.find({ testType: exam.testType });
-    const questionSubsetSize = exam.questionSubsetSize || 30; // Default to 30 if not specified
-    const selectedQuestions = selectRandomSubset(allQuestions, questionSubsetSize);
-    const questions = selectedQuestions.sort(() => 0.5 - Math.random());
-
-    // Create the exam attempt
-    const newAttempt = new ExamAttempt({
-        exam: examId,
-        user: userId,
-        questionsOrder: questions.map(q => q._id),
-        responses: questions.map(q => ({
-            question: q._id,
-            selectedOption: null,
-            isCorrect: null,
-        })),
-        startTime: new Date(),
-        endTime: new Date(new Date().getTime() + exam.timeLimit * 60000), // Calculate end time based on timeLimit
-        status: 'in_progress',
-    });
-
-    await newAttempt.save();
-    // Send back the time remaining along with attempt details
-    const timeRemaining = newAttempt.endTime.getTime() - Date.now();
-    res.status(201).json({ message: "Exam started successfully", attemptId: newAttempt._id, timeRemaining });
-});
-
-// Patch Exam Attempt (update answers, time spent, and submit)
-router.patch('/exams/:examId/attempt', getUser, async (req, res) => {
-    const { examId } = req.params;
-    const userId = req.user._id;
-    const { responses, submit } = req.body; // `submit` indicates if this is a final submission
 
     try {
-        // Fetch the existing exam attempt
-        let examAttempt = await ExamAttempt.findOne({
+        console.log('Received request to start exam:', { examId, userId });
+
+        let existingAttempt = await ExamAttempt.findOne({
             exam: examId,
             user: userId,
-            status: { $in: ['in_progress'] }
+            status: 'in_progress',
+            endTime: { $gt: now }
+        });
+
+        if (existingAttempt) {
+            const exam = await Exam.findById(existingAttempt.exam);
+            if (!exam) {
+                console.log('Exam not found:', examId);
+                return res.status(404).json({ message: "Exam not found." });
+            }
+
+            const questions = existingAttempt.responses.map(response => {
+                const question = exam.questions.find(q => q._id.equals(response.question));
+                if (question) {
+                    return {
+                        _id: question._id,
+                        text: question.text,
+                        isTrueFalse: question.isTrueFalse,
+                        options: question.options.map(opt => ({
+                            _id: opt._id,
+                            text: opt.text
+                        })),
+                        selectedOption: response.selectedOption
+                    };
+                }
+                console.log('No question found for response:', response);
+                return null;
+            }).filter(q => q !== null); // Filter out null values
+
+            const timeRemaining = existingAttempt.endTime.getTime() - now.getTime();
+            console.log('Resuming existing exam attempt:', existingAttempt);
+
+            return res.status(200).json({
+                message: "Existing exam attempt resumed.",
+                attemptId: existingAttempt._id,
+                endTime: existingAttempt.endTime,
+                exam: exam.title, 
+                timeRemaining,
+                questions,
+            });
+        }
+
+        const exam = await Exam.findById(examId);
+        if (!exam) {
+            console.log('Exam not found:', examId);
+            return res.status(404).json({ message: "Exam not found." });
+        }
+
+        const allQuestions = exam.questions; // Use questions from the exam
+        if (!Array.isArray(allQuestions) || allQuestions.length === 0) {
+            console.log('No questions found for the exam:', examId);
+            return res.status(404).json({ message: "No questions found for the exam." });
+        }
+
+        const questionSubsetSize = exam.questionSubsetSize || 30;
+
+        // Function to select a random subset of questions
+        const selectRandomSubset = (array, subsetSize) => {
+            if (!Array.isArray(array)) {
+                console.log('Error: input is not an array:', array);
+                return [];
+            }
+            
+            if (array.length <= subsetSize) {
+                return array;
+            }
+
+            const shuffled = array.sort(() => 0.5 - Math.random());
+            return shuffled.slice(0, subsetSize);
+        };
+
+        const selectedQuestions = selectRandomSubset(allQuestions, questionSubsetSize);
+
+        // Ensure selectedQuestions is an array
+        if (!Array.isArray(selectedQuestions)) {
+            console.log('Error: selectRandomSubset did not return an array:', selectedQuestions);
+            return res.status(500).json({ message: "Error selecting questions for the exam." });
+        }
+
+        const questions = selectedQuestions.sort(() => 0.5 - Math.random());
+        console.log('Selected questions for exam:', selectedQuestions);
+
+        const newAttempt = new ExamAttempt({
+            exam: examId,
+            user: userId,
+            questionsOrder: questions.map(q => q._id),
+            responses: questions.map(q => ({
+                question: q._id,
+                selectedOption: null,
+                isCorrect: null,
+            })),
+            startTime: new Date(),
+            endTime: new Date(new Date().getTime() + exam.timeLimit * 60000),
+            status: 'in_progress',
+        });
+
+        await newAttempt.save();
+        const timeRemaining = newAttempt.endTime.getTime() - Date.now();
+
+        // Schedule auto-submit at the end of the exam
+        scheduleAutoSubmit(newAttempt._id, newAttempt.endTime);
+
+        console.log('New exam attempt created:', newAttempt);
+
+        res.status(201).json({ 
+            message: "Exam started successfully", 
+            attemptId: newAttempt._id, 
+            endTime: newAttempt.endTime,
+            title: exam.title, 
+            timeRemaining,
+            questions: questions.map(q => ({
+                _id: q._id,
+                text: q.text,
+                options: q.options.map(opt => ({
+                    _id: opt._id,
+                    text: opt.text
+                }))
+            })) 
+        });
+    } catch (error) {
+        console.error("Error starting exam:", error);
+        res.status(500).json({ message: "Internal server error", error: error.toString() });
+    }
+});
+
+// Save Exam Progress
+router.patch('/save/:attemptId', getUser, async (req, res) => {
+    const { attemptId } = req.params;
+    const userId = res.user._id;
+    const { responses } = req.body;
+
+    try {
+        let examAttempt = await ExamAttempt.findOne({
+            _id: attemptId,
+            user: userId,
+            status: 'in_progress'
         });
 
         if (!examAttempt) {
             return res.status(404).json({ message: "Exam attempt not found or already submitted." });
         }
 
-        // If responses are provided, update them
         if (responses && Array.isArray(responses)) {
             responses.forEach(response => {
-                // Find the matching question in the attempt and update it
                 let attemptResponse = examAttempt.responses.find(r => r.question.toString() === response.questionId);
                 if (attemptResponse) {
                     if (response.selectedOption) {
                         attemptResponse.selectedOption = response.selectedOption;
                     }
-                    if (response.timeSpent) {
-                        attemptResponse.timeSpent += response.timeSpent; // Accumulate time spent
+                    if (response.timeSpent && !isNaN(response.timeSpent)) {
+                        attemptResponse.timeSpent = (attemptResponse.timeSpent || 0) + response.timeSpent;
+                    } else {
+                        attemptResponse.timeSpent = attemptResponse.timeSpent || 0; // Initialize if not set
                     }
-                    // Update correctness based on the new answer, if needed
-                    // This requires fetching the question details or having that information available
                 }
             });
-        }
-
-        // If this is a final submission, update the attempt's status and potentially calculate the score
-        if (submit) {
-            examAttempt.status = 'completed';
-            examAttempt.endTime = new Date();
-        
-            // Load the exam document to access the questions and their options
-            const exam = await Exam.findById(examAttempt.exam).exec();
-            if (!exam) {
-                return res.status(404).json({ message: "Exam not found." });
-            }
-        
-            let correctAnswers = 0;
-        
-            // Iterate over the responses in the exam attempt
-            examAttempt.responses.forEach(response => {
-                // Find the corresponding question in the exam document
-                const question = exam.questions.find(q => q._id.equals(response.question));
-        
-                if (question) {
-                    // Use the adjusted calculateCorrectness function
-                    const isCorrect = calculateCorrectness(question.options, response.selectedOption);
-                    if (isCorrect) correctAnswers++;
-        
-                    // Update the correctness status in the response object if necessary
-                    response.isCorrect = isCorrect;
-                }
-            });
-        
-            const score = (correctAnswers / examAttempt.responses.length) * 100;
-            examAttempt.score = score;
-            examAttempt.passed = score >= 80; // Assuming 80 is the passing score
         }
 
         await examAttempt.save();
+        res.status(200).json({ message: "Progress saved successfully." });
+    } catch (error) {
+        console.error("Error saving progress:", error);
+        res.status(500).json({ message: "Internal server error", error: error.toString() });
+    }
+});
 
-        res.json({
-            message: submit ? "Exam submitted successfully" : "Exam attempt updated",
-            examAttemptId: examAttempt._id,
-            status: examAttempt.status,
-            ...(submit && { score: examAttempt.score, passed: examAttempt.passed }) // Include score and passed only on submission
+// Submit Exam Attempt
+router.patch('/submit/:attemptId', getUser, async (req, res) => {
+    const { attemptId } = req.params;
+    const userId = res.user._id;
+    const { responses } = req.body;
+
+    console.log(`User ${userId} is submitting exam attempt ${attemptId} with responses:`, responses);
+
+    try {
+        let examAttempt = await ExamAttempt.findOne({
+            _id: attemptId,
+            user: userId,
+            status: 'in_progress'
+        }).populate('exam');
+
+        if (!examAttempt) {
+            console.log(`Exam attempt ${attemptId} not found or already submitted.`);
+            return res.status(404).json({ message: "Exam attempt not found or already submitted." });
+        }
+
+        console.log(`Exam attempt found:`, examAttempt);
+
+        if (responses && Array.isArray(responses)) {
+            responses.forEach(response => {
+                let attemptResponse = examAttempt.responses.find(r => r.question.toString() === response.question);
+                if (attemptResponse) {
+                    if (response.selectedOption) {
+                        attemptResponse.selectedOption = response.selectedOption;
+                    }
+                    if (response.timeSpent !== undefined) {
+                        attemptResponse.timeSpent = response.timeSpent; // Use timeSpent directly
+                    }
+                }
+            });
+        }
+
+        console.log(`Updated responses in exam attempt:`, examAttempt.responses);
+
+        examAttempt.status = 'completed';
+        examAttempt.endTime = new Date();
+
+        const exam = await Exam.findById(examAttempt.exam).populate({
+            path: 'questions',
+            populate: { path: 'options' }
+        });
+        
+        if (!exam) {
+            console.log(`Exam ${examAttempt.exam} not found.`);
+            return res.status(404).json({ message: "Exam not found." });
+        }
+
+        console.log(`Exam details fetched:`, exam);
+
+        let correctAnswers = 0;
+        const scoredQuestions = [];
+        examAttempt.responses.forEach(response => {
+            const question = exam.questions.find(q => q._id.equals(response.question));
+            if (question) {
+                const isCorrect = question.options.some(option => option._id.equals(response.selectedOption) && option.isCorrect);
+                if (isCorrect) correctAnswers++;
+                response.isCorrect = isCorrect;
+
+                scoredQuestions.push({
+                    _id: question._id,
+                    text: question.text,
+                    options: question.options,
+                    selectedOption: response.selectedOption,
+                    isCorrect: isCorrect
+                });
+            }
+        });
+
+        const score = ((correctAnswers / examAttempt.responses.length) * 100).toFixed(2);
+        examAttempt.score = parseFloat(score); // Store the rounded score as a number
+        examAttempt.passed = examAttempt.score >= 80;
+
+        console.log(`Exam attempt grading complete. Score: ${score}, Passed: ${examAttempt.passed}`);
+
+        await examAttempt.save();
+
+        res.status(200).json({
+            message: "Exam submitted successfully",
+            score: examAttempt.score,
+            passed: examAttempt.passed,
+            questions: scoredQuestions
         });
     } catch (error) {
-        console.error("Error updating exam attempt:", error);
+        console.error("Error submitting exam:", error);
+        res.status(500).json({ message: "Internal server error", error: error.toString() });
+    }
+});
+
+
+// Check Exam Status
+router.get('/status/:examId', getUser, async (req, res) => {
+    const { examId } = req.params;
+    const userId = req.user._id;
+    const now = new Date();
+
+    try {
+        const inProgressAttempt = await ExamAttempt.findOne({
+            exam: examId,
+            user: userId,
+            status: 'in_progress',
+            endTime: { $gt: now }
+        });
+
+        if (inProgressAttempt) {
+            const timeRemaining = inProgressAttempt.endTime.getTime() - now.getTime();
+            return res.status(200).json({
+                message: "Exam in progress.",
+                status: 'in_progress',
+                attemptId: inProgressAttempt._id,
+                endTime: inProgressAttempt.endTime,
+                timeRemaining,
+            });
+        }
+
+        const trainingProgress = await TrainingProgress.findOne({ cid: userId });
+        const courseProgress = trainingProgress.modulesInProgress.find(module =>
+            module.courses.some(course => course.exams.some(exam => exam.examId.equals(examId)))
+        );
+        const examProgress = courseProgress.courses.find(course => 
+            course.exams.some(exam => exam.examId.equals(examId))
+        );
+
+        if (examProgress) {
+            const hoursSinceLastAttempt = (now - examProgress.lastAttemptTime) / (1000 * 60 * 60);
+            if (hoursSinceLastAttempt < 22) {
+                const cooldownEndTime = examProgress.nextEligibleRetestDate;
+                return res.status(200).json({
+                    message: "Exam cooldown.",
+                    status: 'cooldown',
+                    attemptId: null,
+                    endTime: null,
+                    cooldownEndTime: cooldownEndTime.toISOString(),
+                });
+            }
+        }
+
+        res.status(200).json({
+            message: "No active exam.",
+            status: 'not_attempted',
+            attemptId: null,
+            endTime: null,
+            cooldownEndTime: null,
+        });
+    } catch (error) {
+        console.error("Error fetching exam status:", error);
         res.status(500).json({ message: "Internal server error", error: error.toString() });
     }
 });
@@ -375,5 +550,133 @@ function calculateCorrectness(options, selectedOptionId) {
     const selectedOption = options.find(option => option._id.equals(selectedOptionId));
     return Boolean(selectedOption && selectedOption.isCorrect);
 }
+
+router.get('training-progress/:userId', getUser, async (req, res) => {
+    const { userId } = req.params;
+    const now = new Date();
+
+    try {
+        const trainingProgress = await TrainingProgress.findOne({ cid: userId })
+            .populate('modulesInProgress.courses.exams.examId')
+            .exec();
+
+        if (!trainingProgress) {
+            return res.status(404).json({ message: "Training progress not found." });
+        }
+
+        const examAttempts = [];
+
+        trainingProgress.modulesInProgress.forEach(module => {
+            module.courses.forEach(course => {
+                course.exams.forEach(exam => {
+                    const lastAttemptTime = exam.lastAttemptTime || new Date(0); // Default to epoch if null
+                    const cooldownEndTime = new Date(lastAttemptTime.getTime() + 22 * 60 * 60 * 1000);
+                    let status;
+                    let timeRemaining = 0;
+
+                    // Check if there's an in-progress attempt
+                    const inProgressAttempt = ExamAttempt.findOne({
+                        exam: exam.examId._id,
+                        user: userId,
+                        status: 'in_progress',
+                        endTime: { $gt: now }
+                    });
+
+                    if (inProgressAttempt) {
+                        status = 'in_progress';
+                        timeRemaining = inProgressAttempt.endTime.getTime() - now.getTime();
+                    } else if (exam.passed) {
+                        status = 'completed';
+                    } else if (now < exam.nextEligibleRetestDate) {
+                        status = 'cooldown';
+                        timeRemaining = exam.nextEligibleRetestDate - now;
+                    } else {
+                        status = 'not_attempted';
+                    }
+
+                    examAttempts.push({
+                        examId: exam.examId._id,
+                        examTitle: exam.examId.title,
+                        attempts: exam.attempts,
+                        lastAttemptTime,
+                        highestScore: exam.highestScore,
+                        nextEligibleRetestDate: exam.nextEligibleRetestDate,
+                        passed: exam.passed,
+                        status,
+                        timeRemaining,
+                    });
+                });
+            });
+        });
+
+        res.status(200).json({ examAttempts });
+    } catch (error) {
+        console.error("Error fetching exam attempts:", error);
+        res.status(500).json({ message: "Internal server error", error: error.toString() });
+    }
+});
+
+const autoSubmitExam = async (attemptId) => {
+    try {
+        const attempt = await ExamAttempt.findById(attemptId).populate('exam');
+        if (!attempt || attempt.status !== 'in_progress') return;
+
+        attempt.status = 'completed';
+        attempt.endTime = new Date();
+
+        const exam = attempt.exam;
+        let correctAnswers = 0;
+
+        attempt.responses.forEach(response => {
+            const question = exam.questions.find(q => q._id.equals(response.question));
+            if (question) {
+                const isCorrect = question.options.some(option => option._id.equals(response.selectedOption) && option.isCorrect);
+                if (isCorrect) correctAnswers++;
+                response.isCorrect = isCorrect;
+            }
+        });
+
+        const score = (correctAnswers / attempt.responses.length) * 100;
+        attempt.score = score;
+        attempt.passed = score >= 80;
+
+        await attempt.save();
+
+        // Update the training progress for the user
+        const trainingProgress = await TrainingProgress.findOne({ cid: attempt.user });
+        const courseProgress = trainingProgress.modulesInProgress.find(module =>
+            module.courses.some(course => course.exams.some(exam => exam.examId.equals(attempt.exam)))
+        );
+        const examProgress = courseProgress.courses.find(course => 
+            course.exams.some(exam => exam.examId.equals(attempt.exam))
+        );
+
+        examProgress.attempts += 1;
+        examProgress.lastAttemptTime = attempt.endTime;
+        if (attempt.passed) {
+            examProgress.highestScore = Math.max(examProgress.highestScore, score);
+            examProgress.passed = true;
+            examProgress.nextEligibleRetestDate = null;
+        } else {
+            examProgress.nextEligibleRetestDate = new Date(attempt.endTime.getTime() + 22 * 60 * 60 * 1000);
+        }
+
+        await trainingProgress.save();
+
+        const cooldownEndTime = new Date(attempt.endTime.getTime() + 22 * 60 * 60 * 1000);
+
+        console.log(`Exam attempt ${attemptId} completed. Status: ${attempt.passed ? 'Passed' : 'Failed'}. Cooldown end time: ${cooldownEndTime}`);
+    } catch (error) {
+        console.error(`Error in auto-submitting exam attempt ${attemptId}:`, error);
+    }
+};
+
+// Schedule auto-submission
+const scheduleAutoSubmit = (attemptId, endTime) => {
+    const delay = new Date(endTime).getTime() - Date.now();
+    if (delay > 0) {
+        setTimeout(() => autoSubmitExam(attemptId), delay);
+    }
+};
 
 export default router;

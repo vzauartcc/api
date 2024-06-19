@@ -32,7 +32,7 @@ const moduleProgressSchema = new m.Schema({
 })
 
 const trainingProgressSchema = new m.Schema({
-  cid: { type: Number },
+  trainee: { type: m.Schema.Types.ObjectId, ref: 'User', required: true },
   modulesInProgress: [moduleProgressSchema],
   completedModules: [moduleProgressSchema],
 },{
