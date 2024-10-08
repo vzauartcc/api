@@ -835,7 +835,7 @@ router.put('/:cid/visit', microAuth, async (req, res) => {
 	return res.json(res.stdRes);
 })
 
-router.put('/update-user/:cid', microAuth, async (req, res) => {
+router.put('/:cid', getUser, auth(['atm', 'datm', 'ta', 'fe', 'ec', 'wm', 'ins', 'mtr']), async (req, res) => {
   try {
     if (!req.body.form) {
       throw {
@@ -921,8 +921,6 @@ router.put('/update-user/:cid', microAuth, async (req, res) => {
       affected: req.params.cid,
       action: `%a was updated by %b.`
     });
-
-    res.status(200).json({ message: "User updated successfully" });
   } catch (e) {
     req.app.Sentry.captureException(e);
     res.stdRes.ret_det = e;
