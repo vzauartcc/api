@@ -455,14 +455,14 @@ router.get('/activity', getUser, auth(['atm', 'datm', 'ta', 'wm']), async (req, 
 
       let tooLow = userData[cid]?.tooLow || false;
 
-      if (highestCert) {
-        const certTime = await getCertActivityTime(cid, highestCert.code, startOfQuarter, endOfQuarter);
+   /*   if (highestCert) {
+       // const certTime = await getCertActivityTime(cid, highestCert.code, startOfQuarter, endOfQuarter);
         console.log(`User ${cid} certification activity time for ${highestCert.code}: ${certTime}`);
         if (certTime < 3600) {
           tooLow = true;
           console.log(`User ${cid} has tooLow status due to insufficient cert time.`);
         }
-      }
+      }*/
 
       // If the user data already exists, update tooLow status
       if (userData[cid]) {
