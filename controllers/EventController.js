@@ -10,6 +10,7 @@ import getUser from '../middleware/getUser.js';
 import auth from '../middleware/auth.js';
 import StaffingRequest from '../models/StaffingRequest.js'
 import fetch from "node-fetch";
+import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
 const upload = multer({
 	storage: multer.diskStorage({
@@ -21,10 +22,6 @@ const upload = multer({
 		}
 	})
 })
-
-
-
-
 
 router.get('/', async ({res}) => {
 	try {
@@ -342,7 +339,7 @@ router.post('/sendEvent', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req
 					fields: fieldsChunked[0],
 					url: 'https://www.zauartcc.org/events/' + eventData.url,
 					image: fieldsChunked.length > 1 ? undefined : {
-						url: 'https://zauartcc.sfo3.digitaloceanspaces.com/events/' + eventData.bannerUrl
+						url: `https://zauartcc.sfo3.digitaloceanspaces.com/${process.env.S3_FOLDER_PREFIX}/events/` + eventData.bannerUrl
 					}
 				}
 			]
@@ -354,7 +351,7 @@ router.post('/sendEvent', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req
 				color: 2003199,
 				fields: fieldsChunked[1],
 				image: {
-					url: 'https://zauartcc.sfo3.digitaloceanspaces.com/events/' + eventData.bannerUrl
+					url: `https://zauartcc.sfo3.digitaloceanspaces.com/${process.env.S3_FOLDER_PREFIX}/events/` + eventData.bannerUrl
 				},
 				footer: { text: 'Position information provided by WATSN' }
 			};
@@ -407,7 +404,7 @@ router.post('/', getUser, auth(['atm', 'datm', 'ec', 'wm']), upload.single('bann
 				message: "Banner type not supported"
 			}
 		}
-		if(req.file.size > (6 * 10240 * 10240)) {	// 6MiB
+		if(req.file.size > (10 * 10240 * 10240)) {	// 10MiB
 			throw {
 				code: 400,
 				message: "Banner too large"
@@ -416,14 +413,14 @@ router.post('/', getUser, auth(['atm', 'datm', 'ec', 'wm']), upload.single('bann
 
 		const tmpFile = await fs.readFile(req.file.path);
 
-		await req.app.s3.putObject({
-			Bucket: `zauartcc/events`,
-			Key: req.file.filename,
+		await req.app.s3.send(new PutObjectCommand({
+			Bucket: req.app.s3.defaultBucket,
+			Key: `${req.app.s3.folderPrefix}/events/${req.file.filename}`,
 			Body: tmpFile,
 			ContentType: req.file.mimetype,
-			ACL: 'public-read',
-			ContentDisposition: 'inline',
-		}).promise();
+			ACL: "public-read",
+			ContentDisposition: "inline",
+		}));
 
 		await Event.create({
 			name: req.body.name,
@@ -527,21 +524,31 @@ router.put('/:slug', getUser, auth(['atm', 'datm', 'ec', 'wm']), upload.single('
 					message: "File type not supported"
 				}
 			}
-			if(req.file.size > (6 * 10240 * 10240)) {	// 6MiB
+			if(req.file.size > (30 * 10240 * 10240)) {	// 30MiB
 				throw {
 					code: 400,
 					message: "File too large"
 				}
 			}
+
+			// 🚨 **Delete Old Banner from S3**
+			if (event.bannerUrl) {
+				console.log(`🗑️ Deleting old banner: ${event.bannerUrl}`);
+				await req.app.s3.send(new DeleteObjectCommand({
+					Bucket: req.app.s3.defaultBucket,
+					Key: `${req.app.s3.folderPrefix}/events/${event.bannerUrl}`,
+				}));
+			}
+
 			const tmpFile = await fs.readFile(req.file.path);
-			await req.app.s3.putObject({
-				Bucket: `zauartcc/events`,
-				Key: req.file.filename,
+			await req.app.s3.send(new PutObjectCommand({
+				Bucket: req.app.s3.defaultBucket,
+				Key: `${req.app.s3.folderPrefix}/events/${req.file.filename}`,
 				Body: tmpFile,
 				ContentType: req.file.mimetype,
-				ACL: 'public-read',
-				ContentDisposition: 'inline',
-			}).promise();
+				ACL: "public-read",
+				ContentDisposition: "inline",
+			}));
 
 			event.bannerUrl = req.file.filename;
 		}
@@ -563,16 +570,31 @@ router.put('/:slug', getUser, auth(['atm', 'datm', 'ec', 'wm']), upload.single('
 
 router.delete('/:slug', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req, res) => {
 	try {
-		const deleteEvent = await Event.findOne({url: req.params.slug});
+		const deleteEvent = await Event.findOne({ url: req.params.slug });
+
+		if (!deleteEvent) {
+			return res.status(404).json({ error: "Event not found" });
+		}
+
+		// 🚨 **Delete Banner from S3 If It Exists**
+		if (deleteEvent.bannerUrl) {
+			console.log(`🗑️ Deleting banner from S3: ${deleteEvent.bannerUrl}`);
+			await req.app.s3.send(new DeleteObjectCommand({
+				Bucket: req.app.s3.defaultBucket,
+				Key: `${req.app.s3.folderPrefix}/events/${deleteEvent.bannerUrl}`,
+			}));
+		}
+
+		// Delete the event from the database
 		await deleteEvent.delete();
 
 		await req.app.dossier.create({
 			by: res.user.cid,
 			affected: -1,
-			action: `%b deleted the event *${deleteEvent.name}*.`
+			action: `%b deleted the event *${deleteEvent.name}*.`,
 		});
 
-	} catch(e) {
+	} catch (e) {
 		req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;
 	}

@@ -13,12 +13,13 @@ import microAuth from '../middleware/microAuth.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import { DateTime as L } from 'luxon'
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 
 dotenv.config();
 
 router.get('/', async ({res}) => {
 	try {
-		const home = await User.find({vis: false, cid: { "$nin": [995625] }}).select('-email -idsToken -discordInfo').sort({
+		const home = await User.find({vis: false}).select('-email -idsToken -discordInfo -certificationDate').sort({
 			lname: 'asc',
 			fname: 'asc'
 		}).populate({
@@ -42,7 +43,7 @@ router.get('/', async ({res}) => {
 			select: '-reason'
 		}).lean({virtuals: true});
 
-		const visiting = await User.find({vis: true}).select('-email -idsToken -discordInfo').sort({
+		const visiting = await User.find({vis: true}).select('-email -idsToken -discordInfo -certificationDate').sort({
 			lname: 'asc',
 			fname: 'asc'
 		}).populate({
@@ -66,7 +67,7 @@ router.get('/', async ({res}) => {
 			select: '-reason'
 		}).lean({virtuals: true});
 
-		const removed = await User.find({member: false}).select('-email -idsToken -discordInfo').sort({
+		const removed = await User.find({member: false}).select('-email -idsToken -discordInfo -certificationDate').sort({
 			lname: 'asc',
 			fname: 'asc'
 		}).populate({
@@ -100,7 +101,7 @@ router.get('/', async ({res}) => {
 		res.stdRes.data = {home, visiting, removed};
 	}
 	catch(e) {
-		req.app.Sentry.captureException(e);
+		//req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;
 	}
 
@@ -680,14 +681,14 @@ router.post('/:cid', microAuth, async (req, res) => {
 		const userOi = generateOperatingInitials(req.body.fname, req.body.lname, oi.map(oi => oi.oi))
 		const {data} = await axios.get(`https://ui-avatars.com/api/?name=${userOi}&size=256&background=122049&color=ffffff`, {responseType: 'arraybuffer'});
 
-		await req.app.s3.putObject({
-			Bucket: `zauartcc/avatars`,
-			Key: `${req.body.cid}-default.png`,
+		await req.app.s3.send(new PutObjectCommand({
+			Bucket: req.app.s3.defaultBucket,
+			Key: `${req.app.s3.folderPrefix}/avatars/${req.body.cid}-default.png`,
 			Body: data,
 			ContentType: 'image/png',
 			ACL: 'public-read',
 			ContentDisposition: 'inline',
-		}).promise();
+		}));
 
 		await User.create({
 			...req.body,
@@ -836,87 +837,122 @@ router.put('/:cid/visit', microAuth, async (req, res) => {
 })
 
 router.put('/:cid', getUser, auth(['atm', 'datm', 'ta', 'fe', 'ec', 'wm', 'ins', 'mtr']), async (req, res) => {
-	try {
-		if(!req.body.form) {
-			throw {
-				code: 400,
-				message: "No user data included"
-			};
-		}
+  try {
+    if (!req.body.form) {
+      throw {
+        code: 400,
+        message: "No user data included"
+      };
+    }
 
-		const {fname, lname, email, oi, roles, certs, vis} = req.body.form;
-		const toApply = {
-			roles: [],
-			certifications: []
-		};
+    const { fname, lname, email, oi, roles, certs, vis } = req.body.form;
+    const toApply = {
+      roles: [],
+    };
 
-		for(const [code, set] of Object.entries(roles)) {
-			if(set) {
-				toApply.roles.push(code);
-			}
-		}
+    // Prepare roles to update
+    for (const [code, set] of Object.entries(roles)) {
+      if (set) {
+        toApply.roles.push(code);
+      }
+    }
 
-		for(const [code, set] of Object.entries(certs)) {
-			if(set) {
-				toApply.certifications.push(code);
-			}
-		}
+    // Find the existing user
+    const user = await User.findOne({ cid: req.params.cid });
 
-		const {data} = await axios.get(`https://ui-avatars.com/api/?name=${oi}&size=256&background=122049&color=ffffff`, {responseType: 'arraybuffer'});
+    if (!user) {
+      throw {
+        code: 404,
+        message: "User not found"
+      };
+    }
 
-		await req.app.s3.putObject({
-			Bucket: `zauartcc/avatars`,
-			Key: `${req.params.cid}-default.png`,
+    // Handle certifications (certCodes and certificationDate)
+    const existingCertMap = new Map(user.certificationDate.map(cert => [cert.code, cert]));
+    const updatedCertificationDate = [];
+
+    for (const [code, set] of Object.entries(certs)) {
+      if (set) {
+        if (existingCertMap.has(code)) {
+          // Keep the existing gainedDate if certification already exists
+          updatedCertificationDate.push({
+            code,
+            gainedDate: existingCertMap.get(code).gainedDate
+          });
+        } else {
+          // If it's a new certification, add with today's date
+          updatedCertificationDate.push({
+            code,
+            gainedDate: new Date()  // Assign current date as gainedDate
+          });
+        }
+      }
+    }
+
+    const {data} = await axios.get(`https://ui-avatars.com/api/?name=${oi}&size=256&background=122049&color=ffffff`, {responseType: 'arraybuffer'});
+
+		await req.app.s3.send(new PutObjectCommand({
+			Bucket: req.app.s3.defaultBucket,
+			Key: `${req.app.s3.folderPrefix}/avatars/${req.params.cid}-default.png`,
 			Body: data,
 			ContentType: 'image/png',
 			ACL: 'public-read',
 			ContentDisposition: 'inline',
-		}).promise();
+		}));
 
-		await User.findOneAndUpdate({cid: req.params.cid}, {
-			fname,
-			lname,
-			email,
-			oi,
-			vis,
-			roleCodes: toApply.roles,
-			certCodes: toApply.certifications,
-		});
+    // Use findOneAndUpdate to update the user document
+    await User.findOneAndUpdate(
+      { cid: req.params.cid },  // Find the user by their CID
+      {
+        fname,
+        lname,
+        email,
+        oi,
+        vis,
+        roleCodes: toApply.roles,  // Update roles
+        certCodes: updatedCertificationDate.map(cert => cert.code),  // Update certCodes
+        certificationDate: updatedCertificationDate,  // Update certificationDate with gainedDate
+      },
+      { new: true }  // Return the updated document after applying changes
+    );
 
-		await req.app.dossier.create({
-			by: res.user.cid,
-			affected: req.params.cid,
-			action: `%a was updated by %b.`
-		});
-	}
-	catch(e) {
-		req.app.Sentry.captureException(e);
-		res.stdRes.ret_det = e;
-	}
+    // Log the update in the user's dossier
+    await req.app.dossier.create({
+      by: res.user.cid,
+      affected: req.params.cid,
+      action: `%a was updated by %b.`
+    });
+  } catch (e) {
+    req.app.Sentry.captureException(e);
+    res.stdRes.ret_det = e;
+  }
 
-	return res.json(res.stdRes);
+  return res.json(res.stdRes);
 });
 
+
 router.put('/remove-cert/:cid', microAuth, async (req, res) => {
-	try {
-	  // Find the user by CID and remove their certCodes
-	  const cid = req.params.cid;
-	  const user = await User.findOne({ cid }).exec();
-  
-	  if (!user) {
-		return res.status(404).json({ message: 'User not found' });
-	  }
-  
-	  // Remove the user's certCodes
-	  user.certCodes = [];
-	  await user.save();
-  
-	  res.status(200).json({ message: 'Certs removed successfully' });
-	} catch (error) {
-	  console.error('Error removing certs', error);
-	  res.status(500).json({ message: 'Internal server error' });
-	}
-  });
+  try {
+    // Find the user by CID
+    const cid = req.params.cid;
+    const user = await User.findOne({ cid }).exec();
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Remove the user's certCodes and certificationDate
+    user.certCodes = [];               // Clear certCodes
+    user.certificationDate = [];       // Clear certificationDate (remove all certifications and gained dates)
+    
+    await user.save();
+
+    res.status(200).json({ message: 'Certs removed successfully' });
+  } catch (error) {
+    console.error('Error removing certs', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
 
 router.delete('/:cid', getUser, auth(['atm', 'datm']), async (req, res) => {
 	try {

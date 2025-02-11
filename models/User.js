@@ -35,6 +35,10 @@ const userSchema = new m.Schema({
 	discord: String,
 	idsToken: String,
 	certCodes: [],
+	certificationDate: [{
+    code: String,     // Certification code
+    gainedDate: Date  // Date when certification was gained
+  }],
 	roleCodes: [],
 	trainingMilestones: [{
 		type: m.Schema.Types.ObjectId, ref: 'TrainingMilestone'
@@ -82,6 +86,11 @@ userSchema.virtual('ratingShort').get(function() {
 
 userSchema.virtual('ratingLong').get(function() {
 	return zab.ratingsLong[this.rating];
+});
+
+// Virtual to return the simple certCodes array from certifications
+userSchema.virtual('certCodesList').get(function() {
+  return (this.certificationDate || []).map(cert => cert.code); // Safely handle if certificationDate is undefined or null
 });
 
 userSchema.virtual('roles', {
