@@ -16,9 +16,9 @@
     "url": "https://gitlab.com/albuquerque-web-stack/api"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.740.0",
     "@sentry/node": "^6.15.0",
     "@sentry/tracing": "^6.15.0",
-    "aws-sdk": "^2.1036.0",
     "axios": "^0.24.0",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",

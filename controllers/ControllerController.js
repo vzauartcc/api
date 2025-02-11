@@ -13,6 +13,7 @@ import microAuth from '../middleware/microAuth.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import { DateTime as L } from 'luxon'
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 
 dotenv.config();
 
@@ -680,14 +681,14 @@ router.post('/:cid', microAuth, async (req, res) => {
 		const userOi = generateOperatingInitials(req.body.fname, req.body.lname, oi.map(oi => oi.oi))
 		const {data} = await axios.get(`https://ui-avatars.com/api/?name=${userOi}&size=256&background=122049&color=ffffff`, {responseType: 'arraybuffer'});
 
-		await req.app.s3.putObject({
-			Bucket: `zauartcc/avatars`,
-			Key: `${req.body.cid}-default.png`,
+		await req.app.s3.send(new PutObjectCommand({
+			Bucket: req.app.s3.defaultBucket,
+			Key: `${req.app.s3.folderPrefix}/avatars/${req.body.cid}-default.png`,
 			Body: data,
 			ContentType: 'image/png',
 			ACL: 'public-read',
 			ContentDisposition: 'inline',
-		}).promise();
+		}));
 
 		await User.create({
 			...req.body,
@@ -890,14 +891,14 @@ router.put('/:cid', getUser, auth(['atm', 'datm', 'ta', 'fe', 'ec', 'wm', 'ins',
 
     const {data} = await axios.get(`https://ui-avatars.com/api/?name=${oi}&size=256&background=122049&color=ffffff`, {responseType: 'arraybuffer'});
 
-		await req.app.s3.putObject({
-			Bucket: `zauartcc/avatars`,
-			Key: `${req.params.cid}-default.png`,
+		await req.app.s3.send(new PutObjectCommand({
+			Bucket: req.app.s3.defaultBucket,
+			Key: `${req.app.s3.folderPrefix}/avatars/${req.params.cid}-default.png`,
 			Body: data,
 			ContentType: 'image/png',
 			ACL: 'public-read',
 			ContentDisposition: 'inline',
-		}).promise();
+		}));
 
     // Use findOneAndUpdate to update the user document
     await User.findOneAndUpdate(

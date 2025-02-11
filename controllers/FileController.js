@@ -1,18 +1,12 @@
 import e from 'express';
 const router = e.Router();
-import aws from 'aws-sdk';
+import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import multer from 'multer';
 import fs from 'fs/promises';
 import Downloads from '../models/Download.js';
 import Document from '../models/Document.js';
 import getUser from '../middleware/getUser.js';
 import auth from '../middleware/auth.js';
-
-const s3 = new aws.S3({
-    endpoint: new aws.Endpoint('sfo3.digitaloceanspaces.com'),
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-});
 
 const upload = multer({
     storage: multer.diskStorage({
@@ -65,13 +59,13 @@ router.post('/downloads', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), uplo
             }
         }
         const tmpFile = await fs.readFile(req.file.path);
-        await s3.putObject({
-            Bucket: `zauartcc/downloads`,
-            Key: req.file.filename,
+        await req.app.s3.send(new PutObjectCommand({
+            Bucket: req.app.s3.defaultBucket,
+            Key: `${req.app.s3.folderPrefix}/downloads/${req.file.filename}`,
             Body: tmpFile,
             ContentType: req.file.mimetype,
-            ACL: 'public-read',
-        }).promise();
+            ACL: "public-read",
+        }));
 
         await Downloads.create({
             name: req.body.name,
@@ -80,7 +74,6 @@ router.post('/downloads', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), uplo
             category: req.body.category,
             author: req.body.author
         });
-
 
         await req.app.dossier.create({
             by: res.user.cid,
@@ -97,42 +90,59 @@ router.post('/downloads', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), uplo
 
 router.put('/downloads/:id', upload.single('download'), getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), async (req, res) => {
     try {
-        if(!req.file) { // no updated file provided
+        const download = await Downloads.findById(req.params.id);
+        if (!download) {
+            throw { code: 404, message: "Download not found" };
+        }
+
+        if (!req.file) { // ✅ No updated file, just update metadata
             await Downloads.findByIdAndUpdate(req.params.id, {
                 name: req.body.name,
                 description: req.body.description,
                 category: req.body.category
             });
         } else {
-
-            if(req.file.size > (100 * 1024 * 1024)) {	// 100MiB
-                throw {
-                    code: 400,
-                    message: 'File too large'
-                }
+            // ✅ File size check (100MiB limit)
+            if (req.file.size > (100 * 1024 * 1024)) {
+                throw { code: 400, message: "File too large" };
             }
+
+            // 🚨 **Step 1: Delete Old File from S3 (if it exists)**
+            if (download.fileName) {
+                console.log(`🗑️ Deleting old file from S3: downloads/${download.fileName}`);
+                await req.app.s3.send(new DeleteObjectCommand({
+                    Bucket: req.app.s3.defaultBucket,
+                    Key: `${req.app.s3.folderPrefix}/downloads/${download.fileName}`,
+                }));
+            }
+
+            // 🚀 **Step 2: Upload New File to S3**
             const tmpFile = await fs.readFile(req.file.path);
-            await s3.putObject({
-                Bucket: `zauartcc/downloads`,
-                Key: req.file.filename,
+            await req.app.s3.send(new PutObjectCommand({
+                Bucket: req.app.s3.defaultBucket,
+                Key: `${req.app.s3.folderPrefix}/downloads/${req.file.filename}`,
                 Body: tmpFile,
                 ContentType: req.file.mimetype,
-                ACL: 'public-read',
-            }).promise();
+                ACL: "public-read",
+            }));
 
+            // ✅ **Step 3: Update Database with New File Name**
             await Downloads.findByIdAndUpdate(req.params.id, {
                 name: req.body.name,
                 description: req.body.description,
                 category: req.body.category,
-                fileName: req.file.filename
-            })
+                fileName: req.file.filename // ✅ Save the new file reference
+            });
         }
+
+        // ✅ Log the update in dossier
         await req.app.dossier.create({
             by: res.user.cid,
             affected: -1,
             action: `%b updated the file *${req.body.name}*.`
         });
-    } catch(e) {
+
+    } catch (e) {
         req.app.Sentry.captureException(e);
         res.stdRes.ret_det = e;
     }
@@ -140,17 +150,37 @@ router.put('/downloads/:id', upload.single('download'), getUser, auth(['atm', 'd
     return res.json(res.stdRes);
 });
 
+
 router.delete('/downloads/:id', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), async (req, res) => {
     try {
-        const download = await Downloads.findByIdAndDelete(req.params.id).lean();
+        // 🚀 **Step 1: Fetch the file info from the database**
+        const download = await Downloads.findById(req.params.id).lean();
+        if (!download) {
+            return res.status(404).json({ error: "File not found" });
+        }
+
+        // 🗑️ **Step 2: Delete the file from S3 if it exists**
+        if (download.fileName) {
+            console.log(`🗑️ Deleting file from S3: downloads/${download.fileName}`);
+            await req.app.s3.send(new DeleteObjectCommand({
+                Bucket: req.app.s3.defaultBucket,
+                Key: `${req.app.s3.folderPrefix}/downloads/${download.fileName}`,
+            }));
+        }
+
+        // ❌ **Step 3: Delete the database entry**
+        await Downloads.findByIdAndDelete(req.params.id);
+
+        // ✅ Log deletion in dossier
         await req.app.dossier.create({
             by: res.user.cid,
             affected: -1,
             action: `%b deleted the file *${download.name}*.`
         });
-    } catch(e) {
+
+    } catch (e) {
         req.app.Sentry.captureException(e);
-        res.stdRes.std_res = e;
+        res.stdRes.ret_det = e;
     }
 
     return res.json(res.stdRes);
@@ -209,13 +239,19 @@ router.post('/documents', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), uplo
             }
 
             const tmpFile = await fs.readFile(req.file.path);
-            await s3.putObject({
-                Bucket: `zauartcc/documents`,
-                Key: req.file.filename,
+
+            console.log("✅ S3 Bucket:", req.app.s3.defaultBucket);
+		    if (!req.app.s3.defaultBucket) {
+  		        return res.status(500).json({ error: "S3 default bucket is not set" });
+		    }
+
+            await req.app.s3.send(new PutObjectCommand({
+                Bucket: req.app.s3.defaultBucket,
+                Key: `${req.app.s3.folderPrefix}/documents/${req.file.filename}`,
                 Body: tmpFile,
                 ContentType: req.file.mimetype,
-                ACL: 'public-read',
-            }).promise();
+                ACL: "public-read",
+            }));
 
             await Document.create({
                 name,
@@ -254,13 +290,20 @@ router.post('/documents', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), uplo
 
 router.put('/documents/:slug', upload.single('download'), getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), async (req, res) => {
     try {
-        const document = await Document.findOne({slug: req.params.slug});
-        const {name, category, description, content, type} = req.body;
+        const document = await Document.findOne({ slug: req.params.slug });
+        if (!document) {
+            return res.status(404).json({ error: "Document not found" });
+        }
 
-        if(type === 'doc') {
-            if(document.name !== name) {
+        const { name, category, description, content, type } = req.body;
+
+        if (type === 'doc') {
+            if (document.name !== name) {
                 document.name = name;
-                document.slug = name.replace(/\s+/g, '-').toLowerCase().replace(/^-+|-+(?=-|$)/g, '').replace(/[^a-zA-Z0-9-_]/g, '') + '-' + Date.now().toString().slice(-5);
+                document.slug = name.replace(/\s+/g, '-')
+                    .toLowerCase()
+                    .replace(/^-+|-+(?=-|$)/g, '')
+                    .replace(/[^a-zA-Z0-9-_]/g, '') + '-' + Date.now().toString().slice(-5);
             }
 
             document.type = 'doc';
@@ -270,65 +313,94 @@ router.put('/documents/:slug', upload.single('download'), getUser, auth(['atm', 
 
             await document.save();
         } else {
-            if(!req.file) { // no updated file provided
-                await Document.findOneAndUpdate({slug: req.params.slug}, {
-                    name: req.body.name,
-                    description: req.body.description,
-                    category: req.body.category,
+            if (!req.file) { // ✅ No new file, just update metadata
+                await Document.findOneAndUpdate({ slug: req.params.slug }, {
+                    name,
+                    description,
+                    category,
                     type: 'file'
                 });
             } else {
-                if(req.file.size > (100 * 1024 * 1024)) {	// 100MiB
-                    throw {
-                        code: 400,
-                        message: 'File too large.'
-                    }
+                // ✅ File size check (100MiB limit)
+                if (req.file.size > (100 * 1024 * 1024)) {
+                    throw { code: 400, message: "File too large." };
                 }
+
+                // 🚨 **Step 1: Delete Old File from S3 (if it exists)**
+                if (document.fileName) {
+                    console.log(`🗑️ Deleting old file from S3: documents/${document.fileName}`);
+                    await req.app.s3.send(new DeleteObjectCommand({
+                        Bucket: req.app.s3.defaultBucket,
+                        Key: `${req.app.s3.folderPrefix}/documents/${document.fileName}`,
+                    }));
+                }
+
+                // 🚀 **Step 2: Upload New File to S3**
                 const tmpFile = await fs.readFile(req.file.path);
-                await s3.putObject({
-                    Bucket: `zauartcc/documents`,
-                    Key: req.file.filename,
+                await req.app.s3.send(new PutObjectCommand({
+                    Bucket: req.app.s3.defaultBucket,
+                    Key: `${req.app.s3.folderPrefix}/documents/${req.file.filename}`,
                     Body: tmpFile,
                     ContentType: req.file.mimetype,
-                    ACL: 'public-read',
-                }).promise();
+                    ACL: "public-read",
+                }));
 
-                await Document.findOneAndUpdate({slug: req.params.slug}, {
-                    name: req.body.name,
-                    description: req.body.description,
-                    category: req.body.category,
+                // ✅ **Step 3: Update Database with New File Name**
+                await Document.findOneAndUpdate({ slug: req.params.slug }, {
+                    name,
+                    description,
+                    category,
                     fileName: req.file.filename,
                     type: 'file'
-                })
+                });
             }
         }
 
+        // ✅ Log update in dossier
         await req.app.dossier.create({
             by: res.user.cid,
             affected: -1,
-            action: `%b updated the document *${req.body.name}*.`
+            action: `%b updated the document *${name}*.`,
         });
 
-        return res.json(res.stdRes);
-    } catch(e) {
+    } catch (e) {
         req.app.Sentry.captureException(e);
-        res.stdRes.std_res = e;
+        res.stdRes.ret_det = e;
     }
 
     return res.json(res.stdRes);
-})
+});
 
 router.delete('/documents/:id', getUser, auth(['atm', 'datm', 'ta', 'fe', 'wm']), async (req, res) => {
     try {
-        const doc = await Document.findByIdAndDelete(req.params.id);
+        // 🚀 **Step 1: Fetch the document from the database**
+        const doc = await Document.findById(req.params.id).lean();
+        if (!doc) {
+            return res.status(404).json({ error: "Document not found" });
+        }
+
+        // 🗑️ **Step 2: Delete the file from S3 if it exists**
+        if (doc.fileName) {
+            console.log(`🗑️ Deleting file from S3: documents/${doc.fileName}`);
+            await req.app.s3.send(new DeleteObjectCommand({
+                Bucket: req.app.s3.defaultBucket,
+                Key: `${req.app.s3.folderPrefix}/documents/${doc.fileName}`,
+            }));
+        }
+
+        // ❌ **Step 3: Delete the database entry**
+        await Document.findByIdAndDelete(req.params.id);
+
+        // ✅ Log deletion in dossier
         await req.app.dossier.create({
             by: res.user.cid,
             affected: -1,
-            action: `%b deleted the document *${doc.name}*.`
+            action: `%b deleted the document *${doc.name}*.`,
         });
-    } catch(e) {
+
+    } catch (e) {
         req.app.Sentry.captureException(e);
-        res.stdRes.std_res = e;
+        res.stdRes.ret_det = e;
     }
 
     return res.json(res.stdRes);

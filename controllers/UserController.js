@@ -5,6 +5,7 @@ import User from "../models/User.js";
 import dotenv from "dotenv";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import axios from "axios";
 import { randomUUID } from "crypto";
 import getUser from "../middleware/getUser.js";
@@ -162,16 +163,16 @@ router.post("/login", oAuth, async (req, res) => {
         { responseType: "arraybuffer" }
       );
 
-      await req.app.s3
-        .putObject({
-          Bucket: "zauartcc/avatars",
-          Key: `${user.cid}-default.png`,
+      await req.app.s3.send(
+        new PutObjectCommand({
+          Bucket: req.app.s3.defaultBucket,
+          Key: `${req.app.s3.folderPrefix}/avatars/${user.cid}-default.png`,
           Body: data,
           ContentType: "image/png",
           ACL: "public-read",
           ContentDisposition: "inline",
         })
-        .promise();
+      );
 
       user.avatar = `${user.cid}-default.png`;
     }

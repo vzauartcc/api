@@ -175,327 +175,319 @@ function getQuarterStartEnd(quarter, year) {
   return { startOfQuarter, endOfQuarter };
 }
 
-// Get the highest certification a user holds from a specific hierarchy before the quarter
-function getHighestCertificationBeforeQuarter(userCerts, certHierarchy, startOfQuarter) {
-  return userCerts
-    .filter(cert => certHierarchy.includes(cert.code) && new Date(cert.gainedDate) < startOfQuarter)
-    .sort((a, b) => {
-      // First, sort by hierarchy (higher in hierarchy comes first)
-      const hierarchyComparison = certHierarchy.indexOf(a.code) - certHierarchy.indexOf(b.code);
-      if (hierarchyComparison !== 0) return hierarchyComparison;
+const testUserCID = 10000002;
 
-      // If same hierarchy level, sort by the most recent gained date (descending order)
-      return new Date(b.gainedDate) - new Date(a.gainedDate);
-    })[0];  // Return the highest cert
+function getHighestCertificationBeforeQuarter(certificationDates, certHierarchy, startOfQuarter, userCid) {
+  if (userCid === testUserCID) {
+    console.log(`Getting highest certification before ${startOfQuarter} for test user ${userCid}`);
+    console.log(`Cert hierarchy: ${JSON.stringify(certHierarchy)}`);
+    console.log(`User certification dates:`, certificationDates);
+  }
+
+  const validCerts = certificationDates.filter(cert => {
+    const isValid = certHierarchy.includes(cert.code) && new Date(cert.gainedDate) < startOfQuarter;
+
+    if (userCid === testUserCID) {
+      console.log(
+        `Checking cert: ${JSON.stringify(cert)} | Valid: ${isValid} | In hierarchy: ${certHierarchy.includes(cert.code)}`
+      );
+    }
+
+    return isValid;
+  });
+
+  if (userCid === testUserCID) console.log(`Valid certifications before the quarter:`, validCerts);
+
+  const sortedCerts = validCerts.sort((a, b) => {
+    const hierarchyComparison = certHierarchy.indexOf(a.code) - certHierarchy.indexOf(b.code);
+    if (hierarchyComparison !== 0) {
+      if (userCid === testUserCID) console.log(`Sorting by hierarchy: ${a.code} vs ${b.code} => ${hierarchyComparison}`);
+      return hierarchyComparison;
+    }
+
+    const dateComparison = new Date(b.gainedDate) - new Date(a.gainedDate);
+    if (userCid === testUserCID) console.log(`Sorting by date: ${a.gainedDate} vs ${b.gainedDate} => ${dateComparison}`);
+    return dateComparison;
+  });
+
+  const highestCert = sortedCerts[0] || null;
+  if (userCid === testUserCID) console.log(`Test user ${userCid} highest certification: ${JSON.stringify(highestCert)}`);
+
+  return highestCert;
 }
 
 function isExempt(user, startOfQuarter) {
-  // Exempt if the user joined during the quarter
-  if (new Date(user.joinDate) >= startOfQuarter) {
+  if (user.cid === testUserCID) {
+    console.log(`Checking exemption for test user ${user.cid}`);
+    console.log(`User joinDate: ${user.createdAt}, Start of Quarter: ${startOfQuarter}`);
+  }
+
+  if (new Date(user.createdAt) >= startOfQuarter) {
+    if (user.cid === testUserCID) console.log(`Test user ${user.cid} is exempt: joined during the quarter.`);
     return true;
   }
 
-  // Exempt if the user was promoted from OBS to S1 by gaining `gnd` certification during the quarter
-  const promotedToS1 = user.certifications.some(cert => cert.code === 'gnd' && new Date(cert.gainedDate) >= startOfQuarter);
-  if (promotedToS1) {
-    return true;
+  if (user.certificationDate && Array.isArray(user.certificationDate)) {
+    if (user.cid === testUserCID) console.log(`CertificationDates for test user ${user.cid}:`, user.certificationDate);
+
+    const promotedToS1 = user.certificationDate.some(cert => {
+      const gainedDate = cert.gainedDate ? new Date(cert.gainedDate) : null;
+      
+      if (user.cid === testUserCID) console.log(`Cert code: ${cert.code}, Gained Date: ${gainedDate}`);
+      
+      return cert.code === 'gnd' && gainedDate && gainedDate >= startOfQuarter;
+    });
+
+    if (promotedToS1) {
+      if (user.cid === testUserCID) console.log(`Test user ${user.cid} is exempt: promoted from OBS to S1 during the quarter.`);
+      return true;
+    }
+  } else {
+    if (user.cid === testUserCID) console.log(`Test user ${user.cid} has no valid certificationDate array.`);
   }
 
-  // Not exempt otherwise
+  if (user.cid === testUserCID) console.log(`Test user ${user.cid} is not exempt.`);
   return false;
 }
 
-function isValidAtcPosition(atcPosition) {
-  // Exception for ORD_I_GND
-  if (atcPosition === 'ORD_I_GND', 'ORD_S_TWR') {
-    return true;
+function isValidATCPosition(position) {
+  if (!position) return false;
+
+  // Convert to uppercase to match database format
+  position = position.toUpperCase();
+
+  // Special case: Allow "ORD_I_GND"
+  if (position === 'ORD_I_GND' || 'ORD_S_TWR') return true;
+
+  // Split by `_` to check the middle section
+  const parts = position.split('_');
+
+  // If it has 3 parts (e.g., MDW_I_GND), check the middle part
+  if (parts.length === 3) {
+    const middlePart = parts[1]; // The section between underscores
+    if (middlePart.includes('I') || middlePart.includes('S')) {
+      //console.log(`❌ Rejecting position: ${position} (Invalid middle section: ${middlePart})`);
+      return false;
+    }
   }
 
-  // Regex to match positions with I, or S in the middle, e.g., MDW_I_TWR, ZAU_M_CTR
-  const invalidMiddlePosition = /_(I|S)_/;
-
-  // Return false if it matches invalid positions
-  if (invalidMiddlePosition.test(atcPosition)) {
-    return false;
-  }
-
-  // Accept all other positions
-  return true;
+  return true; // Accept all other positions
 }
 
-// Helper function: Map users to their corresponding valid ATC positions based on their highest certification
-function getMatchingPositionsForUsers(usersWithCerts, atcPositionToCertMap) {
-  return usersWithCerts.map(user => {
-    const matchingPositions = Object.keys(atcPositionToCertMap)
-      .filter(pos => atcPositionToCertMap[pos] === user.highestCert.code && isValidAtcPosition(pos));
-    
-    return {
-      cid: user.cid,
-      positions: matchingPositions  // Array of valid ATC positions matching their cert
-    };
-  });
+// Normalize positions to lowercase before mapping
+function getMatchingPositions(basePosition) {
+  return Object.keys(atcPositionToCertMap)
+    .filter(position => position.toLowerCase() === basePosition.toLowerCase()) // Case-insensitive match
+    .map(position => position.toUpperCase()); // Convert back to uppercase for consistency
 }
 
 // Helper function: Fetch activity data for users and their corresponding ATC positions
-async function fetchActivityDataForUsers(usersWithPositions, startOfQuarter, endOfQuarter) {
-  const activityQueries = usersWithPositions.flatMap(user =>
-    user.positions.map(position => ({
-      cid: user.cid,
-      atcPosition: position
-    }))
-  );
+async function fetchCertificationActivityTime(cid, validPositions, startOfQuarter, endOfQuarter) {
 
-  // Fetch activity data for all users and positions in one go
-  const activityData = await ControllerHours.aggregate([
+  const testUserCID = 10000002;
+
+  if (!cid || validPositions.length === 0) {
+    if (cid === testUserCID) console.log(`No valid positions found for test user ${cid}, returning 0s`);
+    return 0;
+  }
+
+  // Normalize positions and filter out invalid ones
+  validPositions = validPositions
+    .map(pos => pos.toUpperCase()) // Convert to uppercase for consistency
+    .filter(pos => isValidATCPosition(pos)); // Apply filtering rules
+
+  if (validPositions.length === 0) {
+    if (cid === testUserCID) console.log(`❌ No valid positions remaining for test user ${cid}, returning 0s`);
+    return 0;
+  }
+
+  if (cid === testUserCID) console.log(`Fetching cert-specific activity time for test user ${cid} on positions:`, validPositions);
+
+  const certActivity = await ControllerHours.aggregate([
     {
       $match: {
-        $or: activityQueries.map(query => ({
-          cid: query.cid,
-          position: query.atcPosition,
-          timeStart: { $gte: startOfQuarter.toJSDate(), $lte: endOfQuarter.toJSDate() }
-        }))
-      }
+        cid: cid,
+        position: { $in: validPositions }, // Only count activity on valid certification-mapped positions
+        timeStart: { $gte: startOfQuarter.toJSDate(), $lte: endOfQuarter.toJSDate() },
+      },
     },
     {
       $group: {
         _id: "$cid",
-        totalTime: { $sum: { $divide: [{ $subtract: ["$timeEnd", "$timeStart"] }, 1000] } }  // Time in seconds
-      }
-    }
+        certTime: { $sum: { $divide: [{ $subtract: ["$timeEnd", "$timeStart"] }, 1000] } },
+      },
+    },
   ]);
 
-  return activityData.reduce((map, item) => {
-    map[item._id] = item.totalTime;
-    return map;
-  }, {});
+  const certTime = certActivity.length > 0 ? certActivity[0].certTime : 0;
+  if (cid === testUserCID) console.log(`Test user ${cid} certification-specific activity time: ${certTime}s`);
+  return certTime;
 }
 
 // Main activity API endpoint
 router.get('/activity', getUser, auth(['atm', 'datm', 'ta', 'wm']), async (req, res) => {
   try {
-    console.log('Start processing /activity endpoint');
+    //console.log('Start processing /activity endpoint');
+    const testUserCID = 10000002; // 🔹 Replace with the specific user's CID
 
+    // SECTION: Get Quarter & Year
     const quarter = parseInt(req.query.quarter, 10) || Math.floor((L.utc().month - 1) / 3) + 1;
     const year = parseInt(req.query.year, 10) || L.utc().year;
-    console.log(`Quarter: ${quarter}, Year: ${year}`);
-
     const { startOfQuarter, endOfQuarter } = getQuarterStartEnd(quarter, year);
-    console.log(`Start of Quarter: ${startOfQuarter}, End of Quarter: ${endOfQuarter}`);
+    //console.log(`Quarter: ${quarter}, Year: ${year}, Start: ${startOfQuarter}, End: ${endOfQuarter}`);
 
+    // SECTION: Define Constants (Including Position-to-Cert Mapping)
     const T1Certs = ['zau', 'ordapp', 'ordtwr', 'ordgnd'];
     const T2Certs = ['zaut2', 'mdwtwr', 'mdwgnd'];
+
     const atcPositionToCertMap = {
-      'MDW_TWR': 'mdwtwr',
-      'MDW_GND': 'mdwgnd',
-      'ORD_TWR': 'ordtwr',
-      'ORD_GND': 'ordgnd',
-      'ORD_APP': 'ordapp',
-      'ZAU_CTR': 'zau'
+      'mdw_twr': 'mdwtwr', 'mdw_gnd': 'mdwgnd',
+      'ord_twr': 'ordtwr', 'ord_gnd': 'ordgnd',
+      'ord_app': 'ordapp', 'zau_ctr': 'zau'
     };
 
-    console.log('Fetching all users for general activity check');
+    // SECTION: Fetch Users Data
+    //console.log('Fetching users...');
     const users = await User.find({ member: true })
-      .select('fname lname cid rating oi vis createdAt roleCodes certCodes joinDate certificationDate')
+      .select('fname lname cid oi rating isStaff certCodes createdAt roleCodes certCodes certificationDate absence')
       .populate('certifications')
-      .populate({
-        path: 'absence',
-        match: { expirationDate: { $gte: new Date() }, deleted: false },
-        select: '-reason'
-      })
+      .populate({ path: 'certificationDate', select: 'code gainedDate' })
+      .populate({ path: 'absence', match: { expirationDate: { $gte: new Date() }, deleted: false }, select: 'expirationDate' })
       .lean({ virtuals: true });
 
-    console.log('Users fetched:', users.length);
+    //console.log(`Fetched ${users.length} users`);
 
-    const userData = {};
-
-    console.log('Aggregating general activity and training data');
-    console.log('Start of Quarter:', startOfQuarter.toJSDate());
-    console.log('End of Quarter:', endOfQuarter.toJSDate());
-    const activityData = await Promise.all([
+    // SECTION: Fetch & Process Activity and Training Data
+    //console.log('Fetching activity and training data...');
+    const [activityReduced, trainingRequests, trainingSessions] = await Promise.all([
       ControllerHours.aggregate([
         { $match: { timeStart: { $gte: startOfQuarter.toJSDate(), $lte: endOfQuarter.toJSDate() } } },
-        {
-          $group: {
-            _id: "$cid",
-            totalTime: { $sum: { $divide: [{ $subtract: ['$timeEnd', '$timeStart'] }, 1000] } }
-          }
-        }
+        { $project: { cid: 1, position: { $toUpper: "$position" }, totalTime: { $divide: [{ $subtract: ['$timeEnd', '$timeStart'] }, 1000] } } },
+        { $match: { position: { $exists: true } } },
+        { $match: { $expr: { $or: [ { $eq: ["$position", ["ORD_I_GND", "ORD_S_TWR"]] }, { $not: { $regexMatch: { input: "$position", regex: "_.?[IS]_.?" } } } ] } } },
+        { $group: { _id: "$cid", totalTime: { $sum: "$totalTime" } } }
       ]),
       TrainingRequest.aggregate([
         { $match: { startTime: { $gte: startOfQuarter.toJSDate(), $lte: endOfQuarter.toJSDate() } } },
-        {
-          $group: {
-            _id: "$studentCid",
-            totalRequests: { $sum: 1 }
-          }
-        }
+        { $group: { _id: "$studentCid", totalRequests: { $sum: 1 } } },
       ]),
       TrainingSession.aggregate([
         { $match: { startTime: { $gte: startOfQuarter.toJSDate(), $lte: endOfQuarter.toJSDate() } } },
-        {
-          $group: {
-            _id: "$studentCid",
-            totalSessions: { $sum: 1 }
-          }
-        }
-      ])
+        { $group: { _id: "$studentCid", totalSessions: { $sum: 1 } } },
+      ]),
     ]);
-
-    console.log('Activity data aggregated successfully');
-    console.log('Full activityData:', JSON.stringify(activityData, null, 2));
-    
-    const [activityReduced, trainingRequests, trainingSessions] = activityData;
-
-    const activityMap = activityReduced.reduce((map, item) => {
-      map[item._id] = item.totalTime;
-      return map;
-    }, {});
-
-    const trainingRequestsMap = trainingRequests.reduce((map, item) => {
-      map[item._id] = item.totalRequests;
-      return map;
-    }, {});
-
-    const trainingSessionsMap = trainingSessions.reduce((map, item) => {
-      map[item._id] = item.totalSessions;
-      return map;
-    }, {});
-
-    console.log('Processing users with T1/T2 certifications');
-    const t1t2UsersWithHighestCert = await User.find({
-      member: true,
-      $or: [
-        { certificationDate: { $elemMatch: { code: { $in: T1Certs }, gainedDate: { $lt: startOfQuarter } } } },
-        { certificationDate: { $elemMatch: { code: { $in: T2Certs }, gainedDate: { $lt: startOfQuarter } } } }
-      ]
-    })
-    .select('cid certificationDate')
-    .lean();
-
-    console.log('T1/T2 users with highest certs:', t1t2UsersWithHighestCert.length);
-
-    const highestCertsForT1T2Users = t1t2UsersWithHighestCert.map(user => {
-      const highestT1Cert = getHighestCertificationBeforeQuarter(user.certificationDate, T1Certs, startOfQuarter);
-      const highestT2Cert = getHighestCertificationBeforeQuarter(user.certificationDate, T2Certs, startOfQuarter);
   
-      return {
-        cid: user.cid,
-        highestCert: highestT1Cert || highestT2Cert
-      };
-    });
-
-    console.log('Highest Certs for T1/T2 Users:', JSON.stringify(highestCertsForT1T2Users, null, 2));
-
-     // 2. Map users to their valid ATC positions based on their highest certification (with isValidAtcPosition check)
-     const usersWithPositions = getMatchingPositionsForUsers(highestCertsForT1T2Users, atcPositionToCertMap);
-
-     // 3. Fetch activity data for all users and ATC positions in one go
-     const t1t2ActivityMap = await fetchActivityDataForUsers(usersWithPositions, startOfQuarter, endOfQuarter);
- 
-
-    console.log('Fetching fiftyTime values');
-    const fiftyTimes = await req.app.redis.mget(users.map(user => `FIFTY:${user.cid}`));
-    const fiftyTimesMap = {};
-    users.forEach((user, index) => {
-      fiftyTimesMap[user.cid] = fiftyTimes[index] ? Math.round(fiftyTimes[index]) : null;
-    });
-
-    // Processing users without T1/T2 certs
-    console.log('Processing users without T1/T2 certs');
-    for (let user of users) {
-      let tooLow = false;
-
-      // Log each user being processed
-      console.log(`Processing user CID: ${user.cid}`);
-
-      // Check if user is exempt
-      const exempt = isExempt(user, startOfQuarter);
-      console.log(`User ${user.cid} exempt status: ${exempt}`);
-      if (exempt) {
-        userData[user.cid] = { ...user, tooLow };
-        continue;
-      }
-
-      // Calculate total time
+    // Convert activity data into lookup objects for quick access
+    const activityMap = Object.fromEntries(activityReduced.map(({ _id, totalTime }) => [_id, totalTime]));
+    const trainingRequestsMap = Object.fromEntries(trainingRequests.map(({ _id, totalRequests }) => [_id, totalRequests]));
+    const trainingSessionsMap = Object.fromEntries(trainingSessions.map(({ _id, totalSessions }) => [_id, totalSessions]));
+  
+    //console.log('Activity and training data mapped');
+  
+    // SECTION: Classify Users
+    //console.log('Classifying users...');
+    const userData = {};
+    
+    for (const user of users) {
+      if (user.cid === testUserCID) console.log(`Processing test user: ${user.cid}`);
       const totalTime = activityMap[user.cid] || 0;
-      console.log(`User ${user.cid} totalTime: ${totalTime}`);
-
-      // Check if the user has less than 3 hours of activity (for users with rating > 1)
-      if (user.rating > 1 && totalTime < 3600 * 3) {
-        tooLow = true;
-        console.log(`User ${user.cid} has tooLow status due to insufficient time.`);
-      }
-
-      // Calculate total requests and total sessions
       const totalRequests = trainingRequestsMap[user.cid] || 0;
       const totalSessions = trainingSessionsMap[user.cid] || 0;
-      console.log(`User ${user.cid} totalRequests: ${totalRequests}, totalSessions: ${totalSessions}`);
-
-      // Log the final user data being added to the userData object
+    
+      const exempt = isExempt(user, startOfQuarter);
+      const protectedStatus = user.isStaff || [1202744].includes(user.cid) || user.absence.some(a => new Date(a.expirationDate) > new Date());
+    
+      // Get highest T1/T2 certification before the quarter
+      const highestCert = getHighestCertificationBeforeQuarter(
+        user.certificationDate || [],
+        [...T1Certs, ...T2Certs],
+        startOfQuarter
+      );
+    
+      // Determine valid ATC positions based on highest certification
+      let validPositions = [];
+      if (highestCert) {
+        validPositions = Object.keys(atcPositionToCertMap).filter(
+          position => atcPositionToCertMap[position] === highestCert.code
+        );
+      }
+    
+      // Fetch certification-specific activity time
+      let certSpecificTime = 0;
+      if (validPositions.length > 0) {
+        certSpecificTime = await fetchCertificationActivityTime(user.cid, validPositions, startOfQuarter, endOfQuarter);
+      }
+    
       userData[user.cid] = {
         ...user,
         totalTime,
         totalRequests,
         totalSessions,
-        fiftyTime: fiftyTimesMap[user.cid],
-        tooLow,
-        protected: user.isStaff || [1202744].includes(user.cid) || user.absence.some(a => !a.deleted && new Date(a.expirationDate) > new Date() && a.controller === user.cid),
+        highestCert,
+        certSpecificTime,
+        exempt,
+        protected: protectedStatus,
       };
-      console.log(`User ${user.cid} final data:`, JSON.stringify(userData[user.cid], null, 2));
-    }
 
-    // Processing users with T1/T2 certs
-    console.log('Processing users with T1/T2 certs');
-    for (let userCert of highestCertsForT1T2Users) {
-      const { cid, highestCert } = userCert;
-
-      // Log each user being processed for T1/T2 certs
-      console.log(`Processing T1/T2 cert user CID: ${cid}`);
-      console.log(`User ${cid} highestCert:`, highestCert);
-
-      let tooLow = userData[cid]?.tooLow || false;
-
-   /*   if (highestCert) {
-       // const certTime = await getCertActivityTime(cid, highestCert.code, startOfQuarter, endOfQuarter);
-        console.log(`User ${cid} certification activity time for ${highestCert.code}: ${certTime}`);
-        if (certTime < 3600) {
-          tooLow = true;
-          console.log(`User ${cid} has tooLow status due to insufficient cert time.`);
-        }
-      }*/
-
-      // If the user data already exists, update tooLow status
-      if (userData[cid]) {
-        userData[cid].tooLow = tooLow;
-        console.log(`User ${cid} tooLow status updated to: ${tooLow}`);
-      } else {
-        // Otherwise, create new user data entry
-        const totalTime = activityMap[cid] || 0;
-        const totalRequests = trainingRequestsMap[cid] || 0;
-        const totalSessions = trainingSessionsMap[cid] || 0;
-        console.log(`User ${cid} totalTime: ${totalTime}, totalRequests: ${totalRequests}, totalSessions: ${totalSessions}`);
-
-        // Log the final user data being added to the userData object
-        userData[cid] = {
-          ...userCert,
-          totalTime,
-          totalRequests,
-          totalSessions,
-          fiftyTime: fiftyTimesMap[cid],
-          tooLow,
-          protected: isStaff || [1202744].includes(userCert.cid) || absence.some(a => !a.deleted && new Date(a.expirationDate) > new Date() && a.controller === userCert.cid),
-        };
-        console.log(`User ${cid} final data:`, JSON.stringify(userData[cid], null, 2));
+      if (user.cid === testUserCID) {
+        console.log(`Test User ${user.cid} - Total Time: ${totalTime}s, Cert Time: ${certSpecificTime}s`);
       }
     }
+    
+    //console.log('Users classified with activity and certification data');
+    
+  
+    // SECTION: Apply "Too Low" Checks (Now That All Data is Gathered)
+    Object.keys(userData).forEach(cid => {
+    const user = userData[cid];
 
-    console.log('Returning final user data');
+    let tooLow = false; // Default: user has enough activity
+
+    if (user.cid === testUserCID) {
+      console.log(`\n🔍 Checking "tooLow" for Test User ${cid}`);
+      console.log(`Total Time: ${user.totalTime}s`);
+      console.log(`Total Sessions: ${user.totalSessions}`);
+      console.log(`Certification-Specific Time: ${user.certSpecificTime}s`);
+      console.log(`Highest Certification: ${JSON.stringify(user.highestCert)}`);
+      console.log(`Rating: ${user.rating}`);
+      console.log(`Exempt: ${user.exempt}`);
+    }
+
+    // Apply tooLow checks
+    if (!user.exempt) {
+      if (user.totalTime < 3600 * 3) {
+        if (user.cid === testUserCID) console.log(`❌ Test User ${cid} flagged tooLow: totalTime (${user.totalTime}s) is less than 3 hours`);
+        tooLow = true;
+      }
+      
+      // This has to deal with training and will need to be reworked once training system is done.
+      /*if (user.rating > 1 && user.totalSessions < 1) { 
+        if (user.cid === testUserCID) console.log(`❌ Test User ${cid} flagged tooLow: rating (${user.rating}) > 1 and totalSessions (${user.totalSessions}) < 1`);
+        tooLow = true; // Changed from totalRequests to totalSessions for accuracy
+      }*/
+
+      if (user.highestCert && user.certSpecificTime < 3600) {
+        if (user.cid === testUserCID) console.log(`❌ Test User ${cid} flagged tooLow: has cert (${user.highestCert.code}) but certSpecificTime (${user.certSpecificTime}s) < 1 hour`);
+        tooLow = true;
+      }
+    } else {
+      if (user.cid === testUserCID) console.log(`✅ Test User ${cid} is exempt, skipping tooLow checks.`);
+    }
+
+    userData[cid].tooLow = tooLow;
+
+    if (user.cid === testUserCID) console.log(`✅ Final "tooLow" status for Test User ${cid}: ${tooLow}`);
+    });
+  
+    //console.log('Final checks applied, returning data');
+  
+    // SECTION: Return Final Data
     res.stdRes.data = Object.values(userData);
   } catch (e) {
     console.error('Error encountered:', e);
     res.stdRes.ret_det = e;
   }
-
+  
   return res.json(res.stdRes);
 });
 
@@ -629,6 +621,115 @@ router.get('/activity1', getUser, auth(['atm', 'datm', 'ta', 'wm']), async (req,
 
     res.stdRes.data = Object.values(userData);
   } catch (e) {
+    res.stdRes.ret_det = e;
+  }
+
+  return res.json(res.stdRes);
+});
+
+// Main activity API endpoint
+router.get('/activity2', getUser, auth(['atm', 'datm', 'ta', 'wm']), async (req, res) => {
+  try {
+    console.log('Start processing /activity endpoint');
+
+    // Parse query parameters
+    const quarter = parseInt(req.query.quarter, 10) || Math.floor((L.utc().month - 1) / 3) + 1;
+    const year = parseInt(req.query.year, 10) || L.utc().year;
+
+    // Get the start and end of the quarter
+    const { startOfQuarter, endOfQuarter } = getQuarterStartEnd(quarter, year);
+
+    // Certification and position mappings
+    const T1Certs = ['zau', 'ordapp', 'ordtwr', 'ordgnd'];
+    const T2Certs = ['zaut2', 'mdwtwr', 'mdwgnd'];
+    const atcPositionToCertMap = {
+      'MDW_TWR': 'mdwtwr',
+      'MDW_GND': 'mdwgnd',
+      'ORD_TWR': 'ordtwr',
+      'ORD_GND': 'ordgnd',
+      'ORD_APP': 'ordapp',
+      'ZAU_CTR': 'zau',
+    };
+
+    // Fetch all users with relevant data
+    const users = await User.find({ member: true })
+      .select('fname lname cid rating joinDate certificationDate isStaff absence')
+      .populate('certifications')
+      .populate({
+        path: 'certificationDate',
+        select: 'code gainedDate',
+      })
+      .populate({
+        path: 'absence',
+        match: { expirationDate: { $gte: new Date() }, deleted: false },
+        select: '-reason',
+      })
+      .lean();
+
+    console.log('Users fetched:', users.length);
+
+    // Prepare user data
+    const userData = {};
+
+    // Step 1: Process users
+    for (const user of users) {
+      console.log(`Processing user CID: ${user.cid}`);
+
+      // Step 1.1: Check exemption status
+      const exempt = isExempt(user, startOfQuarter);
+      console.log(`User ${user.cid} exempt status: ${exempt}`);
+
+      // Step 1.2: Find highest T1/T2 certification
+      const highestT1Cert = getHighestCertificationBeforeQuarter(user.certifications, T1Certs, startOfQuarter);
+      const highestT2Cert = getHighestCertificationBeforeQuarter(user.certifications, T2Certs, startOfQuarter);
+      const highestCert = highestT1Cert || highestT2Cert;
+
+      if (!highestCert) {
+        console.log(`User ${user.cid} has no T1/T2 certifications before the quarter.`);
+        continue;
+      }
+
+      // Step 1.3: Get valid ATC positions for the certification using regex and validation
+      const matchingPositions = Object.keys(atcPositionToCertMap)
+        .filter(position => atcPositionToCertMap[position] === highestCert.code) // Base positions for cert
+        .flatMap(basePosition => getMatchingPositions(basePosition)); // Get all valid variations
+
+      console.log(`User ${user.cid} valid positions:`, matchingPositions);
+
+      // Step 1.4: Fetch activity data
+      const totalTime = await fetchTotalActivityTime(user.cid, startOfQuarter, endOfQuarter);
+      const certTime = await fetchCertificationActivityTime(user.cid, matchingPositions, startOfQuarter, endOfQuarter);
+
+      console.log(`User ${user.cid} total time: ${totalTime}, cert time: ${certTime}`);
+
+      // Step 1.5: Check activity requirements
+      let tooLow = false;
+      if (!exempt) {
+        if (certTime < 3600) tooLow = true; // Less than 1 hour on certification-specific positions
+        if (totalTime < 3600 * 3) tooLow = true; // Less than 3 hours total
+      }
+
+      // Step 1.6: Check protection status
+      const protectedStatus = user.isStaff || user.absence.some(abs => new Date(abs.expirationDate) > new Date());
+
+      // Step 1.7: Add user data to response
+      userData[user.cid] = {
+        ...user,
+        highestCert,
+        totalTime,
+        certTime,
+        tooLow,
+        exempt,
+        protected: protectedStatus,
+      };
+
+      console.log(`User ${user.cid} final data:`, userData[user.cid]);
+    }
+
+    console.log('Returning final user data');
+    res.stdRes.data = Object.values(userData);
+  } catch (e) {
+    console.error('Error encountered:', e);
     res.stdRes.ret_det = e;
   }
 
