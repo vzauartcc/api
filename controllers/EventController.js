@@ -259,27 +259,55 @@ router.delete('/:slug/mandelete/:cid', getUser, auth(['atm', 'datm', 'ec', 'wm']
 
 router.put('/:slug/mansignup/:cid', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req, res) => {
 	try {
-		const user = await User.findOne({cid: req.params.cid});
-		if(user !== null) {
-			const event = await Event.findOneAndUpdate({url: req.params.slug}, {
-				$push: {
-					signups: {
-						cid: req.params.cid,
-					}
-				}
-			});
-
-			await req.app.dossier.create({
-				by: res.user.cid,
-				affected: req.params.cid,
-				action: `%b manually signed up %a for the event *${event.name}*.`
-			});
-		} else {
+		const user = await User.findOne({ cid: req.params.cid });
+		if (!user) {
 			throw {
 				code: 400,
 				message: "Controller not found"
 			};
 		}
+
+		const event = await Event.findOne({ url: req.params.slug });
+
+		if (!event) {
+			console.log("❌ Event not found in the database");
+			throw {
+				code: 404,
+				message: "Event not found"
+			};
+		}
+
+		const isAlreadySignedUp = event.signups.some(signup => signup.cid.toString() === req.params.cid);
+
+		if (isAlreadySignedUp) {
+			throw {
+				code: 400,
+				message: "Controller is already signed up for this event"
+			};
+		}
+
+		// If not already signed up, proceed with adding
+		await Event.findOneAndUpdate(
+			{ url: req.params.slug },
+			{
+				$push: {
+					signups: {
+						cid: req.params.cid,
+					}
+				}
+			}
+		);
+
+		await req.app.dossier.create({
+			by: res.user.cid,
+			affected: req.params.cid,
+			action: `%b manually signed up %a for the event *${event.name}*.`
+		});
+
+		res.stdRes.ret_det = {
+			code: 200,
+			message: "Controller successfully signed up"
+		};
 	} catch (e) {
 		req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;
