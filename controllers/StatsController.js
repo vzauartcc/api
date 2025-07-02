@@ -219,10 +219,10 @@ function getHighestCertificationBeforeQuarter(certificationDates, certHierarchy,
 function isExempt(user, startOfQuarter) {
   if (user.cid === testUserCID) {
     console.log(`Checking exemption for test user ${user.cid}`);
-    console.log(`User joinDate: ${user.createdAt}, Start of Quarter: ${startOfQuarter}`);
+    console.log(`User joinDate: ${user.joinDate}, Start of Quarter: ${startOfQuarter}`);
   }
 
-  if (new Date(user.createdAt) >= startOfQuarter) {
+  if (new Date(user.joinDate) >= startOfQuarter) {
     if (user.cid === testUserCID) console.log(`Test user ${user.cid} is exempt: joined during the quarter.`);
     return true;
   }
@@ -361,7 +361,7 @@ router.get('/activity', getUser, auth(['atm', 'datm', 'ta', 'wm']), async (req, 
     // SECTION: Fetch Users Data
     //console.log('Fetching users...');
     const users = await User.find({ member: true })
-      .select('fname lname cid oi rating isStaff certCodes createdAt roleCodes certCodes certificationDate absence')
+      .select('fname lname cid oi vis rating isStaff certCodes createdAt roleCodes certCodes joinDate certificationDate absence')
       .populate('certifications')
       .populate({ path: 'certificationDate', select: 'code gainedDate' })
       .populate({ path: 'absence', match: { expirationDate: { $gte: new Date() }, deleted: false }, select: 'expirationDate' })
