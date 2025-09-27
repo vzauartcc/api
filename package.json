@@ -7,13 +7,18 @@
   "author": "Chicago ARTCC",
   "contributors": [
     "Alexandra Robison",
-    "Daan Janssen"
+    "Daan Janssen",
+    "Timothy Barker",
+    "Ryan Savara"
   ],
+  "scripts": {
+    "start:ryan": "doppler run -p api -c dev_ryan -- node app.js"
+  },
   "license": "CC-BY-NC-SA-4.0",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://gitlab.com/albuquerque-web-stack/api"
+    "url": "https://gitlab.com/vzauartcc/api"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.740.0",
