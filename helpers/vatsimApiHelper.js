@@ -7,7 +7,7 @@ export default {
 	async getUserInformation(accessToken) {
 		const getUserEndpoint = process.env.VATSIM_AUTH_ENDPOINT + '/api/user';
 
-		return await axios
+		return axios
 			.get(getUserEndpoint, {
 				headers: { Authorization: `Bearer ${accessToken}` },
 			})

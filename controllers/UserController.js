@@ -4,14 +4,12 @@ const router = e.Router();
 import User from '../models/User.js';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import axios from 'axios';
 import { randomUUID } from 'crypto';
 import getUser from '../middleware/getUser.js';
 import Notification from '../models/Notification.js';
 import ControllerHours from '../models/ControllerHours.js';
-import Discord from 'discord-oauth2';
 import oAuth from '../middleware/vatsimOAuth.js';
 import vatsimApiHelper from '../helpers/vatsimApiHelper.js';
 
@@ -102,7 +100,7 @@ router.post('/login', oAuth, async (req, res) => {
 		let vatsimUserData = await vatsimApiHelper.getUserInformation(access_token);
 
 		// VATSIM API returns 200 codes on some errors, use CID as a check to see if there was an error.
-		if (vatsimUserData?.data?.cid == null) {
+		if (vatsimUserData?.data?.cid === null) {
 			let error = vatsimUserData;
 			throw error;
 		} else {
@@ -119,7 +117,7 @@ router.post('/login', oAuth, async (req, res) => {
 
 		// If the user did not authorize all requested data from the AUTH login, we may have null parameters
 		// If that is the case throw a BadRequest exception.
-		if (Object.values(userData).some((x) => x == null || x == '')) {
+		if (Object.values(userData).some((x) => x === null || x === '')) {
 			throw {
 				code: 400,
 				message: 'User must authorize all requested VATSIM data. [Authorize Data]',

@@ -20,7 +20,7 @@ const upload = multer({
 });
 
 // Downloads
-router.get('/downloads', async ({ res }) => {
+router.get('/downloads', async (req, res) => {
 	try {
 		const downloads = await Downloads.find({ deletedAt: null })
 			.sort({ category: 'asc', name: 'asc' })
@@ -213,7 +213,7 @@ router.delete(
 );
 
 // Documents
-router.get('/documents', async ({ res }) => {
+router.get('/documents', async (req, res) => {
 	try {
 		const documents = await Document.find({ deletedAt: null })
 			.select('-content')

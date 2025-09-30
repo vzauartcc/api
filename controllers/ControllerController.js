@@ -237,7 +237,7 @@ router.get('/oi', async (req, res) => {
 	return res.json(res.stdRes);
 });
 
-router.get('/visit', getUser, auth(['atm', 'datm']), async ({ res }) => {
+router.get('/visit', getUser, auth(['atm', 'datm']), async (req, res) => {
 	try {
 		const applications = await VisitApplication.find({ deletedAt: null, acceptedAt: null }).lean();
 		res.stdRes.data = applications;
@@ -795,10 +795,10 @@ router.put('/:cid/member', microAuth, async (req, res) => {
 		user.member = req.body.member;
 		user.oi = req.body.member
 			? generateOperatingInitials(
-					user.fname,
-					user.lname,
-					oi.map((oi) => oi.oi),
-				)
+				user.fname,
+				user.lname,
+				oi.map((oi) => oi.oi),
+			)
 			: null;
 		user.joinDate = req.body.member ? new Date() : null;
 		user.removalDate = null;

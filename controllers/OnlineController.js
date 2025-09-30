@@ -49,7 +49,7 @@ const positions = {
 	CTR: 'Center',
 };
 
-router.get('/', async ({ res }) => {
+router.get('/', async (req, res) => {
 	try {
 		const pilots = await PilotOnline.find().lean();
 		const atc = await AtcOnline.find().lean({ virtuals: true });

@@ -617,7 +617,7 @@ router.put(
 			console.log('VATUSA API Training note submitted - status: ' + Response.status);
 
 			// update the database flag to submitted to prevent further updates.
-			const sessionfinalize = await TrainingSession.findByIdAndUpdate(req.params.id, {
+			await TrainingSession.findByIdAndUpdate(req.params.id, {
 				sessiondate: dayjs(req.body.startTime).format('YYYY-MM-DD HH:mm'),
 				position: req.body.position,
 				progress: req.body.progress,

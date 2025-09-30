@@ -85,7 +85,7 @@ router.post('/', async (req, res) => {
 	return res.json(res.stdRes);
 });
 
-router.get('/controllers', async ({ res }) => {
+router.get('/controllers', async (req, res) => {
 	// Controller list on feedback page
 	try {
 		const controllers = await User.find({ deletedAt: null, member: true })
@@ -101,7 +101,7 @@ router.get('/controllers', async ({ res }) => {
 	return res.json(res.stdRes);
 });
 
-router.get('/unapproved', getUser, auth(['atm', 'datm', 'ta', 'wm']), async ({ res }) => {
+router.get('/unapproved', getUser, auth(['atm', 'datm', 'ta', 'wm']), async (req, res) => {
 	// Get all unapproved feedback
 	try {
 		const feedback = await Feedback.find({ deletedAt: null, approved: false })

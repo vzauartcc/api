@@ -23,7 +23,7 @@ const upload = multer({
 	}),
 });
 
-router.get('/', async ({ res }) => {
+router.get('/', async (req, res) => {
 	try {
 		const events = await Event.find({
 			eventEnd: {
@@ -101,11 +101,9 @@ router.get('/staffingRequest', async (req, res) => {
 		});
 	} catch (e) {
 		console.error(e);
-		return res
-			.status(500)
-			.json({
-				ret_det: { code: 500, message: 'An error occurred while retrieving staffing requests' },
-			});
+		return res.status(500).json({
+			ret_det: { code: 500, message: 'An error occurred while retrieving staffing requests' },
+		});
 	}
 });
 
@@ -414,10 +412,10 @@ router.post('/sendEvent', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req
 						fieldsChunked.length > 1
 							? undefined
 							: {
-									url:
+								url:
 										`https://zauartcc.sfo3.digitaloceanspaces.com/${process.env.S3_FOLDER_PREFIX}/events/` +
 										eventData.bannerUrl,
-								},
+							},
 				},
 			],
 		};
@@ -750,7 +748,7 @@ router.put('/:slug/assign', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (r
 			},
 		);
 
-		const [assignedPosition] = event.positions.filter((pos) => pos._id == position);
+		const [assignedPosition] = event.positions.filter((pos) => pos._id === position);
 
 		if (cid) {
 			await req.app.dossier.create({
@@ -940,11 +938,9 @@ router.put('/staffingRequest/:id/accept', async (req, res) => {
 			.json({ ret_det: { code: 200, message: 'Staffing request updated successfully' } });
 	} catch (e) {
 		console.error(e);
-		return res
-			.status(500)
-			.json({
-				ret_det: { code: 500, message: 'An error occurred while updating the staffing request' },
-			});
+		return res.status(500).json({
+			ret_det: { code: 500, message: 'An error occurred while updating the staffing request' },
+		});
 	}
 });
 
@@ -1002,11 +998,9 @@ router.put('/staffingRequest/:id', async (req, res) => {
 			.json({ ret_det: { code: 200, message: 'Staffing request updated successfully' } });
 	} catch (e) {
 		console.error(e);
-		return res
-			.status(500)
-			.json({
-				ret_det: { code: 500, message: 'An error occurred while updating the staffing request' },
-			});
+		return res.status(500).json({
+			ret_det: { code: 500, message: 'An error occurred while updating the staffing request' },
+		});
 	}
 });
 
@@ -1031,11 +1025,9 @@ router.delete(
 				.json({ ret_det: { code: 200, message: 'Staffing request deleted successfully' } });
 		} catch (e) {
 			console.error(e);
-			return res
-				.status(500)
-				.json({
-					ret_det: { code: 500, message: 'An error occurred while deleting the staffing request' },
-				});
+			return res.status(500).json({
+				ret_det: { code: 500, message: 'An error occurred while deleting the staffing request' },
+			});
 		}
 	},
 );

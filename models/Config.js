@@ -1,4 +1,3 @@
-import { config } from 'dotenv';
 import m from 'mongoose';
 
 const configSchema = new m.Schema(

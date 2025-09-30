@@ -4,7 +4,6 @@ const router = express.Router();
 import dotenv from 'dotenv';
 import getUser from '../middleware/getUser.js';
 import Discord from 'discord-oauth2';
-import oAuth from '../middleware/vatsimOAuth.js';
 import axios from 'axios';
 import User from '../models/User.js';
 import Config from '../models/Config.js';

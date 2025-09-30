@@ -1,7 +1,5 @@
 import express from 'express';
 const router = express.Router();
-import Notification from '../models/Notification.js';
-import User from '../models/User.js';
 import getUser from '../middleware/getUser.js';
 import auth from '../middleware/auth.js';
 import { Exam, Question, ExamAttempt } from '../models/Exam.js'; // Adjust the path as needed
@@ -361,6 +359,7 @@ router.put(
 	'/exams/:examId/resetAttempts',
 	getUser,
 	auth(['atm', 'datm', 'ta', 'ins']),
+	/* eslint-disable no-unused-vars */
 	async (req, res) => {
 		const { examId } = req.params;
 		const { userId } = req.body; // Assume the userId to reset attempts for is sent in the request
@@ -368,6 +367,7 @@ router.put(
 		// Reset attempts logic here
 		// This could involve updating existing attempt documents or tracking attempts separately
 	},
+	/* eslint-enable no-unused-vars */
 );
 
 router.delete('/exams/:id', getUser, auth(['atm', 'datm', 'ta']), async (req, res) => {
