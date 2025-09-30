@@ -1,111 +1,128 @@
-[{
-  "name": "Minor Delivery",
-  "code": "del",
-  "order": 1,
-  "class": "minor",
-  "facility": "del"
-},
-{
-  "name": "Major Delivery",
-  "code": "orddel",
-  "order": 2,
-  "class": "major",
-  "facility": "del"
-},
-{
-  "name": "Minor Ground",
-  "code": "gnd",
-  "order": 3,
-  "class": "minor",
-  "facility": "gnd"
-},{
-  "name": "Major Ground",
-  "code": "ordgnd",
-  "order": 4,
-  "class": "major",
-  "facility": "gnd"
-},{
-  "name": "Minor Tower",
-  "code": "twr",
-  "order": 5,
-  "class": "minor",
-  "facility": "twr"
-},{
-  "name": "Major Tower",
-  "code": "ordtwr",
-  "order": 6,
-  "class": "major",
-  "facility": "twr"
-},{
-  "name": "Minor Approach",
-  "code": "app",
-  "order": 7,
-  "class": "minor",
-  "facility": "app"
-},{
-  "name": "Major Approach",
-  "code": "ordapp",
-  "order": 8,
-  "class": "major",
-  "facility": "app"
-},{
-  "name": "Chicago Center",
-  "code": "zau",
-  "order": 9,
-  "class": "center",
-  "facility": "ctr"
-},{
-    "name": "Minor Approach Solo",
-    "code": "apps",
-    "order": 10,
-    "class": "minor",
-    "facility": "app"
-},{
-    "name": "Minor Tower Solo",
-    "code": "twrs",
-    "order": 11,
-    "class": "minor",
-    "facility": "twr"
-},{
-    "name": "Minor Ground Solo",
-    "code": "gnds",
-    "order": 12,
-    "class": "minor",
-    "facility": "gnd"
-},{
-    "name": "Minor Delivery Solo",
-    "code": "dels",
-    "order": 13,
-    "class": "minor",
-    "facility": "del"
-},{
-    "name": "Major Approach Solo",
-    "code": "ordapps",
-    "order": 14,
-    "class": "major",
-    "facility": "app"
-},{
-    "name": "Major Tower Solo",
-    "code": "ordtwrs",
-    "order": 15,
-    "class": "major",
-    "facility": "twr"
-},{
-    "name": "Major Ground Solo",
-    "code": "ordgnds",
-    "order": 16,
-    "class": "major",
-    "facility": "gnd"
-},{
-    "name": "Major Delivery Solo",
-    "code": "orddels",
-    "order": 17,
-    "class": "major",
-    "facility": "del"
-},{
-    "name": "Center Solo",
-    "code": "zaus",
-    "order": 18,
-    "class": "center",
-    "facility": "ctr"
-}]
+[
+	{
+		"name": "Minor Delivery",
+		"code": "del",
+		"order": 1,
+		"class": "minor",
+		"facility": "del"
+	},
+	{
+		"name": "Major Delivery",
+		"code": "orddel",
+		"order": 2,
+		"class": "major",
+		"facility": "del"
+	},
+	{
+		"name": "Minor Ground",
+		"code": "gnd",
+		"order": 3,
+		"class": "minor",
+		"facility": "gnd"
+	},
+	{
+		"name": "Major Ground",
+		"code": "ordgnd",
+		"order": 4,
+		"class": "major",
+		"facility": "gnd"
+	},
+	{
+		"name": "Minor Tower",
+		"code": "twr",
+		"order": 5,
+		"class": "minor",
+		"facility": "twr"
+	},
+	{
+		"name": "Major Tower",
+		"code": "ordtwr",
+		"order": 6,
+		"class": "major",
+		"facility": "twr"
+	},
+	{
+		"name": "Minor Approach",
+		"code": "app",
+		"order": 7,
+		"class": "minor",
+		"facility": "app"
+	},
+	{
+		"name": "Major Approach",
+		"code": "ordapp",
+		"order": 8,
+		"class": "major",
+		"facility": "app"
+	},
+	{
+		"name": "Chicago Center",
+		"code": "zau",
+		"order": 9,
+		"class": "center",
+		"facility": "ctr"
+	},
+	{
+		"name": "Minor Approach Solo",
+		"code": "apps",
+		"order": 10,
+		"class": "minor",
+		"facility": "app"
+	},
+	{
+		"name": "Minor Tower Solo",
+		"code": "twrs",
+		"order": 11,
+		"class": "minor",
+		"facility": "twr"
+	},
+	{
+		"name": "Minor Ground Solo",
+		"code": "gnds",
+		"order": 12,
+		"class": "minor",
+		"facility": "gnd"
+	},
+	{
+		"name": "Minor Delivery Solo",
+		"code": "dels",
+		"order": 13,
+		"class": "minor",
+		"facility": "del"
+	},
+	{
+		"name": "Major Approach Solo",
+		"code": "ordapps",
+		"order": 14,
+		"class": "major",
+		"facility": "app"
+	},
+	{
+		"name": "Major Tower Solo",
+		"code": "ordtwrs",
+		"order": 15,
+		"class": "major",
+		"facility": "twr"
+	},
+	{
+		"name": "Major Ground Solo",
+		"code": "ordgnds",
+		"order": 16,
+		"class": "major",
+		"facility": "gnd"
+	},
+	{
+		"name": "Major Delivery Solo",
+		"code": "orddels",
+		"order": 17,
+		"class": "major",
+		"facility": "del"
+	},
+	{
+		"name": "Center Solo",
+		"code": "zaus",
+		"order": 18,
+		"class": "center",
+		"facility": "ctr"
+	}
+]

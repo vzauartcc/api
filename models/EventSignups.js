@@ -1,20 +1,25 @@
 import m from 'mongoose';
 import './User.js';
 
-const signups = new m.Schema({
-	cid: Number,
-	requests: [{
-		type: String
-	}]
-},{
-	timestamps: true,
-});
+const signups = new m.Schema(
+	{
+		cid: Number,
+		requests: [
+			{
+				type: String,
+			},
+		],
+	},
+	{
+		timestamps: true,
+	},
+);
 
 signups.virtual('user', {
 	ref: 'User',
 	localField: 'cid',
 	foreignField: 'cid',
-	justOne: true
-})
+	justOne: true,
+});
 
 export default signups;
