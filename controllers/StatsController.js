@@ -246,20 +246,23 @@ function getHighestCertificationBeforeQuarter(
 	const sortedCerts = validCerts.sort((a, b) => {
 		const hierarchyComparison = certHierarchy.indexOf(a.code) - certHierarchy.indexOf(b.code);
 		if (hierarchyComparison !== 0) {
-			if (userCid === testUserCID)
-			{console.log(`Sorting by hierarchy: ${a.code} vs ${b.code} => ${hierarchyComparison}`);}
+			if (userCid === testUserCID) {
+				console.log(`Sorting by hierarchy: ${a.code} vs ${b.code} => ${hierarchyComparison}`);
+			}
 			return hierarchyComparison;
 		}
 
 		const dateComparison = new Date(b.gainedDate) - new Date(a.gainedDate);
-		if (userCid === testUserCID)
-		{console.log(`Sorting by date: ${a.gainedDate} vs ${b.gainedDate} => ${dateComparison}`);}
+		if (userCid === testUserCID) {
+			console.log(`Sorting by date: ${a.gainedDate} vs ${b.gainedDate} => ${dateComparison}`);
+		}
 		return dateComparison;
 	});
 
 	const highestCert = sortedCerts[0] || null;
-	if (userCid === testUserCID)
-	{console.log(`Test user ${userCid} highest certification: ${JSON.stringify(highestCert)}`);}
+	if (userCid === testUserCID) {
+		console.log(`Test user ${userCid} highest certification: ${JSON.stringify(highestCert)}`);
+	}
 
 	return highestCert;
 }
@@ -271,32 +274,37 @@ function isExempt(user, startOfQuarter) {
 	}
 
 	if (new Date(user.joinDate) >= startOfQuarter) {
-		if (user.cid === testUserCID)
-		{console.log(`Test user ${user.cid} is exempt: joined during the quarter.`);}
+		if (user.cid === testUserCID) {
+			console.log(`Test user ${user.cid} is exempt: joined during the quarter.`);
+		}
 		return true;
 	}
 
 	if (user.certificationDate && Array.isArray(user.certificationDate)) {
-		if (user.cid === testUserCID)
-		{console.log(`CertificationDates for test user ${user.cid}:`, user.certificationDate);}
+		if (user.cid === testUserCID) {
+			console.log(`CertificationDates for test user ${user.cid}:`, user.certificationDate);
+		}
 
 		const promotedToS1 = user.certificationDate.some((cert) => {
 			const gainedDate = cert.gainedDate ? new Date(cert.gainedDate) : null;
 
-			if (user.cid === testUserCID)
-			{console.log(`Cert code: ${cert.code}, Gained Date: ${gainedDate}`);}
+			if (user.cid === testUserCID) {
+				console.log(`Cert code: ${cert.code}, Gained Date: ${gainedDate}`);
+			}
 
 			return cert.code === 'gnd' && gainedDate && gainedDate >= startOfQuarter;
 		});
 
 		if (promotedToS1) {
-			if (user.cid === testUserCID)
-			{console.log(`Test user ${user.cid} is exempt: promoted from OBS to S1 during the quarter.`);}
+			if (user.cid === testUserCID) {
+				console.log(`Test user ${user.cid} is exempt: promoted from OBS to S1 during the quarter.`);
+			}
 			return true;
 		}
 	} else {
-		if (user.cid === testUserCID)
-		{console.log(`Test user ${user.cid} has no valid certificationDate array.`);}
+		if (user.cid === testUserCID) {
+			console.log(`Test user ${user.cid} has no valid certificationDate array.`);
+		}
 	}
 
 	if (user.cid === testUserCID) console.log(`Test user ${user.cid} is not exempt.`);
@@ -574,10 +582,11 @@ router.get('/activity', getUser, auth(['atm', 'datm', 'ta', 'wm']), async (req, 
 			// Apply tooLow checks
 			if (!user.exempt) {
 				if (user.totalTime < 3600 * 3) {
-					if (user.cid === testUserCID)
-					{console.log(
-						`❌ Test User ${cid} flagged tooLow: totalTime (${user.totalTime}s) is less than 3 hours`,
-					);}
+					if (user.cid === testUserCID) {
+						console.log(
+							`❌ Test User ${cid} flagged tooLow: totalTime (${user.totalTime}s) is less than 3 hours`,
+						);
+					}
 					tooLow = true;
 				}
 
@@ -588,21 +597,24 @@ router.get('/activity', getUser, auth(['atm', 'datm', 'ta', 'wm']), async (req, 
       }*/
 
 				if (user.highestCert && user.certSpecificTime < 3600) {
-					if (user.cid === testUserCID)
-					{console.log(
-						`❌ Test User ${cid} flagged tooLow: has cert (${user.highestCert.code}) but certSpecificTime (${user.certSpecificTime}s) < 1 hour`,
-					);}
+					if (user.cid === testUserCID) {
+						console.log(
+							`❌ Test User ${cid} flagged tooLow: has cert (${user.highestCert.code}) but certSpecificTime (${user.certSpecificTime}s) < 1 hour`,
+						);
+					}
 					tooLow = true;
 				}
 			} else {
-				if (user.cid === testUserCID)
-				{console.log(`✅ Test User ${cid} is exempt, skipping tooLow checks.`);}
+				if (user.cid === testUserCID) {
+					console.log(`✅ Test User ${cid} is exempt, skipping tooLow checks.`);
+				}
 			}
 
 			userData[cid].tooLow = tooLow;
 
-			if (user.cid === testUserCID)
-			{console.log(`✅ Final "tooLow" status for Test User ${cid}: ${tooLow}`);}
+			if (user.cid === testUserCID) {
+				console.log(`✅ Final "tooLow" status for Test User ${cid}: ${tooLow}`);
+			}
 		});
 
 		//console.log('Final checks applied, returning data');

@@ -795,10 +795,10 @@ router.put('/:cid/member', microAuth, async (req, res) => {
 		user.member = req.body.member;
 		user.oi = req.body.member
 			? generateOperatingInitials(
-				user.fname,
-				user.lname,
-				oi.map((oi) => oi.oi),
-			)
+					user.fname,
+					user.lname,
+					oi.map((oi) => oi.oi),
+				)
 			: null;
 		user.joinDate = req.body.member ? new Date() : null;
 		user.removalDate = null;

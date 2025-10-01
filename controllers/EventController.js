@@ -412,10 +412,10 @@ router.post('/sendEvent', getUser, auth(['atm', 'datm', 'ec', 'wm']), async (req
 						fieldsChunked.length > 1
 							? undefined
 							: {
-								url:
+									url:
 										`https://zauartcc.sfo3.digitaloceanspaces.com/${process.env.S3_FOLDER_PREFIX}/events/` +
 										eventData.bannerUrl,
-							},
+								},
 				},
 			],
 		};
