@@ -12,95 +12,112 @@ import auth from '../middleware/auth.js';
 import microAuth from '../middleware/microAuth.js';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { DateTime as L } from 'luxon'
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { DateTime as L } from 'luxon';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
 
 dotenv.config();
 
-router.get('/', async ({res}) => {
+router.get('/', async ({ res }) => {
 	try {
-		const home = await User.find({vis: false}).select('-email -idsToken -discordInfo -certificationDate').sort({
-			lname: 'asc',
-			fname: 'asc'
-		}).populate({
-			path: 'certifications',
-			options: {
-				sort: {order: 'desc'}
-			}
-		}).populate({
-			path: 'roles',
-			options: {
-				sort: {order: 'asc'}
-			}
-		}).populate({
-			path: 'absence',
-			match: {
-				expirationDate: {
-					$gte: new Date()
+		const home = await User.find({ vis: false })
+			.select('-email -idsToken -discordInfo -certificationDate')
+			.sort({
+				lname: 'asc',
+				fname: 'asc',
+			})
+			.populate({
+				path: 'certifications',
+				options: {
+					sort: { order: 'desc' },
 				},
-				deleted: false
-			},
-			select: '-reason'
-		}).lean({virtuals: true});
-
-		const visiting = await User.find({vis: true}).select('-email -idsToken -discordInfo -certificationDate').sort({
-			lname: 'asc',
-			fname: 'asc'
-		}).populate({
-			path: 'certifications',
-			options: {
-				sort: {order: 'desc'}
-			}
-		}).populate({
-			path: 'roles',
-			options: {
-				sort: {order: 'asc'}
-			}
-		}).populate({
-			path: 'absence',
-			match: {
-				expirationDate: {
-					$gte: new Date()
+			})
+			.populate({
+				path: 'roles',
+				options: {
+					sort: { order: 'asc' },
 				},
-				deleted: false
-			},
-			select: '-reason'
-		}).lean({virtuals: true});
-
-		const removed = await User.find({member: false}).select('-email -idsToken -discordInfo -certificationDate').sort({
-			lname: 'asc',
-			fname: 'asc'
-		}).populate({
-			path: 'certifications',
-			options: {
-				sort: {order: 'desc'}
-			}
-		}).populate({
-			path: 'roles',
-			options: {
-				sort: {order: 'asc'}
-			}
-		}).populate({
-			path: 'absence',
-			match: {
-				expirationDate: {
-					$gte: new Date()
+			})
+			.populate({
+				path: 'absence',
+				match: {
+					expirationDate: {
+						$gte: new Date(),
+					},
+					deleted: false,
 				},
-				deleted: false
-			},
-			select: '-reason'
-		}).lean({virtuals: true});
+				select: '-reason',
+			})
+			.lean({ virtuals: true });
 
-		if(!home || !visiting || !removed) {
+		const visiting = await User.find({ vis: true })
+			.select('-email -idsToken -discordInfo -certificationDate')
+			.sort({
+				lname: 'asc',
+				fname: 'asc',
+			})
+			.populate({
+				path: 'certifications',
+				options: {
+					sort: { order: 'desc' },
+				},
+			})
+			.populate({
+				path: 'roles',
+				options: {
+					sort: { order: 'asc' },
+				},
+			})
+			.populate({
+				path: 'absence',
+				match: {
+					expirationDate: {
+						$gte: new Date(),
+					},
+					deleted: false,
+				},
+				select: '-reason',
+			})
+			.lean({ virtuals: true });
+
+		const removed = await User.find({ member: false })
+			.select('-email -idsToken -discordInfo -certificationDate')
+			.sort({
+				lname: 'asc',
+				fname: 'asc',
+			})
+			.populate({
+				path: 'certifications',
+				options: {
+					sort: { order: 'desc' },
+				},
+			})
+			.populate({
+				path: 'roles',
+				options: {
+					sort: { order: 'asc' },
+				},
+			})
+			.populate({
+				path: 'absence',
+				match: {
+					expirationDate: {
+						$gte: new Date(),
+					},
+					deleted: false,
+				},
+				select: '-reason',
+			})
+			.lean({ virtuals: true });
+
+		if (!home || !visiting || !removed) {
 			throw {
 				code: 503,
-				message: "Unable to retrieve controllers"
+				message: 'Unable to retrieve controllers',
 			};
 		}
 
-		res.stdRes.data = {home, visiting, removed};
-	}
-	catch(e) {
+		res.stdRes.data = { home, visiting, removed };
+	} catch (e) {
 		//req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;
 	}
@@ -110,75 +127,77 @@ router.get('/', async ({res}) => {
 
 router.get('/staff', async (req, res) => {
 	try {
-		const users = await User.find().select('fname lname cid roleCodes').sort({
-			lname: 'asc',
-			fname: 'asc'
-		})/*.populate({
+		const users = await User.find()
+			.select('fname lname cid roleCodes')
+			.sort({
+				lname: 'asc',
+				fname: 'asc',
+			}) /*.populate({
 			path: 'roles',
 			options: {
 				sort: {order: 'asc'}
 			}
-		})*/.lean();
+		})*/
+			.lean();
 
-		if(!users) {
+		if (!users) {
 			throw {
 				code: 503,
-				message: "Unable to retrieve staff members"
+				message: 'Unable to retrieve staff members',
 			};
 		}
 
 		const staff = {
 			atm: {
-				title: "Air Traffic Manager",
-				code: "atm",
-				users: []
+				title: 'Air Traffic Manager',
+				code: 'atm',
+				users: [],
 			},
 			datm: {
-				title: "Deputy Air Traffic Manager",
-				code: "datm",
-				users: []
+				title: 'Deputy Air Traffic Manager',
+				code: 'datm',
+				users: [],
 			},
 			ta: {
-				title: "Training Administrator",
-				code: "ta",
-				users: []
+				title: 'Training Administrator',
+				code: 'ta',
+				users: [],
 			},
 			ec: {
-				title: "Events Team",
-				code: "ec",
-				users: []
+				title: 'Events Team',
+				code: 'ec',
+				users: [],
 			},
 			wm: {
-				title: "Web Team",
-				code: "wm",
-				users: []
+				title: 'Web Team',
+				code: 'wm',
+				users: [],
 			},
 			fe: {
-				title: "Facility Engineering Team",
-				code: "fe",
-				users: []
+				title: 'Facility Engineering Team',
+				code: 'fe',
+				users: [],
 			},
 			ins: {
-				title: "Instructors",
-				code: "instructors",
-				users: []
+				title: 'Instructors',
+				code: 'instructors',
+				users: [],
 			},
-            ia: {
-                title: "Instructor Assistants",
-                code: "ia",
-                users: []
-            },
+			ia: {
+				title: 'Instructor Assistants',
+				code: 'ia',
+				users: [],
+			},
 			mtr: {
-				title: "Mentors",
-				code: "instructors",
-				users: []
+				title: 'Mentors',
+				code: 'instructors',
+				users: [],
 			},
 		};
-		users.forEach(user => user.roleCodes.forEach(role => staff[role].users.push(user)));
+		users.forEach((user) => user.roleCodes.forEach((role) => staff[role].users.push(user)));
 
 		res.stdRes.data = staff;
-	}
-	catch(e) {
+	} catch (e) {
 		req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;
 	}
@@ -190,8 +209,7 @@ router.get('/role', async (req, res) => {
 	try {
 		const roles = await Role.find().lean();
 		res.stdRes.data = roles;
-	}
-	catch(e) {
+	} catch (e) {
 		req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;
 	}
@@ -201,18 +219,17 @@ router.get('/role', async (req, res) => {
 
 router.get('/oi', async (req, res) => {
 	try {
-		const oi = await User.find({deletedAt: null, member: true}).select('oi').lean();
+		const oi = await User.find({ deletedAt: null, member: true }).select('oi').lean();
 
-		if(!oi) {
+		if (!oi) {
 			throw {
 				code: 503,
-				message: "Unable to retrieve operating initials"
+				message: 'Unable to retrieve operating initials',
 			};
 		}
 
-		res.stdRes.data = oi.map(oi => oi.oi);
-	}
-	catch(e) {
+		res.stdRes.data = oi.map((oi) => oi.oi);
+	} catch (e) {
 		req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;
 	}
@@ -220,11 +237,11 @@ router.get('/oi', async (req, res) => {
 	return res.json(res.stdRes);
 });
 
-router.get('/visit', getUser, auth(['atm', 'datm']), async ({res}) => {
+router.get('/visit', getUser, auth(['atm', 'datm']), async (req, res) => {
 	try {
-		const applications = await VisitApplication.find({deletedAt: null, acceptedAt: null}).lean();
+		const applications = await VisitApplication.find({ deletedAt: null, acceptedAt: null }).lean();
 		res.stdRes.data = applications;
-	} catch(e) {
+	} catch (e) {
 		req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;
 	}
@@ -232,21 +249,22 @@ router.get('/visit', getUser, auth(['atm', 'datm']), async ({res}) => {
 	return res.json(res.stdRes);
 });
 
-router.get('/absence', getUser, auth(['atm', 'datm']), async(req, res) => {
+router.get('/absence', getUser, auth(['atm', 'datm']), async (req, res) => {
 	try {
 		const absences = await Absence.find({
 			expirationDate: {
-				$gte: new Date()
+				$gte: new Date(),
 			},
-			deleted: false
-		}).populate(
-			'user', 'fname lname cid'
-		).sort({
-			expirationDate: 'asc'
-		}).lean();
+			deleted: false,
+		})
+			.populate('user', 'fname lname cid')
+			.sort({
+				expirationDate: 'asc',
+			})
+			.lean();
 
 		res.stdRes.data = absences;
-	} catch(e) {
+	} catch (e) {
 		req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;
 	}
@@ -254,20 +272,25 @@ router.get('/absence', getUser, auth(['atm', 'datm']), async(req, res) => {
 	return res.json(res.stdRes);
 });
 
-router.post('/absence', getUser, auth(['atm', 'datm']), async(req, res) => {
+router.post('/absence', getUser, auth(['atm', 'datm']), async (req, res) => {
 	try {
-		if(!req.body || req.body.controller === '' || req.body.expirationDate === 'T00:00:00.000Z' || req.body.reason === '') {
+		if (
+			!req.body ||
+			req.body.controller === '' ||
+			req.body.expirationDate === 'T00:00:00.000Z' ||
+			req.body.reason === ''
+		) {
 			throw {
 				code: 400,
-				message: "You must fill out all required fields"
-			}
+				message: 'You must fill out all required fields',
+			};
 		}
 
-		if(new Date(req.body.expirationDate) < new Date()) {
+		if (new Date(req.body.expirationDate) < new Date()) {
 			throw {
 				code: 400,
-				message: "Expiration date must be in the future"
-			}
+				message: 'Expiration date must be in the future',
+			};
 		}
 
 		await Absence.create(req.body);
@@ -276,21 +299,22 @@ router.post('/absence', getUser, auth(['atm', 'datm']), async(req, res) => {
 			recipient: req.body.controller,
 			title: 'Leave of Absence granted',
 			read: false,
-			content: `You have been granted Leave of Absence until <b>${new Date(req.body.expirationDate).toLocaleString('en-US', {
+			content: `You have been granted Leave of Absence until <b>${new Date(
+				req.body.expirationDate,
+			).toLocaleString('en-US', {
 				month: 'long',
 				day: 'numeric',
 				year: 'numeric',
 				timeZone: 'UTC',
-			})}</b>.`
+			})}</b>.`,
 		});
 
 		await req.app.dossier.create({
 			by: res.user.cid,
 			affected: req.body.controller,
-			action: `%b added a leave of absence for %a: ${req.body.reason}`
+			action: `%b added a leave of absence for %a: ${req.body.reason}`,
 		});
-
-	} catch(e) {
+	} catch (e) {
 		req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;
 	}
@@ -298,24 +322,24 @@ router.post('/absence', getUser, auth(['atm', 'datm']), async(req, res) => {
 	return res.json(res.stdRes);
 });
 
-router.delete('/absence/:id', getUser, auth(['atm', 'datm']), async(req, res) => {
+router.delete('/absence/:id', getUser, auth(['atm', 'datm']), async (req, res) => {
 	try {
-		if(!req.params.id) {
+		if (!req.params.id) {
 			throw {
 				code: 401,
-				message: "Invalid request"
-			}
+				message: 'Invalid request',
+			};
 		}
 
-		const absence = await Absence.findOne({_id: req.params.id});
+		const absence = await Absence.findOne({ _id: req.params.id });
 		await absence.delete();
 
 		await req.app.dossier.create({
 			by: res.user.cid,
 			affected: absence.controller,
-			action: `%b deleted the leave of absence for %a.`
+			action: `%b deleted the leave of absence for %a.`,
 		});
-	} catch(e) {
+	} catch (e) {
 		req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;
 	}
@@ -330,59 +354,61 @@ router.get('/log', getUser, auth(['atm', 'datm', 'ta', 'fe', 'ec', 'wm']), async
 
 	try {
 		const dossier = await req.app.dossier
-		.find()
-		.sort({
-			createdAt: 'desc'
-		}).skip(limit * (page - 1)).limit(limit).populate(
-			'userBy', 'fname lname cid'
-		).populate(
-			'userAffected', 'fname lname cid'
-		).lean();
+			.find()
+			.sort({
+				createdAt: 'desc',
+			})
+			.skip(limit * (page - 1))
+			.limit(limit)
+			.populate('userBy', 'fname lname cid')
+			.populate('userAffected', 'fname lname cid')
+			.lean();
 
 		res.stdRes.data = {
 			dossier,
-			amount
+			amount,
 		};
-	}
-	catch(e) {
+	} catch (e) {
 		req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;
 	}
 
 	return res.json(res.stdRes);
-})
+});
 
 router.get('/:cid', getUser, async (req, res) => {
 	try {
 		const user = await User.findOne({
-			cid: req.params.cid
-		}).select(
-			'-idsToken -discordInfo -trainingMilestones'
-		).populate('roles').populate('certifications').populate({
-			path: 'absence',
-			match: {
-				expirationDate: {
-					$gte: new Date()
+			cid: req.params.cid,
+		})
+			.select('-idsToken -discordInfo -trainingMilestones')
+			.populate('roles')
+			.populate('certifications')
+			.populate({
+				path: 'absence',
+				match: {
+					expirationDate: {
+						$gte: new Date(),
+					},
+					deleted: false,
 				},
-				deleted: false
-			},
-			select: '-reason'
-		}).lean({virtuals: true});
+				select: '-reason',
+			})
+			.lean({ virtuals: true });
 
-		if(!user || [995625].includes(user.cid)) {
+		if (!user || [995625].includes(user.cid)) {
 			throw {
 				code: 503,
-				message: "Unable to find controller"
+				message: 'Unable to find controller',
 			};
 		}
 
-		if(!res.user || !res.user.isStaff) {
+		if (!res.user || !res.user.isStaff) {
 			delete user.email;
 		}
 
 		res.stdRes.data = user;
-	}
-	catch(e) {
+	} catch (e) {
 		req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;
 	}
@@ -391,12 +417,12 @@ router.get('/:cid', getUser, async (req, res) => {
 });
 router.put('/:cid/rating', microAuth, async (req, res) => {
 	try {
-		const user = await User.findOne({cid: req.params.cid});
+		const user = await User.findOne({ cid: req.params.cid });
 
-		if(!user) {
+		if (!user) {
 			throw {
 				code: 400,
-				message: "Unable to find user"
+				message: 'Unable to find user',
 			};
 		}
 
@@ -409,33 +435,32 @@ router.put('/:cid/rating', microAuth, async (req, res) => {
 				by: -1,
 				affected: req.params.cid,
 				action: `%a was set as Rating ${req.body.rating} by an external service.`,
-		});
+			});
 		}
-	}
-	catch(e) {
+	} catch (e) {
 		req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;
 	}
 
 	return res.json(res.stdRes);
-})
+});
 router.get('/stats/:cid', async (req, res) => {
 	try {
-		const controllerHours = await ControllerHours.find({cid: req.params.cid});
+		const controllerHours = await ControllerHours.find({ cid: req.params.cid });
 		const hours = {
 			gtyear: {
 				del: 0,
 				gnd: 0,
 				twr: 0,
 				app: 0,
-				ctr: 0
+				ctr: 0,
 			},
 			total: {
 				del: 0,
 				gnd: 0,
 				twr: 0,
 				app: 0,
-				ctr: 0
+				ctr: 0,
 			},
 			sessionCount: controllerHours.length,
 			sessionAvg: 0,
@@ -447,50 +472,49 @@ router.get('/stats/:cid', async (req, res) => {
 			twr: 'twr',
 			dep: 'app',
 			app: 'app',
-			ctr: 'ctr'
-		}
+			ctr: 'ctr',
+		};
 		const today = L.utc();
 
-		const getMonthYearString = date => date.toFormat('LLL yyyy');
+		const getMonthYearString = (date) => date.toFormat('LLL yyyy');
 
-		for(let i = 0; i < 12; i++) {
-			const theMonth = today.minus({months: i});
-			const ms = getMonthYearString(theMonth)
+		for (let i = 0; i < 12; i++) {
+			const theMonth = today.minus({ months: i });
+			const ms = getMonthYearString(theMonth);
 			hours[ms] = {
 				del: 0,
 				gnd: 0,
 				twr: 0,
 				app: 0,
-				ctr: 0
+				ctr: 0,
 			};
 			hours.months.push(ms);
 		}
 
-		for(const sess of controllerHours) {
+		for (const sess of controllerHours) {
 			const thePos = sess.position.toLowerCase().match(/([a-z]{3})$/); // 🤮
 
-			if(thePos) {
+			if (thePos) {
 				const start = L.fromJSDate(sess.timeStart).toUTC();
 				const end = L.fromJSDate(sess.timeEnd).toUTC();
 				const type = pos[thePos[1]];
 				const length = end.toFormat('X') - start.toFormat('X');
 				let ms = getMonthYearString(start);
 
-				if(!hours[ms]) {
+				if (!hours[ms]) {
 					ms = 'gtyear';
 				}
 
 				hours[ms][type] += length;
 				hours.total[type] += length;
 			}
-
 		}
 
-		hours.sessionAvg = Math.round(Object.values(hours.total).reduce((acc, cv) => acc + cv)/hours.sessionCount);
+		hours.sessionAvg = Math.round(
+			Object.values(hours.total).reduce((acc, cv) => acc + cv) / hours.sessionCount,
+		);
 		res.stdRes.data = hours;
-	}
-
-	catch(e) {
+	} catch (e) {
 		req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;
 	}
@@ -500,10 +524,10 @@ router.get('/stats/:cid', async (req, res) => {
 
 router.post('/visit', getUser, async (req, res) => {
 	try {
-		if(!res.user) {
+		if (!res.user) {
 			throw {
 				code: 401,
-				message: "Unable to verify user"
+				message: 'Unable to verify user',
 			};
 		}
 
@@ -514,37 +538,36 @@ router.post('/visit', getUser, async (req, res) => {
 			rating: res.user.ratingLong,
 			email: req.body.email,
 			home: req.body.facility,
-			reason: req.body.reason
-		}
+			reason: req.body.reason,
+		};
 
 		await VisitApplication.create(userData);
 
 		await transporter.sendMail({
 			to: req.body.email,
 			from: {
-				name: "Chicago ARTCC",
-				address: 'no-reply@zauartcc.org'
+				name: 'Chicago ARTCC',
+				address: 'no-reply@zauartcc.org',
 			},
 			subject: `Visiting Application Received | Chicago ARTCC`,
 			template: 'visitReceived',
 			context: {
 				name: `${res.user.fname} ${res.user.lname}`,
-			}
+			},
 		});
 		await transporter.sendMail({
 			to: 'atm@zauartcc.org, datm@zauartcc.org',
 			from: {
-				name: "Chicago ARTCC",
-				address: 'no-reply@zauartcc.org'
+				name: 'Chicago ARTCC',
+				address: 'no-reply@zauartcc.org',
 			},
 			subject: `New Visiting Application: ${res.user.fname} ${res.user.lname} | Chicago ARTCC`,
 			template: 'staffNewVisit',
 			context: {
-				user: userData
-			}
+				user: userData,
+			},
 		});
-	}
-	catch(e) {
+	} catch (e) {
 		req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;
 	}
@@ -554,15 +577,15 @@ router.post('/visit', getUser, async (req, res) => {
 
 router.get('/visit/status', getUser, async (req, res) => {
 	try {
-		if(!res.user) {
+		if (!res.user) {
 			throw {
 				code: 401,
-				message: "Unable to verify user"
+				message: 'Unable to verify user',
 			};
 		}
-		const count = await VisitApplication.countDocuments({cid: res.user.cid, deleted: false});
+		const count = await VisitApplication.countDocuments({ cid: res.user.cid, deleted: false });
 		res.stdRes.data = count;
-	} catch(e) {
+	} catch (e) {
 		req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;
 	}
@@ -572,11 +595,15 @@ router.get('/visit/status', getUser, async (req, res) => {
 
 router.put('/visit/:cid', getUser, auth(['atm', 'datm']), async (req, res) => {
 	try {
-		await VisitApplication.delete({cid: req.params.cid});
+		await VisitApplication.delete({ cid: req.params.cid });
 
-		const user = await User.findOne({cid: req.params.cid});
-		const oi = await User.find({deletedAt: null, member: true}).select('oi').lean();
-		const userOi = generateOperatingInitials(user.fname, user.lname, oi.map(oi => oi.oi))
+		const user = await User.findOne({ cid: req.params.cid });
+		const oi = await User.find({ deletedAt: null, member: true }).select('oi').lean();
+		const userOi = generateOperatingInitials(
+			user.fname,
+			user.lname,
+			oi.map((oi) => oi.oi),
+		);
 
 		user.member = true;
 		user.vis = true;
@@ -597,28 +624,29 @@ router.put('/visit/:cid', getUser, auth(['atm', 'datm']), async (req, res) => {
 
 		await user.save();
 
-		await axios.post(`https://api.vatusa.net/v2/facility/ZAU/roster/manageVisitor/${req.params.cid}?apikey=${process.env.VATUSA_API_KEY}`)
+		await axios.post(
+			`https://api.vatusa.net/v2/facility/ZAU/roster/manageVisitor/${req.params.cid}?apikey=${process.env.VATUSA_API_KEY}`,
+		);
 
 		await transporter.sendMail({
 			to: user.email,
 			from: {
-				name: "Chicago ARTCC",
-				address: 'no-reply@zauartcc.org'
+				name: 'Chicago ARTCC',
+				address: 'no-reply@zauartcc.org',
 			},
 			subject: `Visiting Application Accepted | Chicago ARTCC`,
 			template: 'visitAccepted',
 			context: {
 				name: `${user.fname} ${user.lname}`,
-			}
+			},
 		});
 
 		await req.app.dossier.create({
 			by: res.user.cid,
 			affected: user.cid,
-			action: `%b approved the visiting application for %a.`
+			action: `%b approved the visiting application for %a.`,
 		});
-	}
-	catch(e) {
+	} catch (e) {
 		req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;
 	}
@@ -626,33 +654,31 @@ router.put('/visit/:cid', getUser, auth(['atm', 'datm']), async (req, res) => {
 	return res.json(res.stdRes);
 });
 
-
 router.delete('/visit/:cid', getUser, auth(['atm', 'datm']), async (req, res) => {
 	try {
-		await VisitApplication.delete({cid: req.params.cid});
+		await VisitApplication.delete({ cid: req.params.cid });
 
-		const user = await User.findOne({cid: req.params.cid});
+		const user = await User.findOne({ cid: req.params.cid });
 
 		await transporter.sendMail({
 			to: user.email,
 			from: {
-				name: "Chicago ARTCC",
-				address: 'no-reply@zauartcc.org'
+				name: 'Chicago ARTCC',
+				address: 'no-reply@zauartcc.org',
 			},
 			subject: `Visiting Application Rejected | Chicago ARTCC`,
 			template: 'visitRejected',
 			context: {
 				name: `${user.fname} ${user.lname}`,
-				reason: req.body.reason
-			}
+				reason: req.body.reason,
+			},
 		});
 		await req.app.dossier.create({
 			by: res.user.cid,
 			affected: user.cid,
-			action: `%b rejected the visiting application for %a: ${req.body.reason}`
+			action: `%b rejected the visiting application for %a: ${req.body.reason}`,
 		});
-	}
-	catch(e) {
+	} catch (e) {
 		req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;
 	}
@@ -662,33 +688,42 @@ router.delete('/visit/:cid', getUser, auth(['atm', 'datm']), async (req, res) =>
 
 router.post('/:cid', microAuth, async (req, res) => {
 	try {
-		const user = await User.findOne({cid: req.params.cid});
-		if(user) {
+		const user = await User.findOne({ cid: req.params.cid });
+		if (user) {
 			throw {
 				code: 409,
-				message: "This user already exists"
+				message: 'This user already exists',
 			};
 		}
 
-		if(!req.body) {
+		if (!req.body) {
 			throw {
 				code: 400,
-				message: "No user data provided"
+				message: 'No user data provided',
 			};
 		}
 
-		const oi = await User.find({deletedAt: null, member: true}).select('oi').lean();
-		const userOi = generateOperatingInitials(req.body.fname, req.body.lname, oi.map(oi => oi.oi))
-		const {data} = await axios.get(`https://ui-avatars.com/api/?name=${userOi}&size=256&background=122049&color=ffffff`, {responseType: 'arraybuffer'});
+		const oi = await User.find({ deletedAt: null, member: true }).select('oi').lean();
+		const userOi = generateOperatingInitials(
+			req.body.fname,
+			req.body.lname,
+			oi.map((oi) => oi.oi),
+		);
+		const { data } = await axios.get(
+			`https://ui-avatars.com/api/?name=${userOi}&size=256&background=122049&color=ffffff`,
+			{ responseType: 'arraybuffer' },
+		);
 
-		await req.app.s3.send(new PutObjectCommand({
-			Bucket: req.app.s3.defaultBucket,
-			Key: `${req.app.s3.folderPrefix}/avatars/${req.body.cid}-default.png`,
-			Body: data,
-			ContentType: 'image/png',
-			ACL: 'public-read',
-			ContentDisposition: 'inline',
-		}));
+		await req.app.s3.send(
+			new PutObjectCommand({
+				Bucket: req.app.s3.defaultBucket,
+				Key: `${req.app.s3.folderPrefix}/avatars/${req.body.cid}-default.png`,
+				Body: data,
+				ContentType: 'image/png',
+				ACL: 'public-read',
+				ContentDisposition: 'inline',
+			}),
+		);
 
 		await User.create({
 			...req.body,
@@ -696,13 +731,27 @@ router.post('/:cid', microAuth, async (req, res) => {
 			avatar: `${req.body.cid}-default.png`,
 		});
 
-		const ratings = ['Unknown', 'OBS', 'S1', 'S2', 'S3', 'C1', 'C2', 'C3', 'I1', 'I2', 'I3', 'SUP', 'ADM'];
+		const ratings = [
+			'Unknown',
+			'OBS',
+			'S1',
+			'S2',
+			'S3',
+			'C1',
+			'C2',
+			'C3',
+			'I1',
+			'I2',
+			'I3',
+			'SUP',
+			'ADM',
+		];
 
 		await transporter.sendMail({
 			to: 'atm@zauartcc.org, datm@zauartcc.org, ta@zauartcc.org',
 			from: {
-				name: "Chicago ARTCC",
-				address: 'no-reply@zauartcc.org'
+				name: 'Chicago ARTCC',
+				address: 'no-reply@zauartcc.org',
 			},
 			subject: `New ${req.body.vis ? 'Visitor' : 'Member'}: ${req.body.fname} ${req.body.lname} | Chicago ARTCC`,
 			template: 'newController',
@@ -713,17 +762,16 @@ router.post('/:cid', microAuth, async (req, res) => {
 				rating: ratings[req.body.rating],
 				vis: req.body.vis,
 				type: req.body.vis ? 'visitor' : 'member',
-				home: req.body.vis ? req.body.homeFacility : 'ZAU'
-			}
+				home: req.body.vis ? req.body.homeFacility : 'ZAU',
+			},
 		});
 
 		await req.app.dossier.create({
 			by: -1,
 			affected: req.body.cid,
-			action: `%a was created by an external service.`
+			action: `%a was created by an external service.`,
 		});
-	}
-	catch(e) {
+	} catch (e) {
 		req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;
 	}
@@ -733,87 +781,106 @@ router.post('/:cid', microAuth, async (req, res) => {
 
 router.put('/:cid/member', microAuth, async (req, res) => {
 	try {
-		const user = await User.findOne({cid: req.params.cid});
+		const user = await User.findOne({ cid: req.params.cid });
 
-		if(!user) {
+		if (!user) {
 			throw {
 				code: 400,
-				message: "Unable to find user"
+				message: 'Unable to find user',
 			};
 		}
 
-		const oi = await User.find({deletedAt: null, member: true}).select('oi').lean();
+		const oi = await User.find({ deletedAt: null, member: true }).select('oi').lean();
 
 		user.member = req.body.member;
-		user.oi = (req.body.member) ? generateOperatingInitials(user.fname, user.lname, oi.map(oi => oi.oi)) : null;
+		user.oi = req.body.member
+			? generateOperatingInitials(
+					user.fname,
+					user.lname,
+					oi.map((oi) => oi.oi),
+				)
+			: null;
 		user.joinDate = req.body.member ? new Date() : null;
 		user.removalDate = null;
 
 		await user.save();
-		const ratings = ['Unknown', 'OBS', 'S1', 'S2', 'S3', 'C1', 'C2', 'C3', 'I1', 'I2', 'I3', 'SUP', 'ADM'];
-		if(req.body.member){
-		await transporter.sendMail({
-			to: 'atm@zauartcc.org, datm@zauartcc.org, ta@zauartcc.org',
-			from: {
-				name: "Chicago ARTCC",
-				address: 'no-reply@zauartcc.org'
-			},
-			subject: `New ${user.vis ? 'Visitor' : 'Member'}: ${user.fname} ${user.lname} | Chicago ARTCC`,
-			template: 'newController',
-			context: {
-				name: `${user.fname} ${user.lname}`,
-				email: user.email,
-				cid: user.cid,
-				rating: ratings[user.rating],
-				vis: user.vis,
-				type: user.vis ? 'visitor' : 'member',
-				home: 'NA'
-			}
-		});
+		const ratings = [
+			'Unknown',
+			'OBS',
+			'S1',
+			'S2',
+			'S3',
+			'C1',
+			'C2',
+			'C3',
+			'I1',
+			'I2',
+			'I3',
+			'SUP',
+			'ADM',
+		];
+		if (req.body.member) {
+			await transporter.sendMail({
+				to: 'atm@zauartcc.org, datm@zauartcc.org, ta@zauartcc.org',
+				from: {
+					name: 'Chicago ARTCC',
+					address: 'no-reply@zauartcc.org',
+				},
+				subject: `New ${user.vis ? 'Visitor' : 'Member'}: ${user.fname} ${user.lname} | Chicago ARTCC`,
+				template: 'newController',
+				context: {
+					name: `${user.fname} ${user.lname}`,
+					email: user.email,
+					cid: user.cid,
+					rating: ratings[user.rating],
+					vis: user.vis,
+					type: user.vis ? 'visitor' : 'member',
+					home: 'NA',
+				},
+			});
 		}
-		if(req.body.vis){
-		await transporter.sendMail({
-			to: 'atm@zauartcc.org, datm@zauartcc.org, ta@zauartcc.org',
-			from: {
-				name: "Chicago ARTCC",
-				address: 'no-reply@zauartcc.org'
-			},
-			subject: `New ${user.vis ? 'Visitor' : 'Member'}: ${user.fname} ${user.lname} | Chicago ARTCC`,
-			template: 'newController',
-			context: {
-				name: `${user.fname} ${user.lname}`,
-				email: user.email,
-				cid: user.cid,
-				rating: ratings[user.rating],
-				vis: user.vis,
-				type: user.vis ? 'visitor' : 'member',
-				home: 'NA'
-			}
-		});
+		if (req.body.vis) {
+			await transporter.sendMail({
+				to: 'atm@zauartcc.org, datm@zauartcc.org, ta@zauartcc.org',
+				from: {
+					name: 'Chicago ARTCC',
+					address: 'no-reply@zauartcc.org',
+				},
+				subject: `New ${user.vis ? 'Visitor' : 'Member'}: ${user.fname} ${user.lname} | Chicago ARTCC`,
+				template: 'newController',
+				context: {
+					name: `${user.fname} ${user.lname}`,
+					email: user.email,
+					cid: user.cid,
+					rating: ratings[user.rating],
+					vis: user.vis,
+					type: user.vis ? 'visitor' : 'member',
+					home: 'NA',
+				},
+			});
 		}
 
 		await req.app.dossier.create({
 			by: -1,
 			affected: req.params.cid,
-			action: `%a was ${req.body.member ? 'added to' : 'removed from'} the roster by an external service.`
+			action: `%a was ${req.body.member ? 'added to' : 'removed from'} the roster by an external service.`,
 		});
-	}
-	catch(e) {
+	} catch (e) {
 		req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;
 	}
 
 	return res.json(res.stdRes);
-})
+});
 
 router.put('/:cid/visit', microAuth, async (req, res) => {
 	try {
-		const user = await User.findOne({cid: req.params.cid});
+		const user = await User.findOne({ cid: req.params.cid });
 
-		if(!user) {
+		if (!user) {
 			throw {
 				code: 400,
-				message: "Unable to find user"
+				message: 'Unable to find user',
 			};
 		}
 
@@ -825,159 +892,173 @@ router.put('/:cid/visit', microAuth, async (req, res) => {
 		await req.app.dossier.create({
 			by: -1,
 			affected: req.params.cid,
-			action: `%a was set as a ${req.body.vis ? 'visiting controller' : 'home controller'} by an external service.`
+			action: `%a was set as a ${req.body.vis ? 'visiting controller' : 'home controller'} by an external service.`,
 		});
-	}
-	catch(e) {
+	} catch (e) {
 		req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;
 	}
 
 	return res.json(res.stdRes);
-})
-
-router.put('/:cid', getUser, auth(['atm', 'datm', 'ta', 'fe', 'ec', 'wm', 'ins', 'mtr']), async (req, res) => {
-  try {
-    if (!req.body.form) {
-      throw {
-        code: 400,
-        message: "No user data included"
-      };
-    }
-
-    const { fname, lname, email, oi, roles, certs, vis } = req.body.form;
-    const toApply = {
-      roles: [],
-    };
-
-    // Prepare roles to update
-    for (const [code, set] of Object.entries(roles)) {
-      if (set) {
-        toApply.roles.push(code);
-      }
-    }
-
-    // Find the existing user
-    const user = await User.findOne({ cid: req.params.cid });
-
-    if (!user) {
-      throw {
-        code: 404,
-        message: "User not found"
-      };
-    }
-
-    // Handle certifications (certCodes and certificationDate)
-    const existingCertMap = new Map(user.certificationDate.map(cert => [cert.code, cert]));
-    const updatedCertificationDate = [];
-
-    for (const [code, set] of Object.entries(certs)) {
-      if (set) {
-        if (existingCertMap.has(code)) {
-          // Keep the existing gainedDate if certification already exists
-          updatedCertificationDate.push({
-            code,
-            gainedDate: existingCertMap.get(code).gainedDate
-          });
-        } else {
-          // If it's a new certification, add with today's date
-          updatedCertificationDate.push({
-            code,
-            gainedDate: new Date()  // Assign current date as gainedDate
-          });
-        }
-      }
-    }
-
-    const {data} = await axios.get(`https://ui-avatars.com/api/?name=${oi}&size=256&background=122049&color=ffffff`, {responseType: 'arraybuffer'});
-
-		await req.app.s3.send(new PutObjectCommand({
-			Bucket: req.app.s3.defaultBucket,
-			Key: `${req.app.s3.folderPrefix}/avatars/${req.params.cid}-default.png`,
-			Body: data,
-			ContentType: 'image/png',
-			ACL: 'public-read',
-			ContentDisposition: 'inline',
-		}));
-
-    // Use findOneAndUpdate to update the user document
-    await User.findOneAndUpdate(
-      { cid: req.params.cid },  // Find the user by their CID
-      {
-        fname,
-        lname,
-        email,
-        oi,
-        vis,
-        roleCodes: toApply.roles,  // Update roles
-        certCodes: updatedCertificationDate.map(cert => cert.code),  // Update certCodes
-        certificationDate: updatedCertificationDate,  // Update certificationDate with gainedDate
-      },
-      { new: true }  // Return the updated document after applying changes
-    );
-
-    // Log the update in the user's dossier
-    await req.app.dossier.create({
-      by: res.user.cid,
-      affected: req.params.cid,
-      action: `%a was updated by %b.`
-    });
-  } catch (e) {
-    req.app.Sentry.captureException(e);
-    res.stdRes.ret_det = e;
-  }
-
-  return res.json(res.stdRes);
 });
 
+router.put(
+	'/:cid',
+	getUser,
+	auth(['atm', 'datm', 'ta', 'fe', 'ec', 'wm', 'ins', 'mtr']),
+	async (req, res) => {
+		try {
+			if (!req.body.form) {
+				throw {
+					code: 400,
+					message: 'No user data included',
+				};
+			}
+
+			const { fname, lname, email, oi, roles, certs, vis } = req.body.form;
+			const toApply = {
+				roles: [],
+			};
+
+			// Prepare roles to update
+			for (const [code, set] of Object.entries(roles)) {
+				if (set) {
+					toApply.roles.push(code);
+				}
+			}
+
+			// Find the existing user
+			const user = await User.findOne({ cid: req.params.cid });
+
+			if (!user) {
+				throw {
+					code: 404,
+					message: 'User not found',
+				};
+			}
+
+			// Handle certifications (certCodes and certificationDate)
+			const existingCertMap = new Map(user.certificationDate.map((cert) => [cert.code, cert]));
+			const updatedCertificationDate = [];
+
+			for (const [code, set] of Object.entries(certs)) {
+				if (set) {
+					if (existingCertMap.has(code)) {
+						// Keep the existing gainedDate if certification already exists
+						updatedCertificationDate.push({
+							code,
+							gainedDate: existingCertMap.get(code).gainedDate,
+						});
+					} else {
+						// If it's a new certification, add with today's date
+						updatedCertificationDate.push({
+							code,
+							gainedDate: new Date(), // Assign current date as gainedDate
+						});
+					}
+				}
+			}
+
+			const { data } = await axios.get(
+				`https://ui-avatars.com/api/?name=${oi}&size=256&background=122049&color=ffffff`,
+				{ responseType: 'arraybuffer' },
+			);
+
+			await req.app.s3.send(
+				new PutObjectCommand({
+					Bucket: req.app.s3.defaultBucket,
+					Key: `${req.app.s3.folderPrefix}/avatars/${req.params.cid}-default.png`,
+					Body: data,
+					ContentType: 'image/png',
+					ACL: 'public-read',
+					ContentDisposition: 'inline',
+				}),
+			);
+
+			// Use findOneAndUpdate to update the user document
+			await User.findOneAndUpdate(
+				{ cid: req.params.cid }, // Find the user by their CID
+				{
+					fname,
+					lname,
+					email,
+					oi,
+					vis,
+					roleCodes: toApply.roles, // Update roles
+					certCodes: updatedCertificationDate.map((cert) => cert.code), // Update certCodes
+					certificationDate: updatedCertificationDate, // Update certificationDate with gainedDate
+				},
+				{ new: true }, // Return the updated document after applying changes
+			);
+
+			// Log the update in the user's dossier
+			await req.app.dossier.create({
+				by: res.user.cid,
+				affected: req.params.cid,
+				action: `%a was updated by %b.`,
+			});
+		} catch (e) {
+			req.app.Sentry.captureException(e);
+			res.stdRes.ret_det = e;
+		}
+
+		return res.json(res.stdRes);
+	},
+);
 
 router.put('/remove-cert/:cid', microAuth, async (req, res) => {
-  try {
-    // Find the user by CID
-    const cid = req.params.cid;
-    const user = await User.findOne({ cid }).exec();
+	try {
+		// Find the user by CID
+		const cid = req.params.cid;
+		const user = await User.findOne({ cid }).exec();
 
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
+		if (!user) {
+			return res.status(404).json({ message: 'User not found' });
+		}
 
-    // Remove the user's certCodes and certificationDate
-    user.certCodes = [];               // Clear certCodes
-    user.certificationDate = [];       // Clear certificationDate (remove all certifications and gained dates)
-    
-    await user.save();
+		// Remove the user's certCodes and certificationDate
+		user.certCodes = []; // Clear certCodes
+		user.certificationDate = []; // Clear certificationDate (remove all certifications and gained dates)
 
-    res.status(200).json({ message: 'Certs removed successfully' });
-  } catch (error) {
-    console.error('Error removing certs', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
+		await user.save();
+
+		res.status(200).json({ message: 'Certs removed successfully' });
+	} catch (error) {
+		console.error('Error removing certs', error);
+		res.status(500).json({ message: 'Internal server error' });
+	}
 });
 
 router.delete('/:cid', getUser, auth(['atm', 'datm']), async (req, res) => {
 	try {
-		if(!req.body.reason) {
+		if (!req.body.reason) {
 			throw {
 				code: 400,
-				message: "You must specify a reason"
+				message: 'You must specify a reason',
 			};
 		}
 
-		const user = await User.findOneAndUpdate({cid: req.params.cid}, {
-			member: false,
-			removalDate: new Date().toISOString()
-		});
+		const user = await User.findOneAndUpdate(
+			{ cid: req.params.cid },
+			{
+				member: false,
+				removalDate: new Date().toISOString(),
+			},
+		);
 
-		if(user.vis) {
-			await axios.delete(`https://api.vatusa.net/v2/facility/ZAU/roster/manageVisitor/${req.params.cid}`, {
-				params: {
-					apikey: process.env.VATUSA_API_KEY,
+		if (user.vis) {
+			await axios.delete(
+				`https://api.vatusa.net/v2/facility/ZAU/roster/manageVisitor/${req.params.cid}`,
+				{
+					params: {
+						apikey: process.env.VATUSA_API_KEY,
+					},
+					data: {
+						reason: req.body.reason,
+						by: res.user.cid,
+					},
 				},
-				data: {
-					reason: req.body.reason,
-					by: res.user.cid
-				}
-			});
+			);
 		} else {
 			await axios.delete(`https://api.vatusa.net/v2/facility/ZAU/roster/${req.params.cid}`, {
 				params: {
@@ -985,18 +1066,17 @@ router.delete('/:cid', getUser, auth(['atm', 'datm']), async (req, res) => {
 				},
 				data: {
 					reason: req.body.reason,
-					by: res.user.cid
-				}
+					by: res.user.cid,
+				},
 			});
 		}
 
 		await req.app.dossier.create({
 			by: res.user.cid,
 			affected: req.params.cid,
-			action: `%a was removed from the roster by %b: ${req.body.reason}`
+			action: `%a was removed from the roster by %b: ${req.body.reason}`,
 		});
-	}
-	catch(e) {
+	} catch (e) {
 		req.app.Sentry.captureException(e);
 		res.stdRes.ret_det = e;
 	}
@@ -1017,13 +1097,13 @@ const generateOperatingInitials = (fname, lname, usedOi) => {
 
 	operatingInitials = `${fname.charAt(0).toUpperCase()}${lname.charAt(0).toUpperCase()}`;
 
-	if(!usedOi.includes(operatingInitials)) {
+	if (!usedOi.includes(operatingInitials)) {
 		return operatingInitials;
 	}
 
 	operatingInitials = `${lname.charAt(0).toUpperCase()}${fname.charAt(0).toUpperCase()}`;
 
-	if(!usedOi.includes(operatingInitials)) {
+	if (!usedOi.includes(operatingInitials)) {
 		return operatingInitials;
 	}
 
@@ -1034,9 +1114,9 @@ const generateOperatingInitials = (fname, lname, usedOi) => {
 	do {
 		operatingInitials = random(chars, 2);
 		tries++;
-	} while(usedOi.includes(operatingInitials) || tries > MAX_TRIES);
+	} while (usedOi.includes(operatingInitials) || tries > MAX_TRIES);
 
-	if(!usedOi.includes(operatingInitials)) {
+	if (!usedOi.includes(operatingInitials)) {
 		return operatingInitials;
 	}
 
@@ -1045,9 +1125,9 @@ const generateOperatingInitials = (fname, lname, usedOi) => {
 	do {
 		operatingInitials = random('ABCDEFGHIJKLMNOPQRSTUVWXYZ', 2);
 		tries++;
-	} while(usedOi.includes(operatingInitials) || tries > MAX_TRIES);
+	} while (usedOi.includes(operatingInitials) || tries > MAX_TRIES);
 
-	if(!usedOi.includes(operatingInitials)) {
+	if (!usedOi.includes(operatingInitials)) {
 		return operatingInitials;
 	}
 

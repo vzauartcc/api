@@ -1,53 +1,61 @@
 {
-  "name": "api",
-  "version": "1.0.0",
-  "description": "",
-  "main": "app.js",
-  "keywords": [],
-  "author": "Chicago ARTCC",
-  "contributors": [
-    "Alexandra Robison",
-    "Daan Janssen",
-    "Timothy Barker",
-    "Ryan Savara"
-  ],
-  "scripts": {
-    "start:ryan": "doppler run -p api -c dev_ryan -- node app.js"
-  },
-  "license": "CC-BY-NC-SA-4.0",
-  "type": "module",
-  "repository": {
-    "type": "git",
-    "url": "https://gitlab.com/vzauartcc/api"
-  },
-  "dependencies": {
-    "@aws-sdk/client-s3": "^3.740.0",
-    "@sentry/node": "^6.15.0",
-    "@sentry/tracing": "^6.15.0",
-    "axios": "^0.24.0",
-    "cookie-parser": "^1.4.6",
-    "cors": "^2.8.5",
-    "dayjs": "^1.11.7",
-    "discord-oauth2": "^2.8.0",
-    "discord.js": "^14.9.0",
-    "dotenv": "^10.0.0",
-    "express": "^4.17.1",
-    "express-validator": "^7.0.1",
-    "file-type": "^17.0.0",
-    "ioredis": "^4.28.1",
-    "jsonwebtoken": "^8.5.1",
-    "luxon": "^2.1.1",
-    "mongoose": "^6.0.13",
-    "mongoose-delete": "^0.5.4",
-    "mongoose-lean-virtuals": "^0.9.0",
-    "mongoose-select-virtuals": "^3.0.3",
-    "multer": "^1.4.3",
-    "multer-s3": "^2.10.0",
-    "node-fetch": "^3.3.0",
-    "nodemailer": "^6.7.1",
-    "nodemailer-express-handlebars": "^4.0.0"
-  },
-  "devDependencies": {
-    "eslint": "^8.3.0"
-  }
+	"name": "api",
+	"version": "1.0.0",
+	"description": "",
+	"main": "app.js",
+	"keywords": [],
+	"author": "Chicago ARTCC",
+	"contributors": [
+		"Alexandra Robison",
+		"Daan Janssen",
+		"Timothy Barker",
+		"Ryan Savara"
+	],
+	"scripts": {
+		"lint": "eslint . --fix",
+		"format": "prettier --write .",
+		"start:ryan": "doppler run -p api -c dev_ryan -- node app.js"
+	},
+	"license": "CC-BY-NC-SA-4.0",
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "https://gitlab.com/vzauartcc/api"
+	},
+	"dependencies": {
+		"@aws-sdk/client-s3": "^3.899.0",
+		"@sentry/node": "^10.17.0",
+		"@sentry/tracing": "^7.120.4",
+		"axios": "^1.12.2",
+		"cookie-parser": "^1.4.7",
+		"cors": "^2.8.5",
+		"dayjs": "^1.11.18",
+		"discord-oauth2": "^2.12.1",
+		"discord.js": "^14.22.1",
+		"dotenv": "^17.2.3",
+		"express": "^5.1.0",
+		"express-validator": "^7.2.1",
+		"file-type": "^21.0.0",
+		"ioredis": "^5.8.0",
+		"jsonwebtoken": "^9.0.2",
+		"luxon": "^3.7.2",
+		"mongoose": "^8.18.3",
+		"mongoose-delete": "^1.0.2",
+		"mongoose-lean-virtuals": "^0.9.1",
+		"mongoose-select-virtuals": "^3.0.3",
+		"multer": "^2.0.2",
+		"multer-s3": "^3.0.1",
+		"node-fetch": "^3.3.2",
+		"nodemailer": "^7.0.6",
+		"nodemailer-express-handlebars": "^7.0.0"
+	},
+	"devDependencies": {
+		"@eslint/eslintrc": "^3.3.1",
+		"@eslint/js": "^9.36.0",
+		"eslint": "^9.36.0",
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-prettier": "^5.5.4",
+		"globals": "^16.4.0",
+		"prettier": "^3.6.2"
+	}
 }

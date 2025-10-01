@@ -1,5 +1,6 @@
-# Chicago ARTCC 2022  - API
-An Express app that provides data to UI 
+# Chicago ARTCC 2022 - API
+
+An Express app that provides data to UI
 
 [![Import to Doppler](https://raw.githubusercontent.com/DopplerUniversity/app-config-templates/main/doppler-button.svg)](https://dashboard.doppler.com/workplace/template/import?template=https%3A%2F%2Fgithub.com%2Fvzauartcc%2Fapi%2Fblob%2Fmain%2Fdoppler-template.yaml)
 
@@ -14,14 +15,15 @@ https://creativecommons.org/licenses/by-nc-sa/4.0/
 
 Note: The original authors of this codebase are members of the Albuquerque ARTCC listed below:
 
-- Daan Janssen  
-- Alexandra Robison  
-- Jeremy Werderman  
+- Daan Janssen
+- Alexandra Robison
+- Jeremy Werderman
 - Evan Bradley
 - Cole Connelly (@cdconn00)
 - Giovanni Fatelli (@frafire)
 
 # Contributors
+
 If you would like to contribute to this repository, please contact wm@zauartcc.org
 
 Thank you to all contributors, past and present.
@@ -29,17 +31,17 @@ Thank you to all contributors, past and present.
 # Contributing
 
 Prerequisites:
+
 - Most recent LTS of Node.js (v16), with the corresponding version of npm.
 - A basic understanding of Git (branches, merge requests).
 
 If you wish to contribute, please do the following:
 
-1. Clone down the repository to your local machine. 
+1. Clone down the repository to your local machine.
 2. Run `npm install`
 3. Run `node app.js`
 
 There are no DB seeds provided with this project. If you would like to contribute, please contact wm@zauartcc.org for the dev DB creds.
-
 
 ## Contributing Guidelines and Style
 

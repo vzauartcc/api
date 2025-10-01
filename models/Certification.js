@@ -5,7 +5,7 @@ const certificationSchema = new m.Schema({
 	order: Number,
 	name: String,
 	class: String,
-	facility: String
+	facility: String,
 });
 
 export default m.model('Certification', certificationSchema);
