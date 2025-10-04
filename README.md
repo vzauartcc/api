@@ -1,6 +1,6 @@
 # Chicago ARTCC 2022 - API
 
-An Express app that provides data to UI
+An Express app that provides data to the UI.
 
 [![Import to Doppler](https://raw.githubusercontent.com/DopplerUniversity/app-config-templates/main/doppler-button.svg)](https://dashboard.doppler.com/workplace/template/import?template=https%3A%2F%2Fgithub.com%2Fvzauartcc%2Fapi%2Fblob%2Fmain%2Fdoppler-template.yaml)
 
@@ -10,7 +10,7 @@ The Chicago ARTCC website is hereby released under the Creative Commons CC BY-NC
 
 If you choose to share or alter this project, you MUST give credit to the contributors of this project.
 You may NOT use any of this project for commercial purposes.
-If you create a derivitive of this project, that project MUST be released under the same license.
+If you create a derivative of this project, that project MUST be released under the same license.
 https://creativecommons.org/licenses/by-nc-sa/4.0/
 
 Note: The original authors of this codebase are members of the Albuquerque ARTCC listed below:
@@ -33,6 +33,7 @@ Thank you to all contributors, past and present.
 Prerequisites:
 
 - Most recent LTS of Node.js (v16), with the corresponding version of npm.
+- Doppler installed and logged in.
 - A basic understanding of Git (branches, merge requests).
 
 If you wish to contribute, please do the following:
@@ -41,13 +42,13 @@ If you wish to contribute, please do the following:
 2. Run `npm install`
 3. Run `node app.js`
 
-There are no DB seeds provided with this project. If you would like to contribute, please contact wm@zauartcc.org for the dev DB creds.
+There are no DB seeds provided with this project. If you would like to contribute, please contact wm@zauartcc.org for the dev DB credentials.
 
 ## Contributing Guidelines and Style
 
 In order to maintain consistent code, please adhere to the following guidelines:
 
 - The `master` branch is protected, therefore you should always be working in a branch. Please name the branch `OI-feature_name` where `OI` is your operating initials and `feature_name` is a brief description of the feature (`II-feedback_form` or `DJ-admin_stats_page`). Please make sure to follow the capitalization standards.
-- When you have completed your updates, push them to your branch, and then open a merge request to `development` in GitLab.
-- Please follow the styleguide for how to format your code.
+- When you have completed your updates, push them to your branch, and then open a merge request to `development` in GitHub.
+- Please ensure your editor is set up to work with prettier for code formatting.
 - We recommend you use VSCode with at least the ESLint plugin installed and configured to auto-fix on save. ESLint can take care of a lot of little mistakes automatically.
