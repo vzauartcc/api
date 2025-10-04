@@ -1,2 +1,28 @@
+# Dependencies
 node_modules
+
+# Logs
 npm-debug.log
+.npm
+
+# Configuration/Environment
+.env
+.local
+*.log
+
+# Git files
+.git
+.gitignore
+.github
+
+# Docker build files
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Other common developer files
+# Mac OS X
+.DS_Store
+# VS Code
+.vscode
+.idea
