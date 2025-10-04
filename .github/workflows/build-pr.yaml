@@ -1,0 +1,30 @@
+# Make sure to enable 'Require status checks to pass before merging' on the branch protection,
+# and to select the 'Build-and-Push' action.
+
+name: Build and Push
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  Build-and-Push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v2
+
+      - name: Log in to container registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: |
+            ghcr.io/vzauartcc/api:${{ github.sha }}
