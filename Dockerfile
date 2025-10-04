@@ -7,18 +7,13 @@ COPY package*.json ./
 
 RUN npm ci --omit=dev
 
-# 2. Build app.
+# 2. Copy project files
 COPY . .
 
-FROM node:24-slim AS production
-
+# 3. Run as non-root user
 USER node
 
-WORKDIR /usr/src/app
-
-COPY --from=builder /usr/src/app/node_modules ./node_modules
-COPY --from=builder /usr/src/app .
-
+# 4. Expose port and start app
 EXPOSE 3000
 
 CMD ["node", "app.js"]
