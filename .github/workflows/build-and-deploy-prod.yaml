@@ -1,0 +1,49 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - 'main'
+
+jobs:
+  Build-and-Push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v2
+
+      - name: Log in to container registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: |
+            ghcr.io/vzauartcc/api:${{ github.sha }}
+            ghcr.io/vzauartcc/api:master
+
+  Deploy-to-Prod:
+    needs: Build-and-Push
+    environment: prod
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Initialize doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Log into K8s cluster
+        run: doctl kubernetes cluster kubeconfig save --expiry-seconds 600 zau-k8s
+
+      - name: Deploy image to cluster
+        run: kubectl set image deployment/api api=ghcr.io/vzauartcc/api:${{ github.sha }} --record -n zau-web-stack
+
+      - name: Verify deployment
+        run: kubectl rollout status deployment/api -n zau-web-stack
