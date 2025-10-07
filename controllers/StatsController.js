@@ -13,6 +13,8 @@ import TrainingSession from '../models/TrainingSession.js';
 import User from '../models/User.js';
 import { DateTime as L } from 'luxon';
 
+let testUserCID = 10000002;
+
 const months = [
 	'',
 	'January',
@@ -213,8 +215,6 @@ function getQuarterStartEnd(quarter, year) {
 	return { startOfQuarter, endOfQuarter };
 }
 
-const testUserCID = 10000002;
-
 function getHighestCertificationBeforeQuarter(
 	certificationDates,
 	certHierarchy,
@@ -391,7 +391,9 @@ async function fetchCertificationActivityTimes(users, startOfQuarter, endOfQuart
 router.get('/activity', getUser, auth(['atm', 'datm', 'ta', 'wm']), async (req, res) => {
 	try {
 		//console.log('Start processing /activity endpoint');
-		const testUserCID = req.query.cid ? parseInt(req.query.cid, 10) : 10000002; // 🔹 Replace with the specific user's CID
+		if (req.query.cid) {
+			testUserCID = parseInt(req.query.cid, 10);
+		}
 		let userCertMap = []; // Collect users & their certs before querying DB
 
 		// SECTION: Get Quarter & Year
@@ -498,7 +500,7 @@ router.get('/activity', getUser, auth(['atm', 'datm', 'ta', 'wm']), async (req, 
 		const userData = {};
 
 		for (const user of users) {
-			if (user.cid === testUserCID) console.log(`Processing test user: ${user.cid}`);
+			if (user.cid === testUserCID) console.log(`⌛ Processing test user: ${user.cid}`);
 			const totalTime = activityMap[user.cid] || 0;
 			const totalRequests = trainingRequestsMap[user.cid] || 0;
 			const totalSessions = trainingSessionsMap[user.cid] || 0;
