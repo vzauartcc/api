@@ -14,7 +14,8 @@
 	"scripts": {
 		"lint": "eslint . --fix",
 		"format": "prettier --write .",
-		"start:ryan": "doppler run -p api -c dev_ryan -- node app.js"
+		"start:ryan": "doppler run -p api -c dev_ryan -- ts-node src/app.js",
+		"build": "tsc"
 	},
 	"license": "CC-BY-NC-SA-4.0",
 	"type": "module",
@@ -52,10 +53,19 @@
 	"devDependencies": {
 		"@eslint/eslintrc": "^3.3.1",
 		"@eslint/js": "^9.36.0",
+		"@types/cookie-parser": "^1.4.9",
+		"@types/cors": "^2.8.19",
+		"@types/express": "^5.0.3",
+		"@types/mongoose-delete": "^1.0.6",
+		"@types/node": "^24.6.2",
+		"@typescript-eslint/eslint-plugin": "^8.45.0",
+		"@typescript-eslint/parser": "^8.45.0",
 		"eslint": "^9.36.0",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-prettier": "^5.5.4",
 		"globals": "^16.4.0",
-		"prettier": "^3.6.2"
+		"prettier": "^3.6.2",
+		"ts-node": "^10.9.2",
+		"typescript": "^5.9.3"
 	}
 }
