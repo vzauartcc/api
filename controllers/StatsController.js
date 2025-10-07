@@ -391,7 +391,7 @@ async function fetchCertificationActivityTimes(users, startOfQuarter, endOfQuart
 router.get('/activity', getUser, auth(['atm', 'datm', 'ta', 'wm']), async (req, res) => {
 	try {
 		//console.log('Start processing /activity endpoint');
-		const testUserCID = 10000002; // 🔹 Replace with the specific user's CID
+		const testUserCID = req.query.cid ? parseInt(req.query.cid, 10) : 10000002; // 🔹 Replace with the specific user's CID
 		let userCertMap = []; // Collect users & their certs before querying DB
 
 		// SECTION: Get Quarter & Year
