@@ -1,13 +1,25 @@
-import express from 'express';
-import type { NextFunction, Response, Request } from 'express';
-import cookie from 'cookie-parser';
-import env from 'dotenv';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import * as Sentry from '@sentry/node';
-import * as Tracing from '@sentry/tracing';
-import { Redis } from 'ioredis';
+import cookie from 'cookie-parser';
 import cors from 'cors';
-import { S3Client } from '@aws-sdk/client-s3';
+import env from 'dotenv';
+import type { NextFunction, Request, Response } from 'express';
+import express from 'express';
+import { Redis } from 'ioredis';
 import mongoose from 'mongoose';
+import controllerRouter from './controllers/controller.js';
+import discordRouter from './controllers/discord.js';
+import eventRouter from './controllers/event.js';
+import examRouter from './controllers/exam.js';
+import feedbackRouter from './controllers/feedback.js';
+import fileRouter from './controllers/file.js';
+import idsRouter from './controllers/ids.js';
+import newsRouter from './controllers/news.js';
+import onlineRouter from './controllers/online.js';
+import statsRouter from './controllers/stats.js';
+import trainingRouter from './controllers/training.js';
+import userRouter from './controllers/user.js';
+import vatusaRouter from './controllers/vatusa.js';
 import { DossierModel } from './models/dossier.js';
 import type { ReturnDetails } from './types/StandardResponse.js';
 
@@ -15,59 +27,16 @@ env.config();
 
 const app = express();
 
-if (process.env.NODE_ENV === 'production') {
-	Sentry.init({
-		environment: 'production',
-		dsn: 'https://8adabf3b372b4ca6ba303c6271c85288@o4504206002094080.ingest.sentry.io/4504223524847617',
-		integrations: [
-			new Sentry.Integrations.Http({ tracing: true }),
-			new Tracing.Integrations.Express({
-				app,
-			}),
-		],
-		tracesSampleRate: 0.5,
-	});
+const SENTRY_DSN = process.env.SENTRY_DSN;
 
-	app.use(Sentry.Handlers.requestHandler());
-	app.use(Sentry.Handlers.tracingHandler());
-} else {
-	app.Sentry = {
-		captureException(e) {
-			console.log(e);
-		},
-		captureMessage(m) {
-			console.log(m);
-		},
-	};
+if (SENTRY_DSN) {
+	Sentry.init({
+		dsn: SENTRY_DSN,
+		tracesSampleRate: 1.0,
+	});
 }
 
-if (process.env.NODE_ENV === 'bet') {
-	Sentry.init({
-		environment: 'staging',
-		dsn: 'https://8adabf3b372b4ca6ba303c6271c85288@o4504206002094080.ingest.sentry.io/4504223524847617',
-		integrations: [
-			new Sentry.Integrations.Http({ tracing: true }),
-			new Tracing.Integrations.Express({
-				app,
-			}),
-		],
-		tracesSampleRate: 0.5,
-	});
-
-	app.use(Sentry.Handlers.requestHandler());
-	app.use(Sentry.Handlers.tracingHandler());
-} else {
-	app.Sentry = {
-		captureException(e) {
-			console.log(e);
-		},
-		captureMessage(m) {
-			console.log(m);
-		},
-	};
-}
-
-app.use((req: Request, res: Response, next: NextFunction) => {
+app.use((_req: Request, res: Response, next: NextFunction) => {
 	res.stdRes = {
 		ret_det: {
 			code: 200,
@@ -91,13 +60,24 @@ app.use(
 	}),
 );
 
-app.redis = new Redis({ host: process.env.REDIS_URI });
+const REDIS_URI = process.env.REDIS_URI;
+
+if (!REDIS_URI) {
+	throw new Error('REDIS_URI is not set in environment variables.');
+}
+
+app.redis = new Redis({ host: REDIS_URI });
 app.redis.on('error', (err) => {
 	throw new Error(`Failed to connect to Redis: ${err}`);
 });
 app.redis.on('connect', () => console.log('Successfully connected to Redis'));
 
-const origins = process.env.CORS_ORIGIN.split('|');
+const CORS_ORIGIN = process.env.CORS_ORIGIN;
+
+if (!CORS_ORIGIN) {
+	throw new Error('CORS_ORIGIN is not set in environment variables.');
+}
+const origins = CORS_ORIGIN.split('|');
 
 app.use(
 	cors({
@@ -106,7 +86,7 @@ app.use(
 	}),
 );
 
-app.use((req, res, next) => {
+app.use((_req: Request, res: Response, next: NextFunction) => {
 	res.setHeader('Access-Control-Allow-Origin', '*');
 	res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
 	res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
@@ -125,19 +105,31 @@ function getS3Prefix() {
 	}
 }
 
-const prefix = getS3Prefix(); // Get the correct environment folder
+const S3_PREFIX = getS3Prefix(); // Get the correct environment folder
+
+const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;
+const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;
+
+if (!AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY) {
+	throw new Error(
+		'AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY is not set in environment variables.',
+	);
+}
 
 app.s3 = new S3Client({
 	endpoint: 'https://sfo3.digitaloceanspaces.com', // DigitalOcean Spaces or AWS S3
 	region: 'us-east-1', // DigitalOcean Spaces requires a region (choose the closest one)
 	credentials: {
-		accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-		secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+		accessKeyId: AWS_ACCESS_KEY_ID,
+		secretAccessKey: AWS_SECRET_ACCESS_KEY,
 	},
 });
 
-app.s3.defaultBucket = 'zauartcc'; // ✅ Store the default bucket globally
-app.s3.folderPrefix = prefix; // ✅ Store prefix separately
+const MONGO_URI = process.env.MONGO_URI;
+
+if (!MONGO_URI) {
+	throw new Error('MONGO_URI is not est in environment variables.');
+}
 
 app.dossier = DossierModel;
 
@@ -145,24 +137,25 @@ app.dossier = DossierModel;
 mongoose.set('toJSON', { virtuals: true });
 mongoose.set('toObject', { virtuals: true });
 mongoose.set('strictQuery', true);
-mongoose.connect(process.env.MONGO_URI);
+mongoose.connect(MONGO_URI);
 const db = mongoose.connection;
 db.once('open', () => console.log('Successfully connected to MongoDB'));
 
-app.use('/online', OnlineController);
-app.use('/user', UserController);
-app.use('/controller', ControllerController);
-app.use('/news', NewsController);
-app.use('/event', EventController);
-app.use('/file', FileController);
-app.use('/feedback', FeedbackController);
-app.use('/ids', IdsController);
-app.use('/training', TrainingController);
-app.use('/discord', DiscordController);
-app.use('/stats', StatsController);
-app.use('/exam', ExamController);
+app.use('/online', onlineRouter);
+app.use('/user', userRouter);
+app.use('/controller', controllerRouter);
+app.use('/news', newsRouter);
+app.use('/event', eventRouter);
+app.use('/file', fileRouter);
+app.use('/feedback', feedbackRouter);
+app.use('/ids', idsRouter);
+app.use('/training', trainingRouter);
+app.use('/discord', discordRouter);
+app.use('/stats', statsRouter);
+app.use('/exam', examRouter);
+app.use('/vatusa', vatusaRouter);
 
-if (process.env.NODE_ENV === 'production') app.use(Sentry.Handlers.errorHandler());
+if (process.env.NODE_ENV === 'production' && SENTRY_DSN) Sentry.setupExpressErrorHandler(app);
 
 app.listen(process.env.PORT, () => {
 	console.log('Listening on port ' + process.env.PORT);
@@ -198,4 +191,17 @@ export function convertToReturnDetails(e: unknown): ReturnDetails {
 			message: `An unexpected error occurred: ${String(e)}`,
 		};
 	}
+}
+
+export function uploadToS3(filename: string, tmpFile: any, mime: string, options = {}) {
+	return app.s3.send(
+		new PutObjectCommand({
+			...options,
+			Bucket: 'zauartcc',
+			Key: `${S3_PREFIX}/documents/${filename}`,
+			Body: tmpFile,
+			ContentType: mime,
+			ACL: 'public-read',
+		}),
+	);
 }
