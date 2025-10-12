@@ -44,11 +44,11 @@ export interface IUser extends SoftDeleteDocument, ITimestamps {
 	trainingMilestones: [];
 
 	// Virtual Properties
-	isMember: boolean;
+	isMem: boolean;
 	isManagement: boolean;
 	isSeniorStaff: boolean;
 	isStaff: boolean;
-	isInstructor: boolean;
+	isIns: boolean;
 	ratingShort: string;
 	ratingLong: string;
 	certCodeList: string[];
@@ -117,7 +117,7 @@ UserSchema.plugin(MongooseDelete, {
 
 UserSchema.plugin(mongooseLeanVirtuals);
 
-UserSchema.virtual('isMember').get(function (this: IUser) {
+UserSchema.virtual('isMem').get(function (this: IUser) {
 	return this.member;
 });
 
@@ -142,7 +142,7 @@ UserSchema.virtual('isStaff').get(function (this: IUser) {
 	return this.roleCodes.some((r) => search.includes(r));
 });
 
-UserSchema.virtual('isInstructor').get(function (this: IUser) {
+UserSchema.virtual('isIns').get(function (this: IUser) {
 	if (!this.roleCodes) return false;
 
 	const search = ['atm', 'datm', 'ins', 'mtr', 'ia'];
