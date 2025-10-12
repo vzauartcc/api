@@ -1,5 +1,4 @@
-import { Document, model, Schema, type PopulatedDoc } from 'mongoose';
-import type { ITimestamps } from './timestamps.js';
+import { Document, model, Schema } from 'mongoose';
 import type { IUser } from './user.js';
 
 interface IControllerHours extends Document {
@@ -9,7 +8,7 @@ interface IControllerHours extends Document {
 	position: string;
 
 	// Virtuals
-	user?: PopulatedDoc<IUser & ITimestamps & Document>;
+	user?: IUser;
 }
 
 const ControllerHoursSchema = new Schema<IControllerHours>(
