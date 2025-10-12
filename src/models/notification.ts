@@ -1,9 +1,10 @@
 import { Document, model, Schema, type PopulatedDoc } from 'mongoose';
-import * as softDelete from 'mongoose-delete';
+import type { SoftDeleteDocument, SoftDeleteModel } from 'mongoose-delete';
+import MongooseDelete from 'mongoose-delete';
 import type { ITimestamps } from './timestamps.js';
 import type { IUser } from './user.js';
 
-interface INotification extends Document, ITimestamps {
+interface INotification extends SoftDeleteDocument, ITimestamps {
 	recipient: number;
 	read: boolean;
 	title: string;
@@ -25,7 +26,7 @@ const NotificationSchema = new Schema<INotification>(
 	{ timestamps: true },
 );
 
-NotificationSchema.plugin(softDelete.default, {
+NotificationSchema.plugin(MongooseDelete, {
 	deletedAt: true,
 });
 
@@ -36,4 +37,7 @@ NotificationSchema.virtual('user', {
 	justOne: true,
 });
 
-export const NotificationModel = model<INotification>('Notification', NotificationSchema);
+export const NotificationModel = model<INotification, SoftDeleteModel<INotification>>(
+	'Notification',
+	NotificationSchema,
+);

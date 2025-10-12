@@ -1,9 +1,10 @@
 import { Document, model, Schema, type PopulatedDoc } from 'mongoose';
-import * as softDelete from 'mongoose-delete';
+import type { SoftDeleteDocument, SoftDeleteModel } from 'mongoose-delete';
+import MongooseDelete from 'mongoose-delete';
 import type { ITimestamps } from './timestamps.js';
 import type { IUser } from './user.js';
 
-interface INews extends Document, ITimestamps {
+interface INews extends SoftDeleteDocument, ITimestamps {
 	title: string;
 	content: string;
 	uriSlug: string;
@@ -23,7 +24,7 @@ const NewsSchema = new Schema<INews>(
 	{ collection: 'news', timestamps: true },
 );
 
-NewsSchema.plugin(softDelete.default, {
+NewsSchema.plugin(MongooseDelete, {
 	deletedAt: true,
 });
 
@@ -34,4 +35,4 @@ NewsSchema.virtual('user', {
 	justOne: true,
 });
 
-export const NewsModel = model<INews>('News', NewsSchema);
+export const NewsModel = model<INews, SoftDeleteModel<INews>>('News', NewsSchema);

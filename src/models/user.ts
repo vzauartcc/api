@@ -1,5 +1,6 @@
-import { Document, model, Schema, type PopulatedDoc } from 'mongoose';
-import * as softDelete from 'mongoose-delete';
+import { model, Schema, type PopulatedDoc } from 'mongoose';
+import type { SoftDeleteDocument, SoftDeleteModel } from 'mongoose-delete';
+import MongooseDelete from 'mongoose-delete';
 import mongooseLeanVirtuals from 'mongoose-lean-virtuals';
 import zau from '../zau.js';
 import type { IAbsence } from './absence.js';
@@ -12,7 +13,7 @@ export interface ICertificationDate {
 	gainedDate: Date;
 }
 
-export interface IUser extends Document, ITimestamps {
+export interface IUser extends SoftDeleteDocument, ITimestamps {
 	cid: number;
 	fname: string;
 	lname: string;
@@ -110,7 +111,7 @@ const UserSchema = new Schema<IUser>(
 	},
 );
 
-UserSchema.plugin(softDelete.default, {
+UserSchema.plugin(MongooseDelete, {
 	deletedAt: true,
 });
 
@@ -178,4 +179,4 @@ UserSchema.virtual('absence', {
 	foreignField: 'controller',
 });
 
-export const UserModel = model<IUser>('User', UserSchema);
+export const UserModel = model<IUser, SoftDeleteModel<IUser>>('User', UserSchema);

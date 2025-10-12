@@ -1,10 +1,11 @@
 import { model, Schema, type Document, type PopulatedDoc } from 'mongoose';
-import * as softDelete from 'mongoose-delete';
+import type { SoftDeleteDocument, SoftDeleteModel } from 'mongoose-delete';
+import MongooseDelete from 'mongoose-delete';
 import type { ITimestamps } from './timestamps.js';
 import type { ITrainingRequestMilestone } from './trainingMilestone.js';
 import type { IUser } from './user.js';
 
-interface ITrainingSession extends Document, ITimestamps {
+interface ITrainingSession extends SoftDeleteDocument, ITimestamps {
 	studentCid: number;
 	instructorCid: number;
 	milestoneCode: string;
@@ -48,7 +49,7 @@ const TrainingSessionSchema = new Schema<ITrainingSession>(
 	{ collection: 'trainingSessions', timestamps: true },
 );
 
-TrainingSessionSchema.plugin(softDelete.default, {
+TrainingSessionSchema.plugin(MongooseDelete, {
 	deletedAt: true,
 });
 
@@ -73,7 +74,7 @@ TrainingSessionSchema.virtual('instructor', {
 	justOne: true,
 });
 
-export const TrainingSessionModel = model<ITrainingSession>(
+export const TrainingSessionModel = model<ITrainingSession, SoftDeleteModel<ITrainingSession>>(
 	'TrainingSession',
 	TrainingSessionSchema,
 );

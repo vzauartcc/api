@@ -1,9 +1,10 @@
 import { Document, model, Schema, type PopulatedDoc } from 'mongoose';
-import * as softDelete from 'mongoose-delete';
+import type { SoftDeleteDocument, SoftDeleteModel } from 'mongoose-delete';
+import MongooseDelete from 'mongoose-delete';
 import type { ITimestamps } from './timestamps.js';
 import type { IUser } from './user.js';
 
-interface IFeedback extends Document, ITimestamps {
+interface IFeedback extends SoftDeleteDocument, ITimestamps {
 	name: string;
 	email: string;
 	submitter: number;
@@ -33,7 +34,7 @@ const FeedbackSchema = new Schema<IFeedback>(
 	{ collection: 'feedback', timestamps: true },
 );
 
-FeedbackSchema.plugin(softDelete.default, {
+FeedbackSchema.plugin(MongooseDelete, {
 	deletedAt: true,
 });
 
@@ -44,4 +45,7 @@ FeedbackSchema.virtual('controller', {
 	justOne: true,
 });
 
-export const FeedbackModel = model<IFeedback>('feedback', FeedbackSchema);
+export const FeedbackModel = model<IFeedback, SoftDeleteModel<IFeedback>>(
+	'feedback',
+	FeedbackSchema,
+);

@@ -1,8 +1,8 @@
-import { Document, model, Schema } from 'mongoose';
-import softDelete from 'mongoose-delete';
+import { model, Schema } from 'mongoose';
+import MongooseDelete, { type SoftDeleteDocument, type SoftDeleteModel } from 'mongoose-delete';
 import type { ITimestamps } from './timestamps.js';
 
-interface IStaffingRequest extends Document, ITimestamps {
+export interface IStaffingRequest extends SoftDeleteDocument, ITimestamps {
 	vaName: string;
 	name: string;
 	email: string;
@@ -27,11 +27,11 @@ const StaffingRequestSchema = new Schema<IStaffingRequest>(
 	{ timestamps: true, collection: 'staffingRequests' },
 );
 
-StaffingRequestSchema.plugin(softDelete, {
+StaffingRequestSchema.plugin(MongooseDelete, {
 	deletedAt: true,
 });
 
-export const StaffingRequestModel = model<IStaffingRequest>(
+export const StaffingRequestModel = model<IStaffingRequest, SoftDeleteModel<IStaffingRequest>>(
 	'StaffingRequest',
 	StaffingRequestSchema,
 );
