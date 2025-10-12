@@ -1,7 +1,9 @@
-import { Document, model, Schema, Types } from 'mongoose';
+import { model, Schema, Types } from 'mongoose';
+import type { SoftDeleteDocument, SoftDeleteModel } from 'mongoose-delete';
+import MongooseDelete from 'mongoose-delete';
 import { QuestionSchema, type IQuestion } from './examQuestion.js';
 
-interface IExam extends Document {
+export interface IExam extends SoftDeleteDocument {
 	title: string;
 	description: string;
 	questions: IQuestion[];
@@ -19,4 +21,8 @@ const ExamSchema = new Schema<IExam>({
 	createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
 });
 
-export const ExamModel = model<IExam>('Exam', ExamSchema);
+ExamSchema.plugin(MongooseDelete, {
+	deletedAt: true,
+});
+
+export const ExamModel = model<IExam, SoftDeleteModel<IExam>>('Exam', ExamSchema);

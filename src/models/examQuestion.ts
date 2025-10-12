@@ -1,6 +1,6 @@
 import { Document, model, Schema } from 'mongoose';
 
-interface IOption {
+interface IOption extends Document {
 	text: string;
 	isCorrect: boolean;
 }
@@ -11,13 +11,10 @@ export interface IQuestion extends Document {
 	options: IOption[];
 }
 
-const OptionSchema = new Schema<IOption>(
-	{
-		text: { type: String, required: true },
-		isCorrect: { type: Boolean, required: true },
-	},
-	{ _id: false },
-);
+const OptionSchema = new Schema<IOption>({
+	text: { type: String, required: true },
+	isCorrect: { type: Boolean, required: true },
+});
 
 export const QuestionSchema = new Schema<IQuestion>({
 	text: { type: String, required: true },
