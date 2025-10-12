@@ -36,6 +36,35 @@ if (SENTRY_DSN) {
 	});
 }
 
+app.use((req: Request, res: Response, next: NextFunction) => {
+	if (
+		req.originalUrl.includes('favicon') ||
+		req.originalUrl.includes('/online') ||
+		req.originalUrl.includes('/ids/')
+	)
+		return next();
+
+	const start = process.hrtime.bigint();
+
+	const logRequestDuration = () => {
+		const durationNs = process.hrtime.bigint() - start;
+
+		const durationMs = Number(durationNs) / 1_000_000;
+
+		console.log(
+			`[Timer] ${req.method} ${req.originalUrl} - Status ${res.statusCode} - ${durationMs.toFixed(3)}ms`,
+		);
+
+		res.removeListener('finish', logRequestDuration);
+		res.removeListener('close', logRequestDuration);
+	};
+
+	res.on('finish', logRequestDuration);
+	res.on('close', logRequestDuration);
+
+	next();
+});
+
 app.use((_req: Request, res: Response, next: NextFunction) => {
 	res.stdRes = {
 		ret_det: {
