@@ -1,6 +1,6 @@
 import { Document, model, Schema } from 'mongoose';
 
-interface IRole extends Document {
+export interface IRole extends Document {
 	code: string;
 	order: number;
 	name: string;

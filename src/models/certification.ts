@@ -1,6 +1,6 @@
 import { Document, model, Schema } from 'mongoose';
 
-interface ICertification extends Document {
+export interface ICertification extends Document {
 	code: string;
 	order: number;
 	name: string;

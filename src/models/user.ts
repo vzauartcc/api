@@ -1,7 +1,10 @@
-import { Document, model, Schema } from 'mongoose';
+import { Document, model, Schema, type PopulatedDoc } from 'mongoose';
 import * as softDelete from 'mongoose-delete';
 import mongooseLeanVirtuals from 'mongoose-lean-virtuals';
 import zau from '../zau.js';
+import type { IAbsence } from './absence.js';
+import * as Certification from './certification.js';
+import type { IRole } from './role.js';
 import type { ITimestamps } from './timestamps.js';
 
 export interface ICertificationDate {
@@ -15,15 +18,15 @@ export interface IUser extends Document, ITimestamps {
 	lname: string;
 	email: string;
 	rating: number;
-	oi?: string;
+	oi?: string | null;
 	broadcast: boolean;
 	member: boolean;
 	vis: boolean;
 	homeFacility?: string;
 	bio: string;
 	avatar?: string;
-	joinDate?: Date;
-	removalDate?: Date;
+	joinDate?: Date | null;
+	removalDate?: Date | null;
 	prefName: boolean;
 	discordInfo?: {
 		clientId: string;
@@ -40,14 +43,18 @@ export interface IUser extends Document, ITimestamps {
 	trainingMilestones: [];
 
 	// Virtual Properties
-	isMem: boolean;
-	isMgt: boolean;
-	isSenior: boolean;
+	isMember: boolean;
+	isManagement: boolean;
+	isSeniorStaff: boolean;
 	isStaff: boolean;
-	isIns: boolean;
+	isInstructor: boolean;
 	ratingShort: string;
 	ratingLong: string;
 	certCodeList: string[];
+
+	roles: PopulatedDoc<IRole>[];
+	certifications: PopulatedDoc<Certification.ICertification>[];
+	absence: PopulatedDoc<IAbsence>;
 }
 
 const CertificationDateSchema = new Schema<ICertificationDate>(
@@ -109,18 +116,18 @@ UserSchema.plugin(softDelete.default, {
 
 UserSchema.plugin(mongooseLeanVirtuals);
 
-UserSchema.virtual('isMem').get(function (this: IUser) {
+UserSchema.virtual('isMember').get(function (this: IUser) {
 	return this.member;
 });
 
-UserSchema.virtual('isMgt').get(function (this: IUser) {
+UserSchema.virtual('isManagement').get(function (this: IUser) {
 	if (!this.roleCodes) return false;
 
 	const search = ['atm', 'datm', 'wm'];
 	return this.roleCodes.some((r) => search.includes(r));
 });
 
-UserSchema.virtual('isSenior').get(function (this: IUser) {
+UserSchema.virtual('isSeniorStaff').get(function (this: IUser) {
 	if (!this.roleCodes) return false;
 
 	const search = ['atm', 'datm', 'ta', 'wm'];
@@ -134,7 +141,7 @@ UserSchema.virtual('isStaff').get(function (this: IUser) {
 	return this.roleCodes.some((r) => search.includes(r));
 });
 
-UserSchema.virtual('isIns').get(function (this: IUser) {
+UserSchema.virtual('isInstructor').get(function (this: IUser) {
 	if (!this.roleCodes) return false;
 
 	const search = ['atm', 'datm', 'ins', 'mtr', 'ia'];

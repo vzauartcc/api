@@ -3,7 +3,7 @@ import * as softDelete from 'mongoose-delete';
 import type { ITimestamps } from './timestamps.js';
 import type { IUser } from './user.js';
 
-interface IAbsence extends Document, ITimestamps {
+export interface IAbsence extends Document, ITimestamps {
 	controller: number;
 	expirationDate: Date;
 	reason: string;
