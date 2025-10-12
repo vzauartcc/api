@@ -1,4 +1,4 @@
-import { model, Schema, type PopulatedDoc } from 'mongoose';
+import { model, Schema } from 'mongoose';
 import type { SoftDeleteDocument, SoftDeleteModel } from 'mongoose-delete';
 import MongooseDelete from 'mongoose-delete';
 import mongooseLeanVirtuals from 'mongoose-lean-virtuals';
@@ -53,9 +53,9 @@ export interface IUser extends SoftDeleteDocument, ITimestamps {
 	ratingLong: string;
 	certCodeList: string[];
 
-	roles: PopulatedDoc<IRole>[];
-	certifications: PopulatedDoc<Certification.ICertification>[];
-	absence: PopulatedDoc<IAbsence>;
+	roles: IRole;
+	certifications: Certification.ICertification[];
+	absence: IAbsence[];
 }
 
 const CertificationDateSchema = new Schema<ICertificationDate>(
