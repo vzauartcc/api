@@ -1,4 +1,4 @@
-import { Document, model, Schema, type PopulatedDoc } from 'mongoose';
+import { model, Schema } from 'mongoose';
 import type { SoftDeleteDocument, SoftDeleteModel } from 'mongoose-delete';
 import MongooseDelete from 'mongoose-delete';
 import type { ITimestamps } from './timestamps.js';
@@ -16,7 +16,7 @@ interface IFeedback extends SoftDeleteDocument, ITimestamps {
 	approved: boolean;
 
 	// Virtuals
-	controller?: PopulatedDoc<IUser & ITimestamps & Document>;
+	controller?: IUser;
 }
 
 const FeedbackSchema = new Schema<IFeedback>(
