@@ -66,7 +66,7 @@ if (!REDIS_URI) {
 	throw new Error('REDIS_URI is not set in environment variables.');
 }
 
-app.redis = new Redis({ host: REDIS_URI });
+app.redis = new Redis(REDIS_URI);
 app.redis.on('error', (err) => {
 	throw new Error(`Failed to connect to Redis: ${err}`);
 });
@@ -162,6 +162,7 @@ app.listen(process.env.PORT, () => {
 });
 
 export function convertToReturnDetails(e: unknown): ReturnDetails {
+	console.trace(e);
 	// 1. Check if 'e' is a standard Error object
 	if (e instanceof Error) {
 		// Return a generic error structure
@@ -198,7 +199,7 @@ export function uploadToS3(filename: string, tmpFile: any, mime: string, options
 		new PutObjectCommand({
 			...options,
 			Bucket: 'zauartcc',
-			Key: `${S3_PREFIX}/documents/${filename}`,
+			Key: `${S3_PREFIX}/${filename}`,
 			Body: tmpFile,
 			ContentType: mime,
 			ACL: 'public-read',
