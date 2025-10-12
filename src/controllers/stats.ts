@@ -1,17 +1,17 @@
 import axios from 'axios';
 import { Router, type Request, type Response } from 'express';
 import { DateTime as L } from 'luxon';
-import { hasRole } from 'middleware/auth.js';
-import internalAuth from 'middleware/internalAuth.js';
-import { ControllerHoursModel } from 'models/controllerHours.js';
-import { FeedbackModel } from 'models/feedback.js';
-import { TrainingRequestModel } from 'models/trainingRequest.js';
-import { TrainingSessionModel } from 'models/trainingSession.js';
-import { UserModel, type IUser } from 'models/user.js';
 import type { FlattenMaps } from 'mongoose';
-import zau from 'zau.js';
 import { convertToReturnDetails } from '../app.js';
+import { hasRole } from '../middleware/auth.js';
+import internalAuth from '../middleware/internalAuth.js';
 import getUser from '../middleware/user.js';
+import { ControllerHoursModel } from '../models/controllerHours.js';
+import { FeedbackModel } from '../models/feedback.js';
+import { TrainingRequestModel } from '../models/trainingRequest.js';
+import { TrainingSessionModel } from '../models/trainingSession.js';
+import { UserModel, type IUser } from '../models/user.js';
+import zau from '../zau.js';
 
 const router = Router();
 

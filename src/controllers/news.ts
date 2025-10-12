@@ -1,8 +1,8 @@
 import { Router, type Request, type Response } from 'express';
-import { hasRole } from 'middleware/auth.js';
-import { NewsModel } from 'models/news.js';
 import { convertToReturnDetails } from '../app.js';
+import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
+import { NewsModel } from '../models/news.js';
 
 const router = Router();
 

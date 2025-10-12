@@ -1,10 +1,10 @@
 import axios from 'axios';
 import Discord from 'discord-oauth2';
 import { Router, type Request, type Response } from 'express';
-import internalAuth from 'middleware/internalAuth.js';
-import { UserModel } from 'models/user.js';
 import { convertToReturnDetails } from '../app.js';
+import internalAuth from '../middleware/internalAuth.js';
 import getUser from '../middleware/user.js';
+import { UserModel } from '../models/user.js';
 
 const router = Router();
 

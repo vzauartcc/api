@@ -1,12 +1,12 @@
-import { convertToReturnDetails } from 'app.js';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { hasRole } from 'middleware/auth.js';
-import { ExamModel, type IExam } from 'models/exam.js';
-import { ExamAttemptModel } from 'models/examAttempt.js';
-import { QuestionModel, type IQuestion } from 'models/examQuestion.js';
-import type { IUser } from 'models/user.js';
+import { convertToReturnDetails } from '../app.js';
+import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
+import { ExamModel, type IExam } from '../models/exam.js';
+import { ExamAttemptModel } from '../models/examAttempt.js';
+import { QuestionModel, type IQuestion } from '../models/examQuestion.js';
+import type { IUser } from '../models/user.js';
 
 const router = Router();
 
@@ -404,10 +404,9 @@ router.put(
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'ins']),
 	/* eslint-disable no-unused-vars */
-	async (req: Request, res: Response) => {
-		const { examId } = req.params;
-		const { userId } = req.body; // Assume the userId to reset attempts for is sent in the request
-
+	async (_req: Request, _res: Response) => {
+		// const { examId } = req.params;
+		// const { userId } = req.body; // Assume the userId to reset attempts for is sent in the request
 		// Reset attempts logic here
 		// This could involve updating existing attempt documents or tracking attempts separately
 	},

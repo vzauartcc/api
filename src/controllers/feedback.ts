@@ -1,10 +1,10 @@
 import { Router, type Request, type Response } from 'express';
-import { hasRole } from 'middleware/auth.js';
-import { FeedbackModel } from 'models/feedback.js';
-import { NotificationModel } from 'models/notification.js';
-import { UserModel } from 'models/user.js';
 import { convertToReturnDetails } from '../app.js';
+import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
+import { FeedbackModel } from '../models/feedback.js';
+import { NotificationModel } from '../models/notification.js';
+import { UserModel } from '../models/user.js';
 
 const router = Router();
 

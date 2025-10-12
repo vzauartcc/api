@@ -1,15 +1,15 @@
 import axios from 'axios';
 import dayjs from 'dayjs';
 import { Router, type Request, type Response } from 'express';
-import { hasRole } from 'middleware/auth.js';
-import { NotificationModel } from 'models/notification.js';
-import { TrainingRequestMilestoneModel } from 'models/trainingMilestone.js';
-import { TrainingRequestModel } from 'models/trainingRequest.js';
-import { TrainingSessionModel } from 'models/trainingSession.js';
-import { UserModel } from 'models/user.js';
 import { convertToReturnDetails } from '../app.js';
 import transporter, { type CustomMailOptions } from '../mailer.js';
+import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
+import { NotificationModel } from '../models/notification.js';
+import { TrainingRequestMilestoneModel } from '../models/trainingMilestone.js';
+import { TrainingRequestModel } from '../models/trainingRequest.js';
+import { TrainingSessionModel } from '../models/trainingSession.js';
+import { UserModel } from '../models/user.js';
 
 const router = Router();
 

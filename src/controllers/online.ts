@@ -1,8 +1,8 @@
 import { Router, type Request, type Response } from 'express';
-import { AtcOnlineModel } from 'models/atcOnline.js';
-import { ControllerHoursModel } from 'models/controllerHours.js';
-import { PilotOnlineModel } from 'models/pilotOnline.js';
 import { convertToReturnDetails } from '../app.js';
+import { AtcOnlineModel } from '../models/atcOnline.js';
+import { ControllerHoursModel } from '../models/controllerHours.js';
+import { PilotOnlineModel } from '../models/pilotOnline.js';
 
 const router = Router();
 

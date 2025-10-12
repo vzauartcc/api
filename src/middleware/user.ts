@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { UserModel } from 'models/user.js';
+import { UserModel } from '../models/user.js';
 
 export interface UserPayload {
 	cid: number;

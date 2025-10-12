@@ -2,13 +2,12 @@ import axios from 'axios';
 import { randomUUID } from 'crypto';
 import { Router, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { deleteAuthCookie, type UserPayload } from 'middleware/user.js';
-import { ControllerHoursModel } from 'models/controllerHours.js';
-import { NotificationModel } from 'models/notification.js';
-import { UserModel } from 'models/user.js';
 import { convertToReturnDetails, uploadToS3 } from '../app.js';
-import getUser from '../middleware/user.js';
+import getUser, { deleteAuthCookie, type UserPayload } from '../middleware/user.js';
 import oAuth from '../middleware/vatsim.js';
+import { ControllerHoursModel } from '../models/controllerHours.js';
+import { NotificationModel } from '../models/notification.js';
+import { UserModel } from '../models/user.js';
 
 const router = Router();
 

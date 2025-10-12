@@ -1,11 +1,11 @@
 import { Router, type Request, type Response } from 'express';
 import fs from 'fs/promises';
-import { hasRole } from 'middleware/auth.js';
-import { DocumentModel } from 'models/document.js';
-import { DownloadModel } from 'models/download.js';
 import multer from 'multer';
 import { convertToReturnDetails, deleteFromS3, uploadToS3 } from '../app.js';
+import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
+import { DocumentModel } from '../models/document.js';
+import { DownloadModel } from '../models/download.js';
 
 const router = Router();
 

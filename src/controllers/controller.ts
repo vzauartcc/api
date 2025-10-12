@@ -1,17 +1,18 @@
 import axios from 'axios';
 import { Router, type Request, type Response } from 'express';
 import { DateTime as L } from 'luxon';
-import { hasRole, isManagement, isStaff } from 'middleware/auth.js';
-import internalAuth from 'middleware/internalAuth.js';
-import getUser from 'middleware/user.js';
-import { AbsenceModel } from 'models/absence.js';
-import { ControllerHoursModel } from 'models/controllerHours.js';
-import { NotificationModel } from 'models/notification.js';
-import { RoleModel } from 'models/role.js';
-import { VisitApplicationModel } from 'models/visitApplication.js';
 import { convertToReturnDetails, uploadToS3 } from '../app.js';
-import transporter, { type CustomMailOptions } from '../mailer.js';
+import type { CustomMailOptions } from '../mailer.js';
+import transporter from '../mailer.js';
+import { hasRole, isManagement, isStaff } from '../middleware/auth.js';
+import internalAuth from '../middleware/internalAuth.js';
+import getUser from '../middleware/user.js';
+import { AbsenceModel } from '../models/absence.js';
+import { ControllerHoursModel } from '../models/controllerHours.js';
+import { NotificationModel } from '../models/notification.js';
+import { RoleModel } from '../models/role.js';
 import { UserModel, type IUser } from '../models/user.js';
+import { VisitApplicationModel } from '../models/visitApplication.js';
 
 const router = Router();
 
