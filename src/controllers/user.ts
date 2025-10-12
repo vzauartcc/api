@@ -212,15 +212,8 @@ router.get('/sessions', getUser, async (req: Request, res: Response) => {
 
 router.get('/notifications', getUser, async (req: Request, res: Response) => {
 	try {
-		if (!req.query.page) {
-			req.query.page = '1';
-		}
-		if (!req.query.limit) {
-			req.query.limit = '20';
-		}
-
-		const page = +req.query.page || 1;
-		const limit = +req.query.limit || 10;
+		const page = +(req.query.page as string) || 1;
+		const limit = +(req.query.limit as string) || 10;
 
 		const unread = await NotificationModel.countDocuments({
 			deleted: false,

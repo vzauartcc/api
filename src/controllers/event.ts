@@ -47,15 +47,8 @@ router.get('/', async (req: Request, res: Response) => {
 
 router.get('/archive', async (req: Request, res: Response) => {
 	try {
-		if (!req.query.page) {
-			req.query.page = '1';
-		}
-		if (!req.query.limit) {
-			req.query.limit = '10';
-		}
-
-		const page = +req.query.page || 1;
-		const limit = +req.query.limit || 10;
+		const page = +(req.query.page as string) || 1;
+		const limit = +(req.query.limit as string) || 10;
 
 		const count = await EventModel.countDocuments({
 			eventEnd: {
@@ -88,15 +81,8 @@ router.get('/archive', async (req: Request, res: Response) => {
 
 router.get('/staffingRequest', async (req: Request, res: Response) => {
 	try {
-		if (!req.query.page) {
-			req.query.page = '1';
-		}
-		if (!req.query.limit) {
-			req.query.limit = '10';
-		}
-
-		const page = +req.query.page || 1;
-		const limit = +req.query.limit || 10;
+		const page = +(req.query.page as string) || 1;
+		const limit = +(req.query.limit as string) || 10;
 
 		const count = await StaffingRequestModel.countDocuments({ deleted: false });
 		let requests: IStaffingRequest[] = [];

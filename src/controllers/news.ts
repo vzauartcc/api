@@ -8,15 +8,8 @@ const router = Router();
 
 // @TODO: convert to StandardResponse
 router.get('/', async (req: Request, res: Response) => {
-	if (!req.query.page) {
-		req.query.page = '1';
-	}
-	if (!req.query.limit) {
-		req.query.limit = '20';
-	}
-
-	const page = +req.query.page || 1;
-	const limit = +req.query.limit || 20;
+	const page = +(req.query.page as string) || 1;
+	const limit = +(req.query.limit as string) || 20;
 
 	const amount = await NewsModel.countDocuments({ deleted: false });
 	const news = await NewsModel.find({ deleted: false })

@@ -317,16 +317,8 @@ router.delete('/absence/:id', getUser, isManagement, async (req: Request, res: R
 });
 
 router.get('/log', getUser, isStaff, async (req: Request, res: Response) => {
-	if (!req.query.page) {
-		req.query.page = '1';
-	}
-
-	if (!req.query.limit) {
-		req.query.limit = '20';
-	}
-
-	const page = +req.query.page || 1;
-	const limit = +req.query.limit || 20;
+	const page = +(req.query.page as string) || 1;
+	const limit = +(req.query.limit as string) || 20;
 	const amount = await req.app.dossier.countDocuments();
 
 	try {

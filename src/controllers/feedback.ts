@@ -13,16 +13,9 @@ router.get(
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'wm']),
 	async (req: Request, res: Response) => {
-		if (!req.query.page) {
-			req.query.page = '1';
-		}
-		if (!req.query.limit) {
-			req.query.limit = '20';
-		}
-
 		try {
-			const page = +req.query.page || 1;
-			const limit = +req.query.limit || 20;
+			const page = +(req.query.page as string) || 1;
+			const limit = +(req.query.limit as string) || 20;
 
 			const amount = await FeedbackModel.countDocuments({
 				$or: [{ approved: true }, { deleted: true }],
@@ -212,16 +205,9 @@ router.put(
 );
 
 router.get('/own', getUser, async (req: Request, res: Response) => {
-	if (!req.query.page) {
-		req.query.page = '1';
-	}
-	if (!req.query.limit) {
-		req.query.limit = '10';
-	}
-
 	try {
-		const page = +req.query.page || 1;
-		const limit = +req.query.limit || 10;
+		const page = +(req.query.page as string) || 1;
+		const limit = +(req.query.limit as string) || 10;
 
 		const amount = await FeedbackModel.countDocuments({
 			approved: true,
