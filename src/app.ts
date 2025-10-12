@@ -1,4 +1,4 @@
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import * as Sentry from '@sentry/node';
 import cookie from 'cookie-parser';
 import cors from 'cors';
@@ -203,6 +203,15 @@ export function uploadToS3(filename: string, tmpFile: any, mime: string, options
 			Body: tmpFile,
 			ContentType: mime,
 			ACL: 'public-read',
+		}),
+	);
+}
+
+export function deleteFromS3(filename: string) {
+	return app.s3.send(
+		new DeleteObjectCommand({
+			Bucket: 'zauartcc',
+			Key: `${S3_PREFIX}/${filename}`,
 		}),
 	);
 }

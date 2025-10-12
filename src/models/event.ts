@@ -1,11 +1,12 @@
 import { type PopulatedDoc, Document, model, Schema } from 'mongoose';
-import * as softDelete from 'mongoose-delete';
+import type { SoftDeleteDocument, SoftDeleteModel } from 'mongoose-delete';
+import MongooseDelete from 'mongoose-delete';
 import { type IEventPosition, EventPositionSchema } from './eventPosition.js';
 import { type IEventSignup, EventSignupSchema } from './eventSignup.js';
 import type { ITimestamps } from './timestamps.js';
 import type { IUser } from './user.js';
 
-interface IEvent extends Document, ITimestamps {
+interface IEvent extends SoftDeleteDocument {
 	name: string;
 	description: string;
 	url: string;
@@ -53,8 +54,10 @@ EventSchema.virtual('user', {
 	foreignField: 'cid',
 });
 
-EventSchema.plugin(softDelete.default, {
+EventSchema.plugin(MongooseDelete, {
 	deletedAt: true,
 });
 
-export const EventModel = model<IEvent>('Event', EventSchema);
+const EventModel = model<IEvent, SoftDeleteModel<IEvent>>('Event', EventSchema);
+
+export default EventModel;

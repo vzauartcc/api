@@ -2,12 +2,14 @@ import { Document, Schema, type PopulatedDoc } from 'mongoose';
 import type { ITimestamps } from './timestamps.js';
 import type { IUser } from './user.js';
 
-export interface IEventPosition {
+export interface IEventPositionData {
 	pos: string;
 	type: string;
 	code: string;
 	takenBy?: number;
+}
 
+export interface IEventPosition extends IEventPositionData, Document {
 	// Virtual
 	user?: PopulatedDoc<IUser & ITimestamps & Document>;
 }
@@ -19,7 +21,7 @@ export const EventPositionSchema = new Schema<IEventPosition>(
 		code: { type: String, required: true },
 		takenBy: { type: Number },
 	},
-	{ _id: false },
+	{ timestamps: true },
 );
 
 EventPositionSchema.virtual('user', {

@@ -60,6 +60,7 @@
 		"@types/luxon": "^3.7.1",
 		"@types/mongoose": "^5.11.97",
 		"@types/mongoose-delete": "^1.0.6",
+		"@types/multer": "^2.0.0",
 		"@types/node": "^24.6.2",
 		"@types/nodemailer": "^7.0.2",
 		"@types/nodemailer-express-handlebars": "^4.0.5",

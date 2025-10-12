@@ -2,7 +2,7 @@ import { Document, Schema, type PopulatedDoc } from 'mongoose';
 import type { ITimestamps } from './timestamps.js';
 import type { IUser } from './user.js';
 
-export interface IEventSignup extends ITimestamps {
+export interface IEventSignup extends Document, ITimestamps {
 	cid: number;
 	requests: string[];
 
@@ -15,7 +15,7 @@ export const EventSignupSchema = new Schema<IEventSignup>(
 		cid: { type: Number, ref: 'User' },
 		requests: [{ type: String, required: true, default: [] }],
 	},
-	{ _id: false, timestamps: true },
+	{ timestamps: true },
 );
 
 EventSignupSchema.virtual('user', {
