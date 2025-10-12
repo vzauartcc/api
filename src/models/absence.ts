@@ -1,9 +1,10 @@
 import { Document, model, Schema, type PopulatedDoc } from 'mongoose';
-import * as softDelete from 'mongoose-delete';
+import type { SoftDeleteDocument, SoftDeleteModel } from 'mongoose-delete';
+import MongooseDelete from 'mongoose-delete';
 import type { ITimestamps } from './timestamps.js';
 import type { IUser } from './user.js';
 
-export interface IAbsence extends Document, ITimestamps {
+export interface IAbsence extends SoftDeleteDocument, ITimestamps {
 	controller: number;
 	expirationDate: Date;
 	reason: string;
@@ -30,8 +31,8 @@ AbsenceSchema.virtual('user', {
 	justOne: true,
 });
 
-AbsenceSchema.plugin(softDelete.default, {
+AbsenceSchema.plugin(MongooseDelete, {
 	deletedAt: true,
 });
 
-export const AbsenceModel = model<IAbsence>('Absence', AbsenceSchema);
+export const AbsenceModel = model<IAbsence, SoftDeleteModel<IAbsence>>('Absence', AbsenceSchema);

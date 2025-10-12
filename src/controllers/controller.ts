@@ -293,13 +293,15 @@ router.delete('/absence/:id', getUser, isManagement, async (req: Request, res: R
 			};
 		}
 
-		const absence = await AbsenceModel.findOneAndDelete({ _id: req.params.id }).exec();
+		const absence = await AbsenceModel.findOne({ _id: req.params.id });
 		if (!absence) {
 			throw {
 				code: 400,
 				message: 'Unable to locate absence.',
 			};
 		}
+
+		await absence.delete();
 
 		await req.app.dossier.create({
 			by: req.user!.cid,
@@ -549,7 +551,15 @@ router.get('/visit/status', getUser, async (req: Request, res: Response) => {
 
 router.put('/visit/:cid', getUser, hasRole(['atm', 'datm']), async (req, res) => {
 	try {
-		await VisitApplicationModel.findOneAndDelete({ cid: req.params.cid }).exec();
+		const application = await VisitApplicationModel.findOne({ cid: req.params.cid });
+		if (!application) {
+			throw {
+				code: 404,
+				message: 'Visiting Application Not Found.',
+			};
+		}
+
+		await application.delete();
 
 		const user = await UserModel.findOne({ cid: req.params.cid });
 		if (!user) {
@@ -632,7 +642,15 @@ router.delete(
 	hasRole(['atm', 'datm']),
 	async (req: Request, res: Response) => {
 		try {
-			await VisitApplicationModel.findOneAndDelete({ cid: req.params.cid }).exec();
+			const application = await VisitApplicationModel.findOne({ cid: req.params.cid });
+			if (!application) {
+				throw {
+					code: 404,
+					message: 'Visiting Application Not Found.',
+				};
+			}
+
+			await application.delete();
 
 			const user = await UserModel.findOne({ cid: req.params.cid });
 			if (!user) {

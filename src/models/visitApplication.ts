@@ -1,8 +1,9 @@
-import { Document, model, Schema } from 'mongoose';
-import * as softDelete from 'mongoose-delete';
+import { model, Schema } from 'mongoose';
+import type { SoftDeleteDocument, SoftDeleteModel } from 'mongoose-delete';
+import MongooseDelete from 'mongoose-delete';
 import type { ITimestamps } from './timestamps.js';
 
-interface IVisitApplication extends Document, ITimestamps {
+interface IVisitApplication extends SoftDeleteDocument, ITimestamps {
 	cid: number;
 	fname: string;
 	lname: string;
@@ -25,11 +26,11 @@ const VisitApplicationSchema = new Schema<IVisitApplication>(
 	{ collection: 'visitApplications', timestamps: true },
 );
 
-VisitApplicationSchema.plugin(softDelete.default, {
+VisitApplicationSchema.plugin(MongooseDelete, {
 	deletedAt: true,
 });
 
-export const VisitApplicationModel = model<IVisitApplication>(
+export const VisitApplicationModel = model<IVisitApplication, SoftDeleteModel<IVisitApplication>>(
 	'VisitApplication',
 	VisitApplicationSchema,
 );
