@@ -41,7 +41,8 @@ export default async function (req: Request, res: Response, next: NextFunction) 
 					},
 				},
 			])
-			.lean({ virtuals: true });
+			.lean({ virtuals: true })
+			.exec();
 
 		if (!user) {
 			delete req.user;

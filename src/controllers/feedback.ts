@@ -19,7 +19,7 @@ router.get(
 
 			const amount = await FeedbackModel.countDocuments({
 				$or: [{ approved: true }, { deleted: true }],
-			});
+			}).exec();
 			const feedback = await FeedbackModel.find({
 				$or: [{ approved: true }, { deleted: true }],
 			})
@@ -27,7 +27,8 @@ router.get(
 				.limit(limit)
 				.sort({ createdAt: 'desc' })
 				.populate('controller', 'fname lname cid')
-				.lean();
+				.lean()
+				.exec();
 
 			res.stdRes.data = {
 				amount,
@@ -99,7 +100,8 @@ router.get('/controllers', async (req: Request, res: Response) => {
 		const controllers = await UserModel.find({ deletedAt: null, member: true })
 			.sort('fname')
 			.select('fname lname cid rating vis _id')
-			.lean();
+			.lean()
+			.exec();
 		res.stdRes.data = controllers;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
@@ -119,7 +121,8 @@ router.get(
 			const feedback = await FeedbackModel.find({ deletedAt: null, approved: false })
 				.populate('controller', 'fname lname cid')
 				.sort({ createdAt: 'desc' })
-				.lean();
+				.lean()
+				.exec();
 			res.stdRes.data = feedback;
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
@@ -142,7 +145,9 @@ router.put(
 				{
 					approved: true,
 				},
-			).populate('controller', 'cid');
+			)
+				.populate('controller', 'cid')
+				.exec();
 
 			if (!approved) {
 				throw {
@@ -180,7 +185,7 @@ router.put(
 	async (req: Request, res: Response) => {
 		// Reject feedback
 		try {
-			const feedback = await FeedbackModel.findOne({ _id: req.params.id });
+			const feedback = await FeedbackModel.findOne({ _id: req.params.id }).exec();
 			if (!feedback) {
 				throw {
 					code: 404,
@@ -212,7 +217,7 @@ router.get('/own', getUser, async (req: Request, res: Response) => {
 		const amount = await FeedbackModel.countDocuments({
 			approved: true,
 			controllerCid: req.user!.cid,
-		});
+		}).exec();
 		const feedback = await FeedbackModel.aggregate([
 			{
 				$match: {
@@ -234,7 +239,7 @@ router.get('/own', getUser, async (req: Request, res: Response) => {
 			{ $sort: { createdAt: -1 } },
 			{ $skip: limit * (page - 1) },
 			{ $limit: limit },
-		]);
+		]).exec();
 
 		res.stdRes.data = {
 			feedback,

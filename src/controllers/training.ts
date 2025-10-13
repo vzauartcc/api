@@ -25,7 +25,8 @@ router.get('/request/upcoming', getUser, async (req: Request, res: Response) => 
 			.populate('instructor', 'fname lname cid')
 			.populate('milestone', 'code name')
 			.sort({ startTime: 'asc' })
-			.lean();
+			.lean()
+			.exec();
 
 		res.stdRes.data = upcoming;
 	} catch (e) {
@@ -105,10 +106,15 @@ router.post('/request/new', getUser, async (req: Request, res: Response) => {
 			remarks: req.body.remarks,
 		});
 
-		const student = await UserModel.findOne({ cid: req.user!.cid }).select('fname lname').lean();
+		const student = await UserModel.findOne({ cid: req.user!.cid })
+			.select('fname lname')
+			.lean()
+			.exec();
 		const milestone = await TrainingRequestMilestoneModel.findOne({
 			code: req.body.milestone,
-		}).lean();
+		})
+			.lean()
+			.exec();
 
 		if (!student || !milestone) {
 			throw {
@@ -161,10 +167,12 @@ router.get('/milestones', getUser, async (req: Request, res: Response) => {
 		const user = await UserModel.findOne({ cid: req.user!.cid })
 			.select('trainingMilestones rating')
 			.populate('trainingMilestones', 'code name rating')
-			.lean();
+			.lean()
+			.exec();
 		const milestones = await TrainingRequestMilestoneModel.find()
 			.sort({ rating: 'asc', code: 'asc' })
-			.lean();
+			.lean()
+			.exec();
 
 		res.stdRes.data = {
 			user,
@@ -199,7 +207,8 @@ router.get(
 				deleted: false,
 			})
 				.select('startTime')
-				.lean();
+				.lean()
+				.exec();
 
 			res.stdRes.data = requests;
 		} catch (e) {
@@ -228,7 +237,9 @@ router.post(
 				instructorCid: req.user!.cid,
 				startTime: req.body.startTime,
 				endTime: req.body.endTime,
-			}).lean();
+			})
+				.lean()
+				.exec();
 
 			if (!request) {
 				throw {
@@ -248,10 +259,12 @@ router.post(
 
 			const student = await UserModel.findOne({ cid: request.studentCid })
 				.select('fname lname email')
-				.lean();
+				.lean()
+				.exec();
 			const instructor = await UserModel.findOne({ cid: req.user!.cid })
 				.select('fname lname email')
-				.lean();
+				.lean()
+				.exec();
 
 			if (!student || !instructor) {
 				throw {
@@ -301,7 +314,7 @@ router.post(
 );
 router.delete('/request/:id', getUser, async (req: Request, res: Response) => {
 	try {
-		const request = await TrainingRequestModel.findById(req.params.id);
+		const request = await TrainingRequestModel.findById(req.params.id).exec();
 
 		if (!request) {
 			return res.status(404).json({ error: 'Training request not found' });
@@ -361,7 +374,8 @@ router.get(
 			})
 				.populate('student', 'fname lname rating vis')
 				.populate('milestone', 'name code')
-				.lean();
+				.lean()
+				.exec();
 
 			res.stdRes.data = requests;
 		} catch (e) {
@@ -385,7 +399,8 @@ router.get(
 			})
 				.populate('student', 'fname lname cid vis')
 				.populate('milestone', 'name code')
-				.lean();
+				.lean()
+				.exec();
 
 			res.stdRes.data = sessions;
 		} catch (e) {
@@ -408,7 +423,8 @@ router.get('/session/:id', getUser, async (req: Request, res: Response) => {
 				.populate('student', 'fname lname cid vis')
 				.populate('instructor', 'fname lname cid')
 				.populate('milestone', 'name code')
-				.lean();
+				.lean()
+				.exec();
 
 			res.stdRes.data = session;
 		} else {
@@ -417,7 +433,8 @@ router.get('/session/:id', getUser, async (req: Request, res: Response) => {
 				.populate('student', 'fname lname cid vis')
 				.populate('instructor', 'fname lname cid')
 				.populate('milestone', 'name code')
-				.lean();
+				.lean()
+				.exec();
 
 			res.stdRes.data = session;
 		}
@@ -438,7 +455,10 @@ router.get(
 			const page = +(req.query.page as string) || 1;
 			const limit = +(req.query.limit as string) || 20;
 
-			const amount = await TrainingSessionModel.countDocuments({ submitted: true, deleted: false });
+			const amount = await TrainingSessionModel.countDocuments({
+				submitted: true,
+				deleted: false,
+			}).exec();
 			const sessions = await TrainingSessionModel.find({
 				deleted: false,
 				submitted: true,
@@ -451,7 +471,8 @@ router.get(
 				.populate('student', 'fname lname cid vis')
 				.populate('instructor', 'fname lname')
 				.populate('milestone', 'name code')
-				.lean();
+				.lean()
+				.exec();
 
 			res.stdRes.data = {
 				count: amount,
@@ -475,7 +496,7 @@ router.get('/sessions/past', getUser, async (req: Request, res: Response) => {
 			studentCid: req.user!.cid,
 			deleted: false,
 			submitted: true,
-		});
+		}).exec();
 		const sessions = await TrainingSessionModel.find({
 			studentCid: req.user!.cid,
 			deleted: false,
@@ -489,7 +510,8 @@ router.get('/sessions/past', getUser, async (req: Request, res: Response) => {
 			.populate('instructor', 'fname lname cid')
 			.populate('student', 'fname lname')
 			.populate('milestone', 'name code')
-			.lean();
+			.lean()
+			.exec();
 
 		res.stdRes.data = {
 			count: amount,
@@ -511,7 +533,8 @@ router.get(
 		try {
 			const controller = await UserModel.findOne({ cid: req.params.cid })
 				.select('fname lname')
-				.lean();
+				.lean()
+				.exec();
 			if (!controller) {
 				throw {
 					code: 400,
@@ -526,7 +549,7 @@ router.get(
 				studentCid: req.params.cid,
 				submitted: true,
 				deleted: false,
-			});
+			}).exec();
 			const sessions = await TrainingSessionModel.find({
 				studentCid: req.params.cid,
 				deleted: false,
@@ -539,7 +562,8 @@ router.get(
 				})
 				.populate('instructor', 'fname lname')
 				.populate('milestone', 'name code')
-				.lean();
+				.lean()
+				.exec();
 
 			res.stdRes.data = {
 				count: amount,
@@ -561,7 +585,7 @@ router.put(
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
 	async (req: Request, res: Response) => {
 		try {
-			await TrainingSessionModel.findByIdAndUpdate(req.params.id, req.body);
+			await TrainingSessionModel.findByIdAndUpdate(req.params.id, req.body).exec();
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
 			req.app.Sentry.captureException(e);
@@ -612,7 +636,7 @@ router.put(
 				studentNotes: req.body.studentNotes,
 				insNotes: req.body.insNotes,
 				submitted: true,
-			});
+			}).exec();
 
 			if (!session) {
 				throw {
@@ -623,7 +647,8 @@ router.put(
 
 			const instructor = await UserModel.findOne({ cid: session.instructorCid })
 				.select('fname lname')
-				.lean();
+				.lean()
+				.exec();
 
 			// Send the training record to vatusa
 			const vatusaApi = axios.create({
@@ -665,7 +690,7 @@ router.put(
 				studentNotes: req.body.studentNotes,
 				insNotes: req.body.insNotes,
 				submitted: true,
-			});
+			}).exec();
 
 			await NotificationModel.create({
 				recipient: session.studentCid,

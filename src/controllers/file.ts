@@ -25,7 +25,8 @@ router.get('/downloads', async (req: Request, res: Response) => {
 	try {
 		const downloads = await DownloadModel.find({ deletedAt: null })
 			.sort({ category: 'asc', name: 'asc' })
-			.lean();
+			.lean()
+			.exec();
 		res.stdRes.data = downloads;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
@@ -37,7 +38,7 @@ router.get('/downloads', async (req: Request, res: Response) => {
 
 router.get('/downloads/:id', async (req: Request, res: Response) => {
 	try {
-		const download = await DownloadModel.findById(req.params.id).lean();
+		const download = await DownloadModel.findById(req.params.id).lean().exec();
 		res.stdRes.data = download;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
@@ -107,7 +108,7 @@ router.put(
 	hasRole(['atm', 'datm', 'ta', 'fe', 'wm']),
 	async (req: Request, res: Response) => {
 		try {
-			const download = await DownloadModel.findById(req.params.id);
+			const download = await DownloadModel.findById(req.params.id).exec();
 			if (!download) {
 				throw { code: 404, message: 'Download not found' };
 			}
@@ -118,7 +119,7 @@ router.put(
 					name: req.body.name,
 					description: req.body.description,
 					category: req.body.category,
-				});
+				}).exec();
 			} else {
 				// ✅ File size check (100MiB limit)
 				if (req.file.size > 100 * 1024 * 1024) {
@@ -140,7 +141,7 @@ router.put(
 					description: req.body.description,
 					category: req.body.category,
 					fileName: req.file.filename, // ✅ Save the new file reference
-				});
+				}).exec();
 			}
 
 			// ✅ Log the update in dossier
@@ -165,7 +166,7 @@ router.delete(
 	async (req: Request, res: Response) => {
 		try {
 			// 🚀 **Step 1: Fetch the file info from the database**
-			const download = await DownloadModel.findById(req.params.id).lean();
+			const download = await DownloadModel.findById(req.params.id).lean().exec();
 			if (!download) {
 				return res.status(404).json({ error: 'File not found' });
 			}
@@ -176,7 +177,7 @@ router.delete(
 			}
 
 			// ❌ **Step 3: Delete the database entry**
-			await DownloadModel.findByIdAndDelete(req.params.id);
+			await DownloadModel.findByIdAndDelete(req.params.id).exec();
 
 			// ✅ Log deletion in dossier
 			await req.app.dossier.create({
@@ -200,7 +201,8 @@ router.get('/documents', async (req: Request, res: Response) => {
 			.select('-content')
 			.sort({ category: 'asc' })
 			.sort({ name: 'asc' })
-			.lean();
+			.lean()
+			.exec();
 		res.stdRes.data = documents;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
@@ -212,7 +214,9 @@ router.get('/documents', async (req: Request, res: Response) => {
 
 router.get('/documents/:slug', async (req: Request, res: Response) => {
 	try {
-		const document = await DocumentModel.findOne({ slug: req.params.slug, deletedAt: null }).lean();
+		const document = await DocumentModel.findOne({ slug: req.params.slug, deletedAt: null })
+			.lean()
+			.exec();
 		res.stdRes.data = document;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
@@ -311,7 +315,7 @@ router.put(
 	hasRole(['atm', 'datm', 'ta', 'fe', 'wm']),
 	async (req: Request, res: Response) => {
 		try {
-			const document = await DocumentModel.findOne({ slug: req.params.slug });
+			const document = await DocumentModel.findOne({ slug: req.params.slug }).exec();
 			if (!document) {
 				return res.status(404).json({ error: 'Document not found' });
 			}
@@ -348,7 +352,7 @@ router.put(
 							category,
 							type: 'file',
 						},
-					);
+					).exec();
 				} else {
 					// ✅ File size check (100MiB limit)
 					if (req.file.size > 100 * 1024 * 1024) {
@@ -374,7 +378,7 @@ router.put(
 							fileName: req.file.filename,
 							type: 'file',
 						},
-					);
+					).exec();
 				}
 			}
 
@@ -400,7 +404,7 @@ router.delete(
 	async (req: Request, res: Response) => {
 		try {
 			// 🚀 **Step 1: Fetch the document from the database**
-			const doc = await DocumentModel.findById(req.params.id).lean();
+			const doc = await DocumentModel.findById(req.params.id).lean().exec();
 			if (!doc) {
 				return res.status(404).json({ error: 'Document not found' });
 			}
@@ -411,7 +415,7 @@ router.delete(
 			}
 
 			// ❌ **Step 3: Delete the database entry**
-			await DocumentModel.findByIdAndDelete(req.params.id);
+			await DocumentModel.findByIdAndDelete(req.params.id).exec();
 
 			// ✅ Log deletion in dossier
 			await req.app.dossier.create({

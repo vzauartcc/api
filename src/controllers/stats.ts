@@ -61,12 +61,12 @@ router.get(
 				{ $match: { timeStart: { $gt: thisMonth, $lt: nextMonth } } },
 				{ $project: { length: { $subtract: ['$timeEnd', '$timeStart'] } } },
 				{ $group: { _id: null, total: { $sum: '$length' } } },
-			]);
+			]).exec();
 
 			const sessionCount = await ControllerHoursModel.aggregate([
 				{ $match: { timeStart: { $gt: thisMonth, $lt: nextMonth } } },
 				{ $group: { _id: null, total: { $sum: 1 } } },
-			]);
+			]).exec();
 
 			const feedback = await FeedbackModel.aggregate([
 				{ $match: { approved: true } },
@@ -84,7 +84,7 @@ router.get(
 				},
 				{ $sort: { year: -1, month: -1 } },
 				{ $limit: 12 },
-			]);
+			]).exec();
 
 			const hours = await ControllerHoursModel.aggregate([
 				{
@@ -113,7 +113,7 @@ router.get(
 				},
 				{ $sort: { year: -1, month: -1 } },
 				{ $limit: 12 },
-			]);
+			]).exec();
 
 			for (const item of feedback) {
 				item.month = months[item.month];
@@ -123,13 +123,13 @@ router.get(
 				item.total = Math.round(item.total / 1000);
 			}
 
-			const homeCount = await UserModel.countDocuments({ member: true, vis: false });
-			const visitorCount = await UserModel.countDocuments({ member: true, vis: true });
+			const homeCount = await UserModel.countDocuments({ member: true, vis: false }).exec();
+			const visitorCount = await UserModel.countDocuments({ member: true, vis: true }).exec();
 			const ratingCounts = await UserModel.aggregate([
 				{ $match: { member: true } },
 				{ $group: { _id: '$rating', count: { $sum: 1 } } },
 				{ $sort: { _id: -1 } },
-			]);
+			]).exec();
 
 			for (const item of ratingCounts) {
 				item.rating = ratings[item._id];
@@ -169,7 +169,7 @@ router.get(
 					},
 				},
 				{ $sort: { lastSession: 1 } },
-			]);
+			]).exec();
 
 			let lastRequest = await TrainingRequestModel.aggregate([
 				{
@@ -181,14 +181,14 @@ router.get(
 					},
 				},
 				{ $sort: { lastSession: 1 } },
-			]);
+			]).exec();
 
 			await TrainingSessionModel.populate(lastTraining, { path: 'student' });
 			await TrainingSessionModel.populate(lastTraining, { path: 'milestone' });
 			await TrainingRequestModel.populate(lastRequest, { path: 'milestone' });
-			const allHomeControllers = await UserModel.find({ member: true, rating: { $lt: 12 } }).select(
-				'-email -idsToken -discordInfo',
-			);
+			const allHomeControllers = await UserModel.find({ member: true, rating: { $lt: 12 } })
+				.select('-email -idsToken -discordInfo')
+				.exec();
 			const allCids = allHomeControllers.map((c: IUser) => c.cid);
 			lastTraining = lastTraining.filter(
 				(train) => train.student?.rating < 12 && train.student?.member && !train.student?.vis,
@@ -316,7 +316,8 @@ router.get(
 					match: { expirationDate: { $gte: new Date() }, deleted: false },
 					select: 'expirationDate',
 				})
-				.lean({ virtuals: true });
+				.lean({ virtuals: true })
+				.exec();
 
 			//console.log(`Fetched ${users.length} users`);
 
@@ -348,7 +349,7 @@ router.get(
 						},
 					},
 					{ $group: { _id: '$cid', totalTime: { $sum: '$totalTime' } } },
-				]),
+				]).exec(),
 				TrainingRequestModel.aggregate([
 					{
 						$match: {
@@ -356,7 +357,7 @@ router.get(
 						},
 					},
 					{ $group: { _id: '$studentCid', totalRequests: { $sum: 1 } } },
-				]),
+				]).exec(),
 				TrainingSessionModel.aggregate([
 					{
 						$match: {
@@ -364,7 +365,7 @@ router.get(
 						},
 					},
 					{ $group: { _id: '$studentCid', totalSessions: { $sum: 1 } } },
-				]),
+				]).exec(),
 			]);
 
 			// Convert activity data into lookup objects for quick access

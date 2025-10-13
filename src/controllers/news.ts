@@ -11,13 +11,14 @@ router.get('/', async (req: Request, res: Response) => {
 	const page = +(req.query.page as string) || 1;
 	const limit = +(req.query.limit as string) || 20;
 
-	const amount = await NewsModel.countDocuments({ deleted: false });
+	const amount = await NewsModel.countDocuments({ deleted: false }).exec();
 	const news = await NewsModel.find({ deleted: false })
 		.sort({ createdAt: 'desc' })
 		.skip(limit * (page - 1))
 		.limit(limit)
 		.populate('user', ['fname', 'lname'])
-		.lean();
+		.lean()
+		.exec();
 
 	res.stdRes.data = {
 		amount,
@@ -80,7 +81,8 @@ router.get('/:slug', async (req, res) => {
 	try {
 		const newsItem = await NewsModel.findOne({ uriSlug: req.params.slug })
 			.populate('user', 'fname lname')
-			.lean();
+			.lean()
+			.exec();
 
 		res.stdRes.data = newsItem;
 	} catch (e) {
@@ -98,7 +100,7 @@ router.put(
 	async (req: Request, res: Response) => {
 		try {
 			const { title, content } = req.body;
-			const newsItem = await NewsModel.findOne({ uriSlug: req.params.slug });
+			const newsItem = await NewsModel.findOne({ uriSlug: req.params.slug }).exec();
 			if (!newsItem) {
 				throw {
 					code: 404,
@@ -139,7 +141,7 @@ router.delete(
 	hasRole(['atm', 'datm', 'ta', 'ec', 'fe', 'wm']),
 	async (req: Request, res: Response) => {
 		try {
-			const newsItem = await NewsModel.findOne({ uriSlug: req.params.slug });
+			const newsItem = await NewsModel.findOne({ uriSlug: req.params.slug }).exec();
 			if (!newsItem) {
 				throw {
 					code: 404,

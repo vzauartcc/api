@@ -20,7 +20,8 @@ router.post('/checktoken', async (req: Request, res: Response) => {
 		} else {
 			const user = await UserModel.findOne({ idsToken: idsToken })
 				.select('-email -idsToken')
-				.lean();
+				.lean()
+				.exec();
 			if (!user) {
 				throw {
 					code: 403,
@@ -188,7 +189,7 @@ router.get('/neighbors', async (req: Request, res: Response) => {
 });
 
 router.get('/pireps', async (_req: Request, res: Response) => {
-	const pirep = await PirepModel.find().sort('-reportTime').lean();
+	const pirep = await PirepModel.find().sort('-reportTime').lean().exec();
 	return res.json(pirep);
 });
 
@@ -249,6 +250,7 @@ router.post('/pireps', async (req: Request, res: Response) => {
 
 router.delete('/pireps/:id', async (req: Request, res: Response) => {
 	PirepModel.findByIdAndDelete(req.params.id)
+		.exec()
 		.then(() => {
 			return res.sendStatus(200);
 		})
@@ -262,7 +264,7 @@ router.put('/config/:id', async (req: Request, res: Response) => {
 	try {
 		const updatedConfig = await ConfigModel.findOneAndUpdate({ id: req.params.id }, req.body, {
 			new: true,
-		});
+		}).exec();
 		if (!updatedConfig) {
 			return res.status(404).send({ message: 'Config not found' });
 		}
@@ -275,7 +277,7 @@ router.put('/config/:id', async (req: Request, res: Response) => {
 
 router.get('/config/:id', async (req: Request, res: Response) => {
 	try {
-		const config = await ConfigModel.findOne({ id: req.params.id });
+		const config = await ConfigModel.findOne({ id: req.params.id }).exec();
 		if (!config) {
 			return res.status(404).send({ message: 'Config not found' });
 		}

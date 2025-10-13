@@ -10,9 +10,9 @@ const router = Router();
 
 router.get('/users', internalAuth, async (req: Request, res: Response) => {
 	try {
-		const users = await UserModel.find({ discordInfo: { $ne: null } }).select(
-			'fname lname cid discordInfo roleCodes oi rating member vis',
-		);
+		const users = await UserModel.find({ discordInfo: { $ne: null } })
+			.select('fname lname cid discordInfo roleCodes oi rating member vis')
+			.exec();
 
 		res.stdRes.data = users;
 	} catch (e) {
@@ -55,7 +55,7 @@ router.post('/info', async (req: Request, res: Response) => {
 		}
 
 		const { cid, code } = req.body;
-		const user = await UserModel.findOne({ cid });
+		const user = await UserModel.findOne({ cid }).exec();
 
 		if (!user) {
 			throw {
@@ -139,7 +139,7 @@ router.post('/info', async (req: Request, res: Response) => {
 
 router.delete('/user', getUser, async (req: Request, res: Response) => {
 	try {
-		const user = await UserModel.findOne({ cid: req.user!.cid });
+		const user = await UserModel.findOne({ cid: req.user!.cid }).exec();
 		if (!user) {
 			throw {
 				code: 400,

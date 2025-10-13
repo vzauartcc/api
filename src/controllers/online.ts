@@ -53,8 +53,8 @@ const positions = new Map([
 
 router.get('/', async (req: Request, res: Response) => {
 	try {
-		const pilots = await PilotOnlineModel.find().lean();
-		const atc = await AtcOnlineModel.find().lean({ virtuals: true });
+		const pilots = await PilotOnlineModel.find().lean().exec();
+		const atc = await AtcOnlineModel.find().lean({ virtuals: true }).exec();
 
 		res.stdRes.data = {
 			pilots: pilots,
@@ -88,7 +88,9 @@ router.get('/top', async (req: Request, res: Response) => {
 					],
 				},
 			],
-		}).populate('user', 'fname lname cid');
+		})
+			.populate('user', 'fname lname cid')
+			.exec();
 
 		const controllerTimes: Map<number, any> = new Map();
 		const positionTimes: Map<string, any> = new Map();

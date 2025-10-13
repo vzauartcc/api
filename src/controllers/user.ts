@@ -25,7 +25,8 @@ router.get('/', async (req: Request, res: Response) => {
 		const user = await UserModel.findOne({ cid: decoded.cid })
 			.select('-createdAt -updatedAt')
 			.populate('roles absence')
-			.lean({ virtuals: true });
+			.lean({ virtuals: true })
+			.exec();
 
 		if (!user) {
 			deleteAuthCookie(res);
@@ -57,7 +58,7 @@ router.post('/idsToken', getUser, async (req: Request, res: Response) => {
 		const idsToken = randomUUID();
 		req.user!.idsToken = idsToken;
 
-		await UserModel.findOneAndUpdate({ cid: req.user!.cid }, { idsToken });
+		await UserModel.findOneAndUpdate({ cid: req.user!.cid }, { idsToken }).exec();
 
 		await req.app.dossier.create({
 			by: req.user!.cid,
@@ -117,7 +118,7 @@ router.post('/login', oAuth, async (req: Request, res: Response) => {
 			};
 		}
 
-		let user = await UserModel.findOne({ cid: userData.cid });
+		let user = await UserModel.findOne({ cid: userData.cid }).exec();
 
 		if (!user) {
 			user = await UserModel.create({
@@ -199,7 +200,8 @@ router.get('/sessions', getUser, async (req: Request, res: Response) => {
 		const sessions = await ControllerHoursModel.find({ cid: req.user!.cid })
 			.sort({ timeStart: -1 })
 			.limit(20)
-			.lean();
+			.lean()
+			.exec();
 		res.stdRes.data = sessions;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
@@ -218,11 +220,11 @@ router.get('/notifications', getUser, async (req: Request, res: Response) => {
 			deleted: false,
 			recipient: req.user!.cid,
 			read: false,
-		});
+		}).exec();
 		const amount = await NotificationModel.countDocuments({
 			deleted: false,
 			recipient: req.user!.cid,
-		});
+		}).exec();
 		const notif = await NotificationModel.find({
 			recipient: req.user!.cid,
 			deleted: false,
@@ -230,7 +232,8 @@ router.get('/notifications', getUser, async (req: Request, res: Response) => {
 			.skip(limit * (page - 1))
 			.limit(limit)
 			.sort({ createdAt: 'desc' })
-			.lean();
+			.lean()
+			.exec();
 
 		res.stdRes.data = {
 			unread,
@@ -252,7 +255,7 @@ router.put('/notifications/read/all', getUser, async (req: Request, res: Respons
 			{
 				read: true,
 			},
-		);
+		).exec();
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
 		req.app.Sentry.captureException(e);
@@ -271,7 +274,7 @@ router.put('/notifications/read/:id', async (req: Request, res: Response) => {
 		}
 		await NotificationModel.findByIdAndUpdate(req.params.id, {
 			read: true,
-		});
+		}).exec();
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
 		req.app.Sentry.captureException(e);
@@ -282,7 +285,7 @@ router.put('/notifications/read/:id', async (req: Request, res: Response) => {
 
 router.delete('/notifications', getUser, async (req: Request, res: Response) => {
 	try {
-		await NotificationModel.deleteMany({ recipient: req.user!.cid });
+		await NotificationModel.deleteMany({ recipient: req.user!.cid }).exec();
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
 		req.app.Sentry.captureException(e);
@@ -300,7 +303,7 @@ router.put('/profile', getUser, async (req: Request, res: Response) => {
 			{
 				bio,
 			},
-		);
+		).exec();
 
 		await req.app.dossier.create({
 			by: req.user!.cid,

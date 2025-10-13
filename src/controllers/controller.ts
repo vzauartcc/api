@@ -48,7 +48,8 @@ router.get('/', async (req: Request, res: Response) => {
 					select: '-reason',
 				},
 			])
-			.lean({ virtuals: true });
+			.lean({ virtuals: true })
+			.exec();
 
 		const home = allUsers.filter((user) => user.vis === false && user.member === true);
 		const visiting = allUsers.filter((user) => user.vis === true && user.member === true);
@@ -92,7 +93,8 @@ router.get('/staff', async (req: Request, res: Response) => {
 		const users = await UserModel.find()
 			.select('fname lname cid roleCodes')
 			.sort({ lname: 'asc', fname: 'asc' })
-			.lean<IUserLean[]>();
+			.lean<IUserLean[]>()
+			.exec();
 
 		if (!users) {
 			throw {
@@ -167,7 +169,7 @@ router.get('/staff', async (req: Request, res: Response) => {
 
 router.get('/role', async (req: Request, res: Response) => {
 	try {
-		const roles = await RoleModel.find().lean();
+		const roles = await RoleModel.find().lean().exec();
 		res.stdRes.data = roles;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
@@ -179,7 +181,7 @@ router.get('/role', async (req: Request, res: Response) => {
 
 router.get('/oi', async (req: Request, res: Response) => {
 	try {
-		const oi = await UserModel.find({ deletedAt: null, member: true }).select('oi').lean();
+		const oi = await UserModel.find({ deletedAt: null, member: true }).select('oi').lean().exec();
 
 		if (!oi) {
 			throw {
@@ -202,7 +204,9 @@ router.get('/visit', getUser, isManagement, async (req: Request, res: Response) 
 		const applications = await VisitApplicationModel.find({
 			deletedAt: null,
 			acceptedAt: null,
-		}).lean();
+		})
+			.lean()
+			.exec();
 		res.stdRes.data = applications;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
@@ -224,7 +228,8 @@ router.get('/absence', getUser, isManagement, async (req: Request, res: Response
 			.sort({
 				expirationDate: 'asc',
 			})
-			.lean();
+			.lean()
+			.exec();
 
 		res.stdRes.data = absences;
 	} catch (e) {
@@ -294,7 +299,7 @@ router.delete('/absence/:id', getUser, isManagement, async (req: Request, res: R
 			};
 		}
 
-		const absence = await AbsenceModel.findOne({ _id: req.params.id });
+		const absence = await AbsenceModel.findOne({ _id: req.params.id }).exec();
 		if (!absence) {
 			throw {
 				code: 400,
@@ -376,7 +381,8 @@ router.get('/:cid', getUser, async (req: Request, res: Response) => {
 					select: '-reason',
 				},
 			])
-			.lean({ virtuals: true });
+			.lean({ virtuals: true })
+			.exec();
 
 		if (!user) {
 			throw {
@@ -408,7 +414,7 @@ router.put('/:cid/rating', internalAuth, async (req: Request, res: Response) => 
 	}
 
 	try {
-		const user = await UserModel.findOne({ cid: req.params.cid });
+		const user = await UserModel.findOne({ cid: req.params.cid }).exec();
 
 		if (!user) {
 			throw {
@@ -439,7 +445,7 @@ router.put('/:cid/rating', internalAuth, async (req: Request, res: Response) => 
 // @TODO: fix this to remove the ts-ignore and structure the data properly
 router.get('/stats/:cid', async (req: Request, res: Response) => {
 	try {
-		const controllerHours = await ControllerHoursModel.find({ cid: req.params.cid });
+		const controllerHours = await ControllerHoursModel.find({ cid: req.params.cid }).exec();
 
 		const hours = {
 			gtyear: {
@@ -532,7 +538,7 @@ router.get('/visit/status', getUser, async (req: Request, res: Response) => {
 		const count = await VisitApplicationModel.countDocuments({
 			cid: req.user?.cid,
 			deleted: false,
-		});
+		}).exec();
 		res.stdRes.data = count;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
@@ -544,7 +550,7 @@ router.get('/visit/status', getUser, async (req: Request, res: Response) => {
 
 router.put('/visit/:cid', getUser, hasRole(['atm', 'datm']), async (req, res) => {
 	try {
-		const application = await VisitApplicationModel.findOne({ cid: req.params.cid });
+		const application = await VisitApplicationModel.findOne({ cid: req.params.cid }).exec();
 		if (!application) {
 			throw {
 				code: 404,
@@ -554,7 +560,7 @@ router.put('/visit/:cid', getUser, hasRole(['atm', 'datm']), async (req, res) =>
 
 		await application.delete();
 
-		const user = await UserModel.findOne({ cid: req.params.cid });
+		const user = await UserModel.findOne({ cid: req.params.cid }).exec();
 		if (!user) {
 			throw {
 				code: 404,
@@ -562,7 +568,7 @@ router.put('/visit/:cid', getUser, hasRole(['atm', 'datm']), async (req, res) =>
 			};
 		}
 
-		const oi = await UserModel.find({ deletedAt: null, member: true }).select('oi').lean();
+		const oi = await UserModel.find({ deletedAt: null, member: true }).select('oi').lean().exec();
 		if (!oi || oi.length === 0) {
 			throw {
 				code: 500,
@@ -635,7 +641,7 @@ router.delete(
 	hasRole(['atm', 'datm']),
 	async (req: Request, res: Response) => {
 		try {
-			const application = await VisitApplicationModel.findOne({ cid: req.params.cid });
+			const application = await VisitApplicationModel.findOne({ cid: req.params.cid }).exec();
 			if (!application) {
 				throw {
 					code: 404,
@@ -645,7 +651,7 @@ router.delete(
 
 			await application.delete();
 
-			const user = await UserModel.findOne({ cid: req.params.cid });
+			const user = await UserModel.findOne({ cid: req.params.cid }).exec();
 			if (!user) {
 				throw {
 					code: 404,
@@ -683,7 +689,7 @@ router.delete(
 
 router.post('/:cid', internalAuth, async (req: Request, res: Response) => {
 	try {
-		const user = await UserModel.findOne({ cid: req.params.cid });
+		const user = await UserModel.findOne({ cid: req.params.cid }).exec();
 		if (user) {
 			throw {
 				code: 409,
@@ -698,7 +704,7 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response) => {
 			};
 		}
 
-		const oi = await UserModel.find({ deletedAt: null, member: true }).select('oi').lean();
+		const oi = await UserModel.find({ deletedAt: null, member: true }).select('oi').lean().exec();
 		const userOi = generateOperatingInitials(
 			req.body.fname,
 			req.body.lname,
@@ -770,7 +776,7 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response) => {
 
 router.put('/:cid/member', internalAuth, async (req: Request, res: Response) => {
 	try {
-		const user = await UserModel.findOne({ cid: req.params.cid });
+		const user = await UserModel.findOne({ cid: req.params.cid }).exec();
 
 		if (!user) {
 			throw {
@@ -779,7 +785,7 @@ router.put('/:cid/member', internalAuth, async (req: Request, res: Response) => 
 			};
 		}
 
-		const oi = await UserModel.find({ deletedAt: null, member: true }).select('oi').lean();
+		const oi = await UserModel.find({ deletedAt: null, member: true }).select('oi').lean().exec();
 
 		user.member = req.body.member;
 		user.oi = req.body.member
@@ -844,7 +850,7 @@ router.put('/:cid/member', internalAuth, async (req: Request, res: Response) => 
 
 router.put('/:cid/visit', internalAuth, async (req: Request, res: Response) => {
 	try {
-		const user = await UserModel.findOne({ cid: req.params.cid });
+		const user = await UserModel.findOne({ cid: req.params.cid }).exec();
 
 		if (!user) {
 			throw {
@@ -897,7 +903,7 @@ router.put(
 			}
 
 			// Find the existing user
-			const user = await UserModel.findOne({ cid: req.params.cid });
+			const user = await UserModel.findOne({ cid: req.params.cid }).exec();
 
 			if (!user) {
 				throw {
@@ -951,7 +957,7 @@ router.put(
 					certificationDate: updatedCertificationDate, // Update certificationDate with gainedDate
 				},
 				{ new: true }, // Return the updated document after applying changes
-			);
+			).exec();
 
 			// Log the update in the user's dossier
 			await req.app.dossier.create({
@@ -1006,7 +1012,7 @@ router.delete('/:cid', getUser, hasRole(['atm', 'datm']), async (req: Request, r
 				member: false,
 				removalDate: new Date().toISOString(),
 			},
-		);
+		).exec();
 
 		if (!user) {
 			throw {

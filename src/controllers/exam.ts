@@ -126,7 +126,7 @@ router.patch(
 					// createdBy field is not updated here, assuming it remains unchanged
 				},
 				{ new: true },
-			); // { new: true } option returns the document after update
+			).exec(); // { new: true } option returns the document after update
 
 			if (!updatedExam) {
 				return res.status(404).json({ message: 'Exam not found' });
@@ -154,7 +154,7 @@ router.post('/exams/:examId/start', getUser, async (req: Request, res: Response)
 		user: userId,
 		status: 'in_progress',
 		endTime: { $gt: now }, // Check if the attempt is still within the time limit
-	});
+	}).exec();
 
 	if (existingAttempt) {
 		// Calculate remaining time for the existing attempt
@@ -167,15 +167,17 @@ router.post('/exams/:examId/start', getUser, async (req: Request, res: Response)
 	}
 
 	// Fetch the exam details
-	const exam = await ExamModel.findById(examId);
+	const exam = await ExamModel.findById(examId).exec();
 	if (!exam) {
 		return res.status(404).json({ message: 'Exam not found.' });
 	}
 
 	// Find the most recent attempt for this exam and user
-	const latestAttempt = await ExamAttemptModel.findOne({ exam: examId, user: userId }).sort({
-		createdAt: -1,
-	}); // Assuming createdAt is a field that tracks when the attempt was made
+	const latestAttempt = await ExamAttemptModel.findOne({ exam: examId, user: userId })
+		.sort({
+			createdAt: -1,
+		})
+		.exec(); // Assuming createdAt is a field that tracks when the attempt was made
 
 	if (latestAttempt) {
 		// Check if the maximum attempts have been reached
@@ -195,8 +197,8 @@ router.post('/exams/:examId/start', getUser, async (req: Request, res: Response)
 
 	// Fetch questions for the test type and randomly select the required subset
 	// @TODO: figure out what testType was suppose to be
-	// const allQuestions = await QuestionModel.find({ testType: exam.testType });
-	const allQuestions = await QuestionModel.find({});
+	// const allQuestions = await QuestionModel.find({ testType: exam.testType }).exec();
+	const allQuestions = await QuestionModel.find({}).exec();
 	const questionSubsetSize = exam.questionSubsetSize || 30; // Default to 30 if not specified
 	const selectedQuestions = selectRandomSubset(allQuestions, questionSubsetSize);
 	const questions = selectedQuestions.sort(() => 0.5 - Math.random());
@@ -232,7 +234,7 @@ router.post('/exams/:examId/submit', getUser, async (req: Request, res: Response
 		const examId = req.params.examId;
 		const userId = req.user!._id;
 
-		const exam = await ExamModel.findById(examId).populate('questions');
+		const exam = await ExamModel.findById(examId).populate('questions').exec();
 		if (!exam) {
 			return res.status(404).json({ message: 'Exam not found' });
 		}
@@ -301,7 +303,8 @@ router.get(
 			// Fetch all exams, populate createdBy, and exclude questions
 			const exams = (await ExamModel.find()
 				.populate('createdBy', 'fname lname')
-				.lean()) as unknown as IExamPopulated[];
+				.lean()
+				.exec()) as unknown as IExamPopulated[];
 
 			// Transform exams to include questions count (assuming questions are embedded)
 			const examsWithQuestionCountAndCreator = exams.map((exam) => ({
@@ -330,7 +333,9 @@ router.get(
 	hasRole(['atm', 'datm', 'ta']),
 	async (req: Request, res: Response) => {
 		try {
-			const exam = await ExamModel.findById(req.params.id).populate('createdBy', 'fname lname');
+			const exam = await ExamModel.findById(req.params.id)
+				.populate('createdBy', 'fname lname')
+				.exec();
 			if (!exam) {
 				return res.status(404).json({ message: 'Exam not found' });
 			}
@@ -349,7 +354,7 @@ router.get('/exams/:id/results', getUser, async (req: Request, res: Response) =>
 		const examAttempt = await ExamAttemptModel.findOne({
 			exam: req.params.id,
 			user: req.user!._id, // Ensure results are fetched for the logged-in user
-		});
+		}).exec();
 		if (!examAttempt) {
 			return res.status(404).json({ message: 'Results not found' });
 		}
@@ -377,7 +382,7 @@ router.patch(
 				exam: examId,
 				user: userId,
 				status: 'in_progress', // Assuming you want to update an in-progress attempt
-			});
+			}).exec();
 
 			if (!attempt) {
 				return res.status(404).json({ message: 'Exam attempt not found or not in progress.' });
@@ -420,7 +425,7 @@ router.delete(
 	async (req: Request, res: Response) => {
 		try {
 			// Attempt to find and delete the exam by ID
-			const deletedExam = await ExamModel.findById(req.params.id);
+			const deletedExam = await ExamModel.findById(req.params.id).exec();
 
 			// If no exam was found and deleted, return a 404 error
 			if (!deletedExam) {

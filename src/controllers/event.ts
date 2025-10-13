@@ -34,7 +34,8 @@ router.get('/', async (req: Request, res: Response) => {
 			deleted: false,
 		})
 			.sort({ eventStart: 'asc' })
-			.lean();
+			.lean()
+			.exec();
 
 		res.stdRes.data = events;
 	} catch (e) {
@@ -55,7 +56,7 @@ router.get('/archive', async (req: Request, res: Response) => {
 				$lt: new Date(new Date().toUTCString()),
 			},
 			deleted: false,
-		});
+		}).exec();
 		const events = await EventModel.find({
 			eventEnd: {
 				$lt: new Date(new Date().toUTCString()),
@@ -65,7 +66,8 @@ router.get('/archive', async (req: Request, res: Response) => {
 			.skip(limit * (page - 1))
 			.limit(limit)
 			.sort({ eventStart: 'desc' })
-			.lean();
+			.lean()
+			.exec();
 
 		res.stdRes.data = {
 			amount: count,
@@ -84,7 +86,7 @@ router.get('/staffingRequest', async (req: Request, res: Response) => {
 		const page = +(req.query.page as string) || 1;
 		const limit = +(req.query.limit as string) || 10;
 
-		const count = await StaffingRequestModel.countDocuments({ deleted: false });
+		const count = await StaffingRequestModel.countDocuments({ deleted: false }).exec();
 		let requests: IStaffingRequest[] = [];
 
 		if (count > 0) {
@@ -92,7 +94,8 @@ router.get('/staffingRequest', async (req: Request, res: Response) => {
 				.skip(limit * (page - 1))
 				.limit(limit)
 				.sort({ date: 'desc' })
-				.lean();
+				.lean()
+				.exec();
 		}
 
 		res.stdRes.data = {
@@ -110,7 +113,7 @@ router.get('/staffingRequest', async (req: Request, res: Response) => {
 // @TODO: fix this to be part of the StandardResponse
 router.get('/staffingRequest/:id', async (req: Request, res: Response) => {
 	try {
-		const staffingRequest = await StaffingRequestModel.findById(req.params.id);
+		const staffingRequest = await StaffingRequestModel.findById(req.params.id).exec();
 
 		if (!staffingRequest) {
 			return res.status(404).json({ error: 'Staffing request not found' });
@@ -130,7 +133,9 @@ router.get('/:slug', async (req: Request, res: Response) => {
 		const event = await EventModel.findOne({
 			url: req.params.slug,
 			deleted: false,
-		}).lean();
+		})
+			.lean()
+			.exec();
 
 		res.stdRes.data = event;
 	} catch (e) {
@@ -154,7 +159,7 @@ router.get('/:slug/positions', async (req: Request, res: Response) => {
 			.populate('positions.user', 'cid fname lname roleCodes')
 			.populate('signups.user', 'fname lname cid vis rating certCodes')
 			.lean({ virtuals: true })
-			.catch(console.error);
+			.exec();
 
 		res.stdRes.data = event;
 	} catch (e) {
@@ -203,7 +208,7 @@ router.put('/:slug/signup', getUser, async (req: Request, res: Response) => {
 					},
 				},
 			},
-		);
+		).exec();
 
 		if (!event) {
 			throw {
@@ -236,7 +241,7 @@ router.delete('/:slug/signup', getUser, async (req: Request, res: Response) => {
 					},
 				},
 			},
-		);
+		).exec();
 
 		if (!event) {
 			throw {
@@ -273,7 +278,7 @@ router.delete(
 						},
 					},
 				},
-			);
+			).exec();
 
 			if (!signup) {
 				throw {
@@ -291,7 +296,7 @@ router.delete(
 								'positions.$.takenBy': null,
 							},
 						},
-					);
+					).exec();
 				}
 			}
 
@@ -315,7 +320,7 @@ router.put(
 	hasRole(['atm', 'datm', 'ec', 'wm']),
 	async (req: Request, res: Response) => {
 		try {
-			const user = await UserModel.findOne({ cid: req.params.cid });
+			const user = await UserModel.findOne({ cid: req.params.cid }).exec();
 			if (!user) {
 				throw {
 					code: 400,
@@ -323,7 +328,7 @@ router.put(
 				};
 			}
 
-			const event = await EventModel.findOne({ url: req.params.slug });
+			const event = await EventModel.findOne({ url: req.params.slug }).exec();
 
 			if (!event) {
 				throw {
@@ -353,7 +358,7 @@ router.put(
 						},
 					},
 				},
-			);
+			).exec();
 
 			await req.app.dossier.create({
 				by: req.user!.cid,
@@ -382,7 +387,7 @@ router.post(
 	async (req: Request, res: Response) => {
 		try {
 			const url = req.body.url;
-			const eventData = await EventModel.findOne({ url: url });
+			const eventData = await EventModel.findOne({ url: url }).exec();
 			if (!eventData) {
 				throw {
 					code: 400,
@@ -401,7 +406,7 @@ router.post(
 						};
 					} else {
 						try {
-							const res1 = await UserModel.findOne({ cid: position.takenBy });
+							const res1 = await UserModel.findOne({ cid: position.takenBy }).exec();
 							if (!res1) {
 								throw {
 									code: 500,
@@ -500,7 +505,7 @@ router.post(
 							{ url: url },
 							{ $set: { discordId: String(messageId) } },
 							{ returnOriginal: false },
-						);
+						).exec();
 					} else {
 						return res.status(404).json({ message: 'Event could not be sent', status: 404 });
 					}
@@ -595,7 +600,7 @@ router.put(
 	upload.single('banner'),
 	async (req: Request, res: Response) => {
 		try {
-			const eventData = await EventModel.findOne({ url: req.params.slug });
+			const eventData = await EventModel.findOne({ url: req.params.slug }).exec();
 			if (!eventData) {
 				throw {
 					code: 400,
@@ -730,7 +735,7 @@ router.delete(
 	hasRole(['atm', 'datm', 'ec', 'wm']),
 	async (req: Request, res: Response) => {
 		try {
-			const deleteEvent = await EventModel.findOne({ url: req.params.slug });
+			const deleteEvent = await EventModel.findOne({ url: req.params.slug }).exec();
 
 			if (!deleteEvent) {
 				return res.status(404).json({ error: 'Event not found' });
@@ -796,7 +801,7 @@ router.put(
 				{
 					new: true,
 				},
-			);
+			).exec();
 
 			if (!eventData) {
 				throw {
@@ -854,12 +859,11 @@ router.put(
 						submitted: true,
 					},
 				},
-			);
+			).exec();
 
-			const eventData = await EventModel.findOne(
-				{ url: req.params.slug },
-				'name url signups',
-			).populate('signups.user', 'fname lname email cid');
+			const eventData = await EventModel.findOne({ url: req.params.slug }, 'name url signups')
+				.populate('signups.user', 'fname lname email cid')
+				.exec();
 			if (!eventData) {
 				throw {
 					code: 404,
@@ -914,7 +918,7 @@ router.put(
 						open: false,
 					},
 				},
-			);
+			).exec();
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
 			req.app.Sentry.captureException(e);
@@ -954,7 +958,7 @@ router.post('/staffingRequest', async (req: Request, res: Response) => {
 			accepted: false,
 			name: req.body.name,
 			email: req.body.email,
-		});
+		}).exec();
 
 		console.log(count);
 		if (count >= 3) {
@@ -1010,7 +1014,7 @@ router.post('/staffingRequest', async (req: Request, res: Response) => {
 // @TODO: convert to StandardResponse
 router.put('/staffingRequest/:id/accept', async (req: Request, res: Response) => {
 	try {
-		const staffingRequest = await StaffingRequestModel.findById(req.params.id);
+		const staffingRequest = await StaffingRequestModel.findById(req.params.id).exec();
 
 		if (!staffingRequest) {
 			return res
@@ -1040,7 +1044,7 @@ router.put(
 	hasRole(['atm', 'datm', 'ec', 'wm']),
 	async (req: Request, res: Response) => {
 		try {
-			const staffingRequest = await StaffingRequestModel.findById(req.params.id);
+			const staffingRequest = await StaffingRequestModel.findById(req.params.id).exec();
 
 			if (!staffingRequest) {
 				return res
@@ -1106,7 +1110,7 @@ router.delete(
 	hasRole(['atm', 'datm', 'ec', 'wm']),
 	async (req: Request, res: Response) => {
 		try {
-			const staffingRequest = await StaffingRequestModel.findById(req.params.id);
+			const staffingRequest = await StaffingRequestModel.findById(req.params.id).exec();
 
 			if (!staffingRequest) {
 				return res
