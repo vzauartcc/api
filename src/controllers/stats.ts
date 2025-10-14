@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { Router, type Request, type Response } from 'express';
-import { DateTime as L } from 'luxon';
+import { DateTime } from 'luxon';
 import type { FlattenMaps } from 'mongoose';
 import { convertToReturnDetails } from '../app.js';
 import { hasRole } from '../middleware/auth.js';
@@ -220,14 +220,14 @@ router.get(
 
 // Helper function to calculate the start and end of a quarter given a year and quarter number
 function getQuarterStartEnd(quarter: number, year: number) {
-	const startOfQuarter = L.utc(year)
+	const startOfQuarter = DateTime.utc(year)
 		.startOf('year')
 		.plus({ months: (quarter - 1) * 3 }); // First day of the quarter
 	const endOfQuarter = startOfQuarter.plus({ months: 3 }).minus({ days: 1 }).endOf('day'); // Last day of the quarter
 	return { startOfQuarter, endOfQuarter };
 }
 
-function isExempt(user: IUser, startOfQuarter: L<true> | L<false>) {
+function isExempt(user: IUser, startOfQuarter: DateTime<true> | DateTime<false>) {
 	if (user.cid === testUserCID) {
 		console.log(`Checking exemption for test user ${user.cid}`);
 		console.log(`User joinDate: ${user.joinDate}, Start of Quarter: ${startOfQuarter}`);
@@ -298,8 +298,9 @@ router.get(
 
 			// SECTION: Get Quarter & Year
 			const quarter =
-				parseInt(req.query['quarter'] as string, 10) || Math.floor((L.utc().month - 1) / 3) + 1;
-			const year = parseInt(req.query['year'] as string, 10) || L.utc().year;
+				parseInt(req.query['quarter'] as string, 10) ||
+				Math.floor((DateTime.utc().month - 1) / 3) + 1;
+			const year = parseInt(req.query['year'] as string, 10) || DateTime.utc().year;
 			const { startOfQuarter, endOfQuarter } = getQuarterStartEnd(quarter, year);
 			//console.log(`Quarter: ${quarter}, Year: ${year}, Start: ${startOfQuarter}, End: ${endOfQuarter}`);
 
@@ -474,7 +475,7 @@ router.post('/fifty/:cid', internalAuth, async (req: Request, res: Response) => 
 });
 
 const getFiftyData = async (cid: string) => {
-	const today = L.utc();
+	const today = DateTime.utc();
 	const chkDate = today.minus({ days: 60 });
 
 	const { data: fiftyData } = await axios.get(

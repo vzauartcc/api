@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { Router, type Request, type Response } from 'express';
-import { DateTime as L } from 'luxon';
+import { DateTime } from 'luxon';
 import { convertToReturnDetails, uploadToS3 } from '../app.js';
 import type { CustomMailOptions } from '../mailer.js';
 import transporter from '../mailer.js';
@@ -474,9 +474,10 @@ router.get('/stats/:cid', async (req: Request, res: Response) => {
 			app: 'app',
 			ctr: 'ctr',
 		};
-		const today = L.utc();
+		const today = DateTime.utc();
 
-		const getMonthYearString = (date: L<true> | L<false>) => date.toFormat('LLL yyyy');
+		const getMonthYearString = (date: DateTime<true> | DateTime<false>) =>
+			date.toFormat('LLL yyyy');
 
 		for (let i = 0; i < 12; i++) {
 			const theMonth = today.minus({ months: i });
@@ -500,8 +501,8 @@ router.get('/stats/:cid', async (req: Request, res: Response) => {
 			const thePos = sess.position.toLowerCase().match(/([a-z]{3})$/);
 
 			if (thePos && thePos[1]) {
-				const start = L.fromJSDate(sess.timeStart).toUTC();
-				const end = L.fromJSDate(sess.timeEnd).toUTC();
+				const start = DateTime.fromJSDate(sess.timeStart).toUTC();
+				const end = DateTime.fromJSDate(sess.timeEnd).toUTC();
 
 				// @ts-ignore
 				const type = pos[thePos[1]];
