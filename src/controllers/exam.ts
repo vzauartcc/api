@@ -60,7 +60,7 @@ const createExamValidation = [
 			return res.status(400).json({ errors });
 		}
 
-		next();
+		return next();
 	},
 ];
 
@@ -94,10 +94,11 @@ router.post(
 				createdBy: req.user!._id,
 			});
 			await newExam.save();
-			res.status(201).json({ message: 'Exam created successfully', examId: newExam._id });
+
+			return res.status(201).json({ message: 'Exam created successfully', examId: newExam._id });
 		} catch (error) {
 			console.error('Error creating exam:', error);
-			res.status(500).json({ message: 'Internal server error' });
+			return res.status(500).json({ message: 'Internal server error' });
 		}
 	},
 );
@@ -133,10 +134,10 @@ router.patch(
 			}
 
 			// Respond with the updated exam information
-			res.json({ message: 'Exam updated successfully', exam: updatedExam });
+			return res.json({ message: 'Exam updated successfully', exam: updatedExam });
 		} catch (error) {
 			console.error('Error updating exam:', error);
-			res.status(500).json({ message: 'Internal server error' });
+			return res.status(500).json({ message: 'Internal server error' });
 		}
 	},
 );
@@ -221,7 +222,7 @@ router.post('/exams/:examId/start', getUser, async (req: Request, res: Response)
 	await newAttempt.save();
 	// Send back the time remaining along with attempt details
 	const timeRemaining = newAttempt.endTime.getTime() - Date.now();
-	res
+	return res
 		.status(201)
 		.json({ message: 'Exam started successfully', attemptId: newAttempt._id, timeRemaining });
 });
@@ -231,7 +232,7 @@ router.post('/exams/:examId/start', getUser, async (req: Request, res: Response)
 router.post('/exams/:examId/submit', getUser, async (req: Request, res: Response) => {
 	try {
 		const { responses } = req.body; // Expected format: [{ questionId, selectedOption }]
-		const examId = req.params.examId;
+		const examId = req.params['examId'];
 		const userId = req.user!._id;
 
 		const exam = await ExamModel.findById(examId).populate('questions').exec();
@@ -276,7 +277,7 @@ router.post('/exams/:examId/submit', getUser, async (req: Request, res: Response
 		await examAttempt.save();
 
 		// Respond with score and detailed results
-		res.status(200).json({
+		return res.status(200).json({
 			message: 'Exam submitted successfully',
 			score,
 			passed,
@@ -284,7 +285,7 @@ router.post('/exams/:examId/submit', getUser, async (req: Request, res: Response
 		});
 	} catch (error) {
 		console.error('Error submitting exam:', error);
-		res.status(500).json({ message: 'Internal server error' });
+		return res.status(500).json({ message: 'Internal server error' });
 	}
 });
 
@@ -333,7 +334,7 @@ router.get(
 	hasRole(['atm', 'datm', 'ta']),
 	async (req: Request, res: Response) => {
 		try {
-			const exam = await ExamModel.findById(req.params.id)
+			const exam = await ExamModel.findById(req.params['id'])
 				.populate('createdBy', 'fname lname')
 				.exec();
 			if (!exam) {
@@ -352,7 +353,7 @@ router.get(
 router.get('/exams/:id/results', getUser, async (req: Request, res: Response) => {
 	try {
 		const examAttempt = await ExamAttemptModel.findOne({
-			exam: req.params.id,
+			exam: req.params['id'],
 			user: req.user!._id, // Ensure results are fetched for the logged-in user
 		}).exec();
 		if (!examAttempt) {
@@ -425,7 +426,7 @@ router.delete(
 	async (req: Request, res: Response) => {
 		try {
 			// Attempt to find and delete the exam by ID
-			const deletedExam = await ExamModel.findById(req.params.id).exec();
+			const deletedExam = await ExamModel.findById(req.params['id']).exec();
 
 			// If no exam was found and deleted, return a 404 error
 			if (!deletedExam) {
@@ -435,10 +436,10 @@ router.delete(
 			await deletedExam.delete();
 
 			// Respond with success message
-			res.json({ message: 'Exam successfully deleted', examId: req.params.id });
+			return res.json({ message: 'Exam successfully deleted', examId: req.params['id'] });
 		} catch (error) {
 			console.error('Error deleting exam:', error);
-			res.status(500).json({ message: 'Internal server error' });
+			return res.status(500).json({ message: 'Internal server error' });
 		}
 	},
 );

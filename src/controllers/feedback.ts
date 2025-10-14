@@ -14,8 +14,8 @@ router.get(
 	hasRole(['atm', 'datm', 'ta', 'wm']),
 	async (req: Request, res: Response) => {
 		try {
-			const page = +(req.query.page as string) || 1;
-			const limit = +(req.query.limit as string) || 20;
+			const page = +(req.query['page'] as string) || 1;
+			const limit = +(req.query['limit'] as string) || 20;
 
 			const amount = await FeedbackModel.countDocuments({
 				$or: [{ approved: true }, { deleted: true }],
@@ -141,7 +141,7 @@ router.put(
 		// Approve feedback
 		try {
 			const approved = await FeedbackModel.findOneAndUpdate(
-				{ _id: req.params.id },
+				{ _id: req.params['id'] },
 				{
 					approved: true,
 				},
@@ -185,7 +185,7 @@ router.put(
 	async (req: Request, res: Response) => {
 		// Reject feedback
 		try {
-			const feedback = await FeedbackModel.findOne({ _id: req.params.id }).exec();
+			const feedback = await FeedbackModel.findOne({ _id: req.params['id'] }).exec();
 			if (!feedback) {
 				throw {
 					code: 404,
@@ -211,8 +211,8 @@ router.put(
 
 router.get('/own', getUser, async (req: Request, res: Response) => {
 	try {
-		const page = +(req.query.page as string) || 1;
-		const limit = +(req.query.limit as string) || 10;
+		const page = +(req.query['page'] as string) || 1;
+		const limit = +(req.query['limit'] as string) || 10;
 
 		const amount = await FeedbackModel.countDocuments({
 			approved: true,

@@ -48,8 +48,8 @@ router.get('/', async (req: Request, res: Response) => {
 
 router.get('/archive', async (req: Request, res: Response) => {
 	try {
-		const page = +(req.query.page as string) || 1;
-		const limit = +(req.query.limit as string) || 10;
+		const page = +(req.query['page'] as string) || 1;
+		const limit = +(req.query['limit'] as string) || 10;
 
 		const count = await EventModel.countDocuments({
 			eventEnd: {
@@ -83,8 +83,8 @@ router.get('/archive', async (req: Request, res: Response) => {
 
 router.get('/staffingRequest', async (req: Request, res: Response) => {
 	try {
-		const page = +(req.query.page as string) || 1;
-		const limit = +(req.query.limit as string) || 10;
+		const page = +(req.query['page'] as string) || 1;
+		const limit = +(req.query['limit'] as string) || 10;
 
 		const count = await StaffingRequestModel.countDocuments({ deleted: false }).exec();
 		let requests: IStaffingRequest[] = [];
@@ -113,7 +113,7 @@ router.get('/staffingRequest', async (req: Request, res: Response) => {
 // @TODO: fix this to be part of the StandardResponse
 router.get('/staffingRequest/:id', async (req: Request, res: Response) => {
 	try {
-		const staffingRequest = await StaffingRequestModel.findById(req.params.id).exec();
+		const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
 
 		if (!staffingRequest) {
 			return res.status(404).json({ error: 'Staffing request not found' });
@@ -131,7 +131,7 @@ router.get('/staffingRequest/:id', async (req: Request, res: Response) => {
 router.get('/:slug', async (req: Request, res: Response) => {
 	try {
 		const event = await EventModel.findOne({
-			url: req.params.slug,
+			url: req.params['slug'],
 			deleted: false,
 		})
 			.lean()
@@ -149,7 +149,7 @@ router.get('/:slug', async (req: Request, res: Response) => {
 router.get('/:slug/positions', async (req: Request, res: Response) => {
 	try {
 		const event = await EventModel.findOne({
-			url: req.params.slug,
+			url: req.params['slug'],
 			deleted: false,
 		})
 			.sort({
@@ -199,7 +199,7 @@ router.put('/:slug/signup', getUser, async (req: Request, res: Response) => {
 		}
 
 		const event = await EventModel.findOneAndUpdate(
-			{ url: req.params.slug },
+			{ url: req.params['slug'] },
 			{
 				$push: {
 					signups: {
@@ -233,7 +233,7 @@ router.put('/:slug/signup', getUser, async (req: Request, res: Response) => {
 router.delete('/:slug/signup', getUser, async (req: Request, res: Response) => {
 	try {
 		const event = await EventModel.findOneAndUpdate(
-			{ url: req.params.slug },
+			{ url: req.params['slug'] },
 			{
 				$pull: {
 					signups: {
@@ -270,11 +270,11 @@ router.delete(
 	async (req: Request, res: Response) => {
 		try {
 			const signup = await EventModel.findOneAndUpdate(
-				{ url: req.params.slug },
+				{ url: req.params['slug'] },
 				{
 					$pull: {
 						signups: {
-							cid: req.params.cid,
+							cid: req.params['cid'],
 						},
 					},
 				},
@@ -290,7 +290,7 @@ router.delete(
 			for (const position of signup.positions) {
 				if (position.takenBy === req.user!.cid) {
 					await EventModel.findOneAndUpdate(
-						{ url: req.params.slug, 'positions.takenBy': req.user!.cid },
+						{ url: req.params['slug'], 'positions.takenBy': req.user!.cid },
 						{
 							$set: {
 								'positions.$.takenBy': null,
@@ -302,7 +302,7 @@ router.delete(
 
 			await req.app.dossier.create({
 				by: req.user!.cid,
-				affected: req.params.cid,
+				affected: req.params['cid'],
 				action: `%b manually deleted the event signup for %a for the event *${signup.name}*.`,
 			});
 		} catch (e) {
@@ -320,7 +320,7 @@ router.put(
 	hasRole(['atm', 'datm', 'ec', 'wm']),
 	async (req: Request, res: Response) => {
 		try {
-			const user = await UserModel.findOne({ cid: req.params.cid }).exec();
+			const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
 			if (!user) {
 				throw {
 					code: 400,
@@ -328,7 +328,7 @@ router.put(
 				};
 			}
 
-			const event = await EventModel.findOne({ url: req.params.slug }).exec();
+			const event = await EventModel.findOne({ url: req.params['slug'] }).exec();
 
 			if (!event) {
 				throw {
@@ -338,7 +338,7 @@ router.put(
 			}
 
 			const isAlreadySignedUp = event.signups.some(
-				(signup: IEventSignup) => signup.cid.toString() === req.params.cid,
+				(signup: IEventSignup) => signup.cid.toString() === req.params['cid'],
 			);
 
 			if (isAlreadySignedUp) {
@@ -350,11 +350,11 @@ router.put(
 
 			// If not already signed up, proceed with adding
 			await EventModel.findOneAndUpdate(
-				{ url: req.params.slug },
+				{ url: req.params['slug'] },
 				{
 					$push: {
 						signups: {
-							cid: req.params.cid,
+							cid: req.params['cid'],
 						},
 					},
 				},
@@ -362,7 +362,7 @@ router.put(
 
 			await req.app.dossier.create({
 				by: req.user!.cid,
-				affected: req.params.cid,
+				affected: req.params['cid'],
 				action: `%b manually signed up %a for the event *${event.name}*.`,
 			});
 
@@ -422,6 +422,11 @@ router.post(
 							};
 						} catch (err) {
 							console.log(err);
+							return {
+								name: position.pos,
+								value: 'Unknown (Server Error)',
+								inline: true,
+							};
 						}
 					}
 				}),
@@ -450,7 +455,7 @@ router.post(
 								? undefined
 								: {
 										url:
-											`https://zauartcc.sfo3.digitaloceanspaces.com/${process.env.S3_FOLDER_PREFIX}/events/` +
+											`https://zauartcc.sfo3.digitaloceanspaces.com/${process.env['S3_FOLDER_PREFIX']}/events/` +
 											eventData.bannerUrl,
 									},
 					},
@@ -467,7 +472,7 @@ router.post(
 					fields: fieldsChunked[1],
 					image: {
 						url:
-							`https://zauartcc.sfo3.digitaloceanspaces.com/${process.env.S3_FOLDER_PREFIX}/events/` +
+							`https://zauartcc.sfo3.digitaloceanspaces.com/${process.env['S3_FOLDER_PREFIX']}/events/` +
 							eventData.bannerUrl,
 					},
 					footer: { text: 'Position information provided by WATSN' },
@@ -479,8 +484,8 @@ router.post(
 
 			const webhookUrl =
 				eventData.discordId === undefined
-					? process.env.DISCORD_WEBHOOK
-					: process.env.DISCORD_WEBHOOK + `/messages/${eventData.discordId}`;
+					? process.env['DISCORD_WEBHOOK']
+					: process.env['DISCORD_WEBHOOK'] + `/messages/${eventData.discordId}`;
 
 			if (!webhookUrl) {
 				throw {
@@ -600,7 +605,7 @@ router.put(
 	upload.single('banner'),
 	async (req: Request, res: Response) => {
 		try {
-			const eventData = await EventModel.findOne({ url: req.params.slug }).exec();
+			const eventData = await EventModel.findOne({ url: req.params['slug'] }).exec();
 			if (!eventData) {
 				throw {
 					code: 400,
@@ -735,7 +740,7 @@ router.delete(
 	hasRole(['atm', 'datm', 'ec', 'wm']),
 	async (req: Request, res: Response) => {
 		try {
-			const deleteEvent = await EventModel.findOne({ url: req.params.slug }).exec();
+			const deleteEvent = await EventModel.findOne({ url: req.params['slug'] }).exec();
 
 			if (!deleteEvent) {
 				return res.status(404).json({ error: 'Event not found' });
@@ -792,7 +797,7 @@ router.put(
 			const { position, cid } = req.body;
 
 			const eventData = await EventModel.findOneAndUpdate(
-				{ url: req.params.slug, 'positions._id': position },
+				{ url: req.params['slug'], 'positions._id': position },
 				{
 					$set: {
 						'positions.$.takenBy': cid || null,
@@ -852,7 +857,7 @@ router.put(
 	async (req: Request, res: Response) => {
 		try {
 			await EventModel.updateOne(
-				{ url: req.params.slug },
+				{ url: req.params['slug'] },
 				{
 					$set: {
 						positions: req.body.assignment,
@@ -861,7 +866,7 @@ router.put(
 				},
 			).exec();
 
-			const eventData = await EventModel.findOne({ url: req.params.slug }, 'name url signups')
+			const eventData = await EventModel.findOne({ url: req.params['slug'] }, 'name url signups')
 				.populate('signups.user', 'fname lname email cid')
 				.exec();
 			if (!eventData) {
@@ -912,7 +917,7 @@ router.put(
 	async (req: Request, res: Response) => {
 		try {
 			await EventModel.updateOne(
-				{ url: req.params.slug },
+				{ url: req.params['slug'] },
 				{
 					$set: {
 						open: false,
@@ -1014,7 +1019,7 @@ router.post('/staffingRequest', async (req: Request, res: Response) => {
 // @TODO: convert to StandardResponse
 router.put('/staffingRequest/:id/accept', async (req: Request, res: Response) => {
 	try {
-		const staffingRequest = await StaffingRequestModel.findById(req.params.id).exec();
+		const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
 
 		if (!staffingRequest) {
 			return res
@@ -1044,7 +1049,7 @@ router.put(
 	hasRole(['atm', 'datm', 'ec', 'wm']),
 	async (req: Request, res: Response) => {
 		try {
-			const staffingRequest = await StaffingRequestModel.findById(req.params.id).exec();
+			const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
 
 			if (!staffingRequest) {
 				return res
@@ -1110,7 +1115,7 @@ router.delete(
 	hasRole(['atm', 'datm', 'ec', 'wm']),
 	async (req: Request, res: Response) => {
 		try {
-			const staffingRequest = await StaffingRequestModel.findById(req.params.id).exec();
+			const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
 
 			if (!staffingRequest) {
 				return res

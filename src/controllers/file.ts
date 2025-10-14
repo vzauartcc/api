@@ -38,7 +38,7 @@ router.get('/downloads', async (req: Request, res: Response) => {
 
 router.get('/downloads/:id', async (req: Request, res: Response) => {
 	try {
-		const download = await DownloadModel.findById(req.params.id).lean().exec();
+		const download = await DownloadModel.findById(req.params['id']).lean().exec();
 		res.stdRes.data = download;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
@@ -108,14 +108,14 @@ router.put(
 	hasRole(['atm', 'datm', 'ta', 'fe', 'wm']),
 	async (req: Request, res: Response) => {
 		try {
-			const download = await DownloadModel.findById(req.params.id).exec();
+			const download = await DownloadModel.findById(req.params['id']).exec();
 			if (!download) {
 				throw { code: 404, message: 'Download not found' };
 			}
 
 			if (!req.file) {
 				// ✅ No updated file, just update metadata
-				await DownloadModel.findByIdAndUpdate(req.params.id, {
+				await DownloadModel.findByIdAndUpdate(req.params['id'], {
 					name: req.body.name,
 					description: req.body.description,
 					category: req.body.category,
@@ -136,7 +136,7 @@ router.put(
 				await uploadToS3(`downloads/${req.file.filename}`, tmpFile, req.file.mimetype);
 
 				// ✅ **Step 3: Update Database with New File Name**
-				await DownloadModel.findByIdAndUpdate(req.params.id, {
+				await DownloadModel.findByIdAndUpdate(req.params['id'], {
 					name: req.body.name,
 					description: req.body.description,
 					category: req.body.category,
@@ -166,7 +166,7 @@ router.delete(
 	async (req: Request, res: Response) => {
 		try {
 			// 🚀 **Step 1: Fetch the file info from the database**
-			const download = await DownloadModel.findById(req.params.id).lean().exec();
+			const download = await DownloadModel.findById(req.params['id']).lean().exec();
 			if (!download) {
 				return res.status(404).json({ error: 'File not found' });
 			}
@@ -177,7 +177,7 @@ router.delete(
 			}
 
 			// ❌ **Step 3: Delete the database entry**
-			await DownloadModel.findByIdAndDelete(req.params.id).exec();
+			await DownloadModel.findByIdAndDelete(req.params['id']).exec();
 
 			// ✅ Log deletion in dossier
 			await req.app.dossier.create({
@@ -214,7 +214,7 @@ router.get('/documents', async (req: Request, res: Response) => {
 
 router.get('/documents/:slug', async (req: Request, res: Response) => {
 	try {
-		const document = await DocumentModel.findOne({ slug: req.params.slug, deletedAt: null })
+		const document = await DocumentModel.findOne({ slug: req.params['slug'], deletedAt: null })
 			.lean()
 			.exec();
 		res.stdRes.data = document;
@@ -315,7 +315,7 @@ router.put(
 	hasRole(['atm', 'datm', 'ta', 'fe', 'wm']),
 	async (req: Request, res: Response) => {
 		try {
-			const document = await DocumentModel.findOne({ slug: req.params.slug }).exec();
+			const document = await DocumentModel.findOne({ slug: req.params['slug'] }).exec();
 			if (!document) {
 				return res.status(404).json({ error: 'Document not found' });
 			}
@@ -345,7 +345,7 @@ router.put(
 				if (!req.file) {
 					// ✅ No new file, just update metadata
 					await DocumentModel.findOneAndUpdate(
-						{ slug: req.params.slug },
+						{ slug: req.params['slug'] },
 						{
 							name,
 							description,
@@ -370,7 +370,7 @@ router.put(
 
 					// ✅ **Step 3: Update Database with New File Name**
 					await DocumentModel.findOneAndUpdate(
-						{ slug: req.params.slug },
+						{ slug: req.params['slug'] },
 						{
 							name,
 							description,
@@ -404,7 +404,7 @@ router.delete(
 	async (req: Request, res: Response) => {
 		try {
 			// 🚀 **Step 1: Fetch the document from the database**
-			const doc = await DocumentModel.findById(req.params.id).lean().exec();
+			const doc = await DocumentModel.findById(req.params['id']).lean().exec();
 			if (!doc) {
 				return res.status(404).json({ error: 'Document not found' });
 			}
@@ -415,7 +415,7 @@ router.delete(
 			}
 
 			// ❌ **Step 3: Delete the database entry**
-			await DocumentModel.findByIdAndDelete(req.params.id).exec();
+			await DocumentModel.findByIdAndDelete(req.params['id']).exec();
 
 			// ✅ Log deletion in dossier
 			await req.app.dossier.create({

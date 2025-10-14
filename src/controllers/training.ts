@@ -192,7 +192,7 @@ router.get(
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
 	async (req: Request, res: Response) => {
 		try {
-			const days = +(req.query.period as string) || 21; // days from start of CURRENT week
+			const days = +(req.query['period'] as string) || 21; // days from start of CURRENT week
 			const d = new Date(Date.now()),
 				currentDay = d.getDay(),
 				diff = d.getDate() - currentDay,
@@ -233,7 +233,7 @@ router.post(
 				};
 			}
 
-			const request = await TrainingRequestModel.findByIdAndUpdate(req.params.id, {
+			const request = await TrainingRequestModel.findByIdAndUpdate(req.params['id'], {
 				instructorCid: req.user!.cid,
 				startTime: req.body.startTime,
 				endTime: req.body.endTime,
@@ -314,7 +314,7 @@ router.post(
 );
 router.delete('/request/:id', getUser, async (req: Request, res: Response) => {
 	try {
-		const request = await TrainingRequestModel.findById(req.params.id).exec();
+		const request = await TrainingRequestModel.findById(req.params['id']).exec();
 
 		if (!request) {
 			return res.status(404).json({ error: 'Training request not found' });
@@ -357,7 +357,7 @@ router.get(
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
 	async (req: Request, res: Response) => {
 		try {
-			const paramDate = req.params.date as string;
+			const paramDate = req.params['date'] as string;
 			const d = new Date(
 				`${paramDate.slice(0, 4)}-${paramDate.slice(4, 6)}-${paramDate.slice(6, 8)}`,
 			);
@@ -419,7 +419,7 @@ router.get('/session/:id', getUser, async (req: Request, res: Response) => {
 		);
 
 		if (isIns) {
-			const session = await TrainingSessionModel.findById(req.params.id)
+			const session = await TrainingSessionModel.findById(req.params['id'])
 				.populate('student', 'fname lname cid vis')
 				.populate('instructor', 'fname lname cid')
 				.populate('milestone', 'name code')
@@ -428,7 +428,7 @@ router.get('/session/:id', getUser, async (req: Request, res: Response) => {
 
 			res.stdRes.data = session;
 		} else {
-			const session = await TrainingSessionModel.findById(req.params.id)
+			const session = await TrainingSessionModel.findById(req.params['id'])
 				.select('-insNotes')
 				.populate('student', 'fname lname cid vis')
 				.populate('instructor', 'fname lname cid')
@@ -452,8 +452,8 @@ router.get(
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
 	async (req: Request, res: Response) => {
 		try {
-			const page = +(req.query.page as string) || 1;
-			const limit = +(req.query.limit as string) || 20;
+			const page = +(req.query['page'] as string) || 1;
+			const limit = +(req.query['limit'] as string) || 20;
 
 			const amount = await TrainingSessionModel.countDocuments({
 				submitted: true,
@@ -489,8 +489,8 @@ router.get(
 
 router.get('/sessions/past', getUser, async (req: Request, res: Response) => {
 	try {
-		const page = +(req.query.page as string) || 1;
-		const limit = +(req.query.limit as string) || 20;
+		const page = +(req.query['page'] as string) || 1;
+		const limit = +(req.query['limit'] as string) || 20;
 
 		const amount = await TrainingSessionModel.countDocuments({
 			studentCid: req.user!.cid,
@@ -531,7 +531,7 @@ router.get(
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
 	async (req: Request, res: Response) => {
 		try {
-			const controller = await UserModel.findOne({ cid: req.params.cid })
+			const controller = await UserModel.findOne({ cid: req.params['cid'] })
 				.select('fname lname')
 				.lean()
 				.exec();
@@ -542,16 +542,16 @@ router.get(
 				};
 			}
 
-			const page = +(req.query.page as string) || 1;
-			const limit = +(req.query.limit as string) || 20;
+			const page = +(req.query['page'] as string) || 1;
+			const limit = +(req.query['limit'] as string) || 20;
 
 			const amount = await TrainingSessionModel.countDocuments({
-				studentCid: req.params.cid,
+				studentCid: req.params['cid'],
 				submitted: true,
 				deleted: false,
 			}).exec();
 			const sessions = await TrainingSessionModel.find({
-				studentCid: req.params.cid,
+				studentCid: req.params['cid'],
 				deleted: false,
 				submitted: true,
 			})
@@ -585,7 +585,7 @@ router.put(
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
 	async (req: Request, res: Response) => {
 		try {
-			await TrainingSessionModel.findByIdAndUpdate(req.params.id, req.body).exec();
+			await TrainingSessionModel.findByIdAndUpdate(req.params['id'], req.body).exec();
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
 			req.app.Sentry.captureException(e);
@@ -625,7 +625,7 @@ router.put(
 
 			const duration = `${('00' + hours).slice(-2)}:${('00' + minutes).slice(-2)}`;
 
-			const session = await TrainingSessionModel.findByIdAndUpdate(req.params.id, {
+			const session = await TrainingSessionModel.findByIdAndUpdate(req.params['id'], {
 				sessiondate: req.body.startTime.slice(1, 11),
 				position: req.body.position,
 				progress: req.body.progress,
@@ -654,12 +654,12 @@ router.put(
 			const vatusaApi = axios.create({
 				baseURL: 'https://api.vatusa.net/v2',
 				params: {
-					apiKey: process.env.VATUSA_API_KEY,
+					apiKey: process.env['VATUSA_API_KEY'],
 				},
 			});
 
 			const Response = await vatusaApi.post(
-				`https://api.vatusa.net/v2/user/${session.studentCid}/training/record/?apikey=${process.env.VATUSA_API_KEY}`,
+				`https://api.vatusa.net/v2/user/${session.studentCid}/training/record/?apikey=${process.env['VATUSA_API_KEY']}`,
 				{
 					instructor_id: session.instructorCid,
 					session_date: dayjs(req.body.startTime).format('YYYY-MM-DD HH:mm'),
@@ -679,7 +679,7 @@ router.put(
 			console.log('VATUSA API Training note submitted - status: ' + Response.status);
 
 			// update the database flag to submitted to prevent further updates.
-			await TrainingSessionModel.findByIdAndUpdate(req.params.id, {
+			await TrainingSessionModel.findByIdAndUpdate(req.params['id'], {
 				sessiondate: dayjs(req.body.startTime).format('YYYY-MM-DD HH:mm'),
 				position: req.body.position,
 				progress: req.body.progress,
@@ -697,7 +697,7 @@ router.put(
 				read: false,
 				title: 'Training Notes Submitted',
 				content: `The training notes from your session with <b>${instructor!.fname + ' ' + instructor!.lname}</b> have been submitted.`,
-				link: `/dash/training/session/${req.params.id}`,
+				link: `/dash/training/session/${req.params['id']}`,
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);

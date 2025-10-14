@@ -292,14 +292,14 @@ router.post('/absence', getUser, isManagement, async (req: Request, res: Respons
 
 router.delete('/absence/:id', getUser, isManagement, async (req: Request, res: Response) => {
 	try {
-		if (!req.params.id) {
+		if (!req.params['id']) {
 			throw {
 				code: 400,
 				message: 'Invalid request',
 			};
 		}
 
-		const absence = await AbsenceModel.findOne({ _id: req.params.id }).exec();
+		const absence = await AbsenceModel.findOne({ _id: req.params['id'] }).exec();
 		if (!absence) {
 			throw {
 				code: 400,
@@ -323,8 +323,8 @@ router.delete('/absence/:id', getUser, isManagement, async (req: Request, res: R
 });
 
 router.get('/log', getUser, isStaff, async (req: Request, res: Response) => {
-	const page = +(req.query.page as string) || 1;
-	const limit = +(req.query.limit as string) || 20;
+	const page = +(req.query['page'] as string) || 1;
+	const limit = +(req.query['limit'] as string) || 20;
 	const amount = await req.app.dossier.countDocuments();
 
 	try {
@@ -354,7 +354,7 @@ router.get('/log', getUser, isStaff, async (req: Request, res: Response) => {
 router.get('/:cid', getUser, async (req: Request, res: Response) => {
 	try {
 		const user = await UserModel.findOne({
-			cid: req.params.cid,
+			cid: req.params['cid'],
 		})
 			.select('-idsToken -discordInfo -discord -certificationDate -broadcast')
 			.populate([
@@ -414,7 +414,7 @@ router.put('/:cid/rating', internalAuth, async (req: Request, res: Response) => 
 	}
 
 	try {
-		const user = await UserModel.findOne({ cid: req.params.cid }).exec();
+		const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
 
 		if (!user) {
 			throw {
@@ -430,7 +430,7 @@ router.put('/:cid/rating', internalAuth, async (req: Request, res: Response) => 
 
 			await req.app.dossier.create({
 				by: -1,
-				affected: req.params.cid,
+				affected: req.params['cid'],
 				action: `%a was set as Rating ${req.body.rating} by an external service.`,
 			});
 		}
@@ -445,7 +445,7 @@ router.put('/:cid/rating', internalAuth, async (req: Request, res: Response) => 
 // @TODO: fix this to remove the ts-ignore and structure the data properly
 router.get('/stats/:cid', async (req: Request, res: Response) => {
 	try {
-		const controllerHours = await ControllerHoursModel.find({ cid: req.params.cid }).exec();
+		const controllerHours = await ControllerHoursModel.find({ cid: req.params['cid'] }).exec();
 
 		const hours = {
 			gtyear: {
@@ -550,7 +550,7 @@ router.get('/visit/status', getUser, async (req: Request, res: Response) => {
 
 router.put('/visit/:cid', getUser, hasRole(['atm', 'datm']), async (req, res) => {
 	try {
-		const application = await VisitApplicationModel.findOne({ cid: req.params.cid }).exec();
+		const application = await VisitApplicationModel.findOne({ cid: req.params['cid'] }).exec();
 		if (!application) {
 			throw {
 				code: 404,
@@ -560,7 +560,7 @@ router.put('/visit/:cid', getUser, hasRole(['atm', 'datm']), async (req, res) =>
 
 		await application.delete();
 
-		const user = await UserModel.findOne({ cid: req.params.cid }).exec();
+		const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
 		if (!user) {
 			throw {
 				code: 404,
@@ -583,7 +583,7 @@ router.put('/visit/:cid', getUser, hasRole(['atm', 'datm']), async (req, res) =>
 		);
 
 		if (userOi === '') {
-			req.app.Sentry.captureMessage(`Unable to generate OIs for ${req.params.cid}`);
+			req.app.Sentry.captureMessage(`Unable to generate OIs for ${req.params['cid']}`);
 		}
 
 		user.member = true;
@@ -606,7 +606,7 @@ router.put('/visit/:cid', getUser, hasRole(['atm', 'datm']), async (req, res) =>
 		await user.save();
 
 		await axios.post(
-			`https://api.vatusa.net/v2/facility/ZAU/roster/manageVisitor/${req.params.cid}?apikey=${process.env.VATUSA_API_KEY}`,
+			`https://api.vatusa.net/v2/facility/ZAU/roster/manageVisitor/${req.params['cid']}?apikey=${process.env['VATUSA_API_KEY']}`,
 		);
 
 		transporter.sendMail({
@@ -641,7 +641,7 @@ router.delete(
 	hasRole(['atm', 'datm']),
 	async (req: Request, res: Response) => {
 		try {
-			const application = await VisitApplicationModel.findOne({ cid: req.params.cid }).exec();
+			const application = await VisitApplicationModel.findOne({ cid: req.params['cid'] }).exec();
 			if (!application) {
 				throw {
 					code: 404,
@@ -651,7 +651,7 @@ router.delete(
 
 			await application.delete();
 
-			const user = await UserModel.findOne({ cid: req.params.cid }).exec();
+			const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
 			if (!user) {
 				throw {
 					code: 404,
@@ -689,7 +689,7 @@ router.delete(
 
 router.post('/:cid', internalAuth, async (req: Request, res: Response) => {
 	try {
-		const user = await UserModel.findOne({ cid: req.params.cid }).exec();
+		const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
 		if (user) {
 			throw {
 				code: 409,
@@ -776,7 +776,7 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response) => {
 
 router.put('/:cid/member', internalAuth, async (req: Request, res: Response) => {
 	try {
-		const user = await UserModel.findOne({ cid: req.params.cid }).exec();
+		const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
 
 		if (!user) {
 			throw {
@@ -837,7 +837,7 @@ router.put('/:cid/member', internalAuth, async (req: Request, res: Response) => 
 
 		await req.app.dossier.create({
 			by: -1,
-			affected: req.params.cid,
+			affected: req.params['cid'],
 			action: `%a was ${req.body.member ? 'added to' : 'removed from'} the roster by an external service.`,
 		});
 	} catch (e) {
@@ -850,7 +850,7 @@ router.put('/:cid/member', internalAuth, async (req: Request, res: Response) => 
 
 router.put('/:cid/visit', internalAuth, async (req: Request, res: Response) => {
 	try {
-		const user = await UserModel.findOne({ cid: req.params.cid }).exec();
+		const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
 
 		if (!user) {
 			throw {
@@ -866,7 +866,7 @@ router.put('/:cid/visit', internalAuth, async (req: Request, res: Response) => {
 
 		await req.app.dossier.create({
 			by: -1,
-			affected: req.params.cid,
+			affected: req.params['cid'],
 			action: `%a was set as a ${req.body.vis ? 'visiting controller' : 'home controller'} by an external service.`,
 		});
 	} catch (e) {
@@ -903,7 +903,7 @@ router.put(
 			}
 
 			// Find the existing user
-			const user = await UserModel.findOne({ cid: req.params.cid }).exec();
+			const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
 
 			if (!user) {
 				throw {
@@ -939,13 +939,13 @@ router.put(
 				{ responseType: 'arraybuffer' },
 			);
 
-			await uploadToS3(`avatars/${req.params.cid}-default.png`, data, 'image/png', {
+			await uploadToS3(`avatars/${req.params['cid']}-default.png`, data, 'image/png', {
 				ContentDisposition: 'inline',
 			});
 
 			// Use findOneAndUpdate to update the user document
 			await UserModel.findOneAndUpdate(
-				{ cid: req.params.cid }, // Find the user by their CID
+				{ cid: req.params['cid'] }, // Find the user by their CID
 				{
 					fname,
 					lname,
@@ -962,7 +962,7 @@ router.put(
 			// Log the update in the user's dossier
 			await req.app.dossier.create({
 				by: req.user!.cid,
-				affected: req.params.cid,
+				affected: req.params['cid'],
 				action: `%a was updated by %b.`,
 			});
 		} catch (e) {
@@ -977,7 +977,7 @@ router.put(
 router.put('/remove-cert/:cid', internalAuth, async (req: Request, res: Response) => {
 	try {
 		// Find the user by CID
-		const cid = req.params.cid;
+		const cid = req.params['cid'];
 		const user = await UserModel.findOne({ cid }).exec();
 
 		if (!user) {
@@ -990,10 +990,10 @@ router.put('/remove-cert/:cid', internalAuth, async (req: Request, res: Response
 
 		await user.save();
 
-		res.status(200).json({ message: 'Certs removed successfully' });
+		return res.status(200).json({ message: 'Certs removed successfully' });
 	} catch (error) {
 		console.error('Error removing certs', error);
-		res.status(500).json({ message: 'Internal server error' });
+		return res.status(500).json({ message: 'Internal server error' });
 	}
 });
 
@@ -1007,7 +1007,7 @@ router.delete('/:cid', getUser, hasRole(['atm', 'datm']), async (req: Request, r
 		}
 
 		const user = await UserModel.findOneAndUpdate(
-			{ cid: req.params.cid },
+			{ cid: req.params['cid'] },
 			{
 				member: false,
 				removalDate: new Date().toISOString(),
@@ -1023,10 +1023,10 @@ router.delete('/:cid', getUser, hasRole(['atm', 'datm']), async (req: Request, r
 
 		if (user.vis) {
 			await axios.delete(
-				`https://api.vatusa.net/v2/facility/ZAU/roster/manageVisitor/${req.params.cid}`,
+				`https://api.vatusa.net/v2/facility/ZAU/roster/manageVisitor/${req.params['cid']}`,
 				{
 					params: {
-						apikey: process.env.VATUSA_API_KEY,
+						apikey: process.env['VATUSA_API_KEY'],
 					},
 					data: {
 						reason: req.body.reason,
@@ -1035,9 +1035,9 @@ router.delete('/:cid', getUser, hasRole(['atm', 'datm']), async (req: Request, r
 				},
 			);
 		} else {
-			await axios.delete(`https://api.vatusa.net/v2/facility/ZAU/roster/${req.params.cid}`, {
+			await axios.delete(`https://api.vatusa.net/v2/facility/ZAU/roster/${req.params['cid']}`, {
 				params: {
-					apikey: process.env.VATUSA_API_KEY,
+					apikey: process.env['VATUSA_API_KEY'],
 				},
 				data: {
 					reason: req.body.reason,
@@ -1048,7 +1048,7 @@ router.delete('/:cid', getUser, hasRole(['atm', 'datm']), async (req: Request, r
 
 		await req.app.dossier.create({
 			by: req.user!.cid,
-			affected: req.params.cid,
+			affected: req.params['cid'],
 			action: `%a was removed from the roster by %b: ${req.body.reason}`,
 		});
 	} catch (e) {

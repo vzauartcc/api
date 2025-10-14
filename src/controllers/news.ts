@@ -8,8 +8,8 @@ const router = Router();
 
 // @TODO: convert to StandardResponse
 router.get('/', async (req: Request, res: Response) => {
-	const page = +(req.query.page as string) || 1;
-	const limit = +(req.query.limit as string) || 20;
+	const page = +(req.query['page'] as string) || 1;
+	const limit = +(req.query['limit'] as string) || 20;
 
 	const amount = await NewsModel.countDocuments({ deleted: false }).exec();
 	const news = await NewsModel.find({ deleted: false })
@@ -100,7 +100,7 @@ router.put(
 	async (req: Request, res: Response) => {
 		try {
 			const { title, content } = req.body;
-			const newsItem = await NewsModel.findOne({ uriSlug: req.params.slug }).exec();
+			const newsItem = await NewsModel.findOne({ uriSlug: req.params['slug'] }).exec();
 			if (!newsItem) {
 				throw {
 					code: 404,
@@ -141,7 +141,7 @@ router.delete(
 	hasRole(['atm', 'datm', 'ta', 'ec', 'fe', 'wm']),
 	async (req: Request, res: Response) => {
 		try {
-			const newsItem = await NewsModel.findOne({ uriSlug: req.params.slug }).exec();
+			const newsItem = await NewsModel.findOne({ uriSlug: req.params['slug'] }).exec();
 			if (!newsItem) {
 				throw {
 					code: 404,

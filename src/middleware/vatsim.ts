@@ -1,23 +1,23 @@
 import axios from 'axios';
 import type { NextFunction, Request, Response } from 'express';
 
-export default function (req: Request, res: Response, next: NextFunction) {
+export default async function (req: Request, res: Response, next: NextFunction) {
 	const code = req.body.code;
 	if (!code) {
 		return res.status(400).send('No authorization code provided.');
 	}
 
 	if (
-		!process.env.VATSIM_AUTH_ENDPOINT ||
-		!process.env.VATSIM_AUTH_CLIENT_ID ||
-		!process.env.VATSIM_AUTH_CLIENT_SECRET
+		!process.env['VATSIM_AUTH_ENDPOINT'] ||
+		!process.env['VATSIM_AUTH_CLIENT_ID'] ||
+		!process.env['VATSIM_AUTH_CLIENT_SECRET']
 	) {
 		return res.status(500).send('Internal server error.');
 	}
 
 	let redirectUrl = 'http://localhost:8080/login/verify';
 
-	const vatsimOauthEndpoint = process.env.VATSIM_AUTH_ENDPOINT + '/oauth/token';
+	const vatsimOauthEndpoint = process.env['VATSIM_AUTH_ENDPOINT'] + '/oauth/token';
 
 	const allowedOrigins = new Map<string, string>([
 		['https://ids.zauartcc.org', 'https://ids.zauartcc.org/login/verify'],
@@ -35,29 +35,30 @@ export default function (req: Request, res: Response, next: NextFunction) {
 	params.append('code', code);
 	params.append('redirect_uri', redirectUrl);
 
-	let clientId = process.env.VATSIM_AUTH_CLIENT_ID;
-	let clientSecret = process.env.VATSIM_AUTH_CLIENT_SECRET!;
+	let clientId = process.env['VATSIM_AUTH_CLIENT_ID'];
+	let clientSecret = process.env['VATSIM_AUTH_CLIENT_SECRET']!;
 
 	if (req.headers.origin === 'https://ids.zauartcc.org') {
-		if (!process.env.VATSIM_AUTH_CLIENT_ID_IDS || !process.env.VATSIM_AUTH_CLIENT_SECRET_IDS) {
+		if (
+			!process.env['VATSIM_AUTH_CLIENT_ID_IDS'] ||
+			!process.env['VATSIM_AUTH_CLIENT_SECRET_IDS']
+		) {
 			return res.status(500).send('Internal server error.');
 		}
 
-		clientId = process.env.VATSIM_AUTH_CLIENT_ID_IDS;
-		clientSecret = process.env.VATSIM_AUTH_CLIENT_SECRET_IDS;
+		clientId = process.env['VATSIM_AUTH_CLIENT_ID_IDS'];
+		clientSecret = process.env['VATSIM_AUTH_CLIENT_SECRET_IDS'];
 	}
 
 	params.append('client_id', clientId);
 	params.append('client_secret', clientSecret);
 
-	axios
-		.post(vatsimOauthEndpoint, params)
-		.then((response) => {
-			req.oauth = response.data;
-			next();
-		})
-		.catch((e) => {
-			req.app.Sentry.captureException(e);
-			res.status(500).send();
-		});
+	try {
+		const response = await axios.post(vatsimOauthEndpoint, params);
+		req.oauth = response.data;
+		return next();
+	} catch (e) {
+		req.app.Sentry.captureException(e);
+		return res.status(500).send();
+	}
 }

@@ -9,7 +9,7 @@ export interface UserPayload {
 }
 
 export default async function (req: Request, res: Response, next: NextFunction) {
-	const userToken = req.cookies.token || '';
+	const userToken = req.cookies['token'] || '';
 
 	if (!userToken || userToken === '') {
 		res.stdRes.ret_det = {
@@ -20,7 +20,7 @@ export default async function (req: Request, res: Response, next: NextFunction) 
 		return res.json(res.stdRes);
 	}
 
-	if (!process.env.JWT_SECRET) {
+	if (!process.env['JWT_SECRET']) {
 		res.stdRes.ret_det = {
 			code: 500,
 			message: 'Internal Server Error.',
@@ -30,7 +30,7 @@ export default async function (req: Request, res: Response, next: NextFunction) 
 	}
 
 	try {
-		const decoded = jwt.verify(userToken, process.env.JWT_SECRET) as UserPayload;
+		const decoded = jwt.verify(userToken, process.env['JWT_SECRET']) as UserPayload;
 
 		const user = await UserModel.findOne({ cid: decoded.cid })
 			.populate([
@@ -61,7 +61,7 @@ export default async function (req: Request, res: Response, next: NextFunction) 
 		delete req.user;
 		deleteAuthCookie(res);
 	} finally {
-		next();
+		return next();
 	}
 }
 
@@ -70,6 +70,6 @@ export function deleteAuthCookie(res: Response) {
 		httpOnly: true,
 		maxAge: 0,
 		sameSite: true,
-		domain: process.env.DOMAIN,
+		domain: process.env['DOMAIN'],
 	});
 }

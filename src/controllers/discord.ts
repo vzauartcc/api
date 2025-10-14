@@ -37,9 +37,9 @@ router.get('/user', getUser, async (req: Request, res: Response) => {
 router.post('/info', async (req: Request, res: Response) => {
 	try {
 		if (
-			!process.env.DISCORD_CLIENT_ID ||
-			!process.env.DISCORD_CLIENT_SECRET ||
-			!process.env.DISCORD_REDIRECT_URI
+			!process.env['DISCORD_CLIENT_ID'] ||
+			!process.env['DISCORD_CLIENT_SECRET'] ||
+			!process.env['DISCORD_REDIRECT_URI']
 		) {
 			throw {
 				code: 500,
@@ -67,9 +67,9 @@ router.post('/info', async (req: Request, res: Response) => {
 		const oauth = new Discord();
 		const token = await oauth
 			.tokenRequest({
-				clientId: process.env.DISCORD_CLIENT_ID,
-				clientSecret: process.env.DISCORD_CLIENT_SECRET,
-				redirectUri: process.env.DISCORD_REDIRECT_URI,
+				clientId: process.env['DISCORD_CLIENT_ID'],
+				clientSecret: process.env['DISCORD_CLIENT_SECRET'],
+				redirectUri: process.env['DISCORD_REDIRECT_URI'],
 				grantType: 'authorization_code',
 				code,
 				scope: 'identify',

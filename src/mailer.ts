@@ -47,7 +47,7 @@ const transport = nodemailer.createTransport({
 	requireTLS: true,
 	auth: {
 		user: 'no-reply@zauartcc.org',
-		pass: process.env.EMAIL_PASSWORD,
+		pass: process.env['EMAIL_PASSWORD'],
 	},
 });
 

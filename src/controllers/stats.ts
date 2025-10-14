@@ -292,14 +292,14 @@ router.get(
 	async (req: Request, res: Response) => {
 		try {
 			//console.log('Start processing /activity endpoint');
-			if (req.query.cid) {
-				testUserCID = parseInt(req.query.cid as string, 10);
+			if (req.query['cid']) {
+				testUserCID = parseInt(req.query['cid'] as string, 10);
 			}
 
 			// SECTION: Get Quarter & Year
 			const quarter =
-				parseInt(req.query.quarter as string, 10) || Math.floor((L.utc().month - 1) / 3) + 1;
-			const year = parseInt(req.query.year as string, 10) || L.utc().year;
+				parseInt(req.query['quarter'] as string, 10) || Math.floor((L.utc().month - 1) / 3) + 1;
+			const year = parseInt(req.query['year'] as string, 10) || L.utc().year;
 			const { startOfQuarter, endOfQuarter } = getQuarterStartEnd(quarter, year);
 			//console.log(`Quarter: ${quarter}, Year: ${year}, Start: ${startOfQuarter}, End: ${endOfQuarter}`);
 

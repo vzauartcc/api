@@ -13,14 +13,14 @@ const router = Router();
 
 router.get('/', async (req: Request, res: Response) => {
 	try {
-		if (!req.cookies.token) {
+		if (!req.cookies['token']) {
 			throw {
 				code: 401,
 				message: 'Token cookie not found',
 			};
 		}
 
-		const decoded = jwt.verify(req.cookies.token, process.env.JWT_SECRET!) as UserPayload;
+		const decoded = jwt.verify(req.cookies['token'], process.env['JWT_SECRET']!) as UserPayload;
 
 		const user = await UserModel.findOne({ cid: decoded.cid })
 			.select('-createdAt -updatedAt')
@@ -48,7 +48,7 @@ router.get('/', async (req: Request, res: Response) => {
 
 router.post('/idsToken', getUser, async (req: Request, res: Response) => {
 	try {
-		if (!req.cookies.token) {
+		if (!req.cookies['token']) {
 			throw {
 				code: 401,
 				message: 'Not logged in',
@@ -88,9 +88,12 @@ router.post('/login', oAuth, async (req: Request, res: Response) => {
 		const { access_token } = req.oauth;
 
 		// Use access token to attempt to get user data.
-		let { data: vatsimUserData } = await axios.get(`${process.env.VATSIM_AUTH_ENDPOINT}/api/user`, {
-			headers: { Authorization: `Bearer ${access_token}` },
-		});
+		let { data: vatsimUserData } = await axios.get(
+			`${process.env['VATSIM_AUTH_ENDPOINT']}/api/user`,
+			{
+				headers: { Authorization: `Bearer ${access_token}` },
+			},
+		);
 
 		//let vatsimUserData = await vatsimApiHelper.getUserInformation(access_token);
 
@@ -158,7 +161,7 @@ router.post('/login', oAuth, async (req: Request, res: Response) => {
 
 		await user.save();
 
-		const apiToken = jwt.sign({ cid: userData.cid }, process.env.JWT_SECRET!, {
+		const apiToken = jwt.sign({ cid: userData.cid }, process.env['JWT_SECRET']!, {
 			expiresIn: '30d',
 		});
 
@@ -166,7 +169,7 @@ router.post('/login', oAuth, async (req: Request, res: Response) => {
 			httpOnly: true,
 			maxAge: 2592000000,
 			sameSite: true,
-			domain: process.env.DOMAIN,
+			domain: process.env['DOMAIN'],
 		}); // Expires in 30 days
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
@@ -179,7 +182,7 @@ router.post('/login', oAuth, async (req: Request, res: Response) => {
 
 router.get('/logout', async (req: Request, res: Response) => {
 	try {
-		if (!req.cookies.token) {
+		if (!req.cookies['token']) {
 			throw {
 				code: 400,
 				message: 'User not logged in',
@@ -213,8 +216,8 @@ router.get('/sessions', getUser, async (req: Request, res: Response) => {
 
 router.get('/notifications', getUser, async (req: Request, res: Response) => {
 	try {
-		const page = +(req.query.page as string) || 1;
-		const limit = +(req.query.limit as string) || 10;
+		const page = +(req.query['page'] as string) || 1;
+		const limit = +(req.query['limit'] as string) || 10;
 
 		const unread = await NotificationModel.countDocuments({
 			deleted: false,
@@ -266,13 +269,13 @@ router.put('/notifications/read/all', getUser, async (req: Request, res: Respons
 
 router.put('/notifications/read/:id', async (req: Request, res: Response) => {
 	try {
-		if (!req.params.id) {
+		if (!req.params['id']) {
 			throw {
 				code: 400,
 				message: 'Incomplete request',
 			};
 		}
-		await NotificationModel.findByIdAndUpdate(req.params.id, {
+		await NotificationModel.findByIdAndUpdate(req.params['id'], {
 			read: true,
 		}).exec();
 	} catch (e) {

@@ -27,12 +27,12 @@ export function hasRole(roles: string[]) {
 
 			return res.json(res.stdRes);
 		}
-		next();
+		return next();
 	};
 }
 
 export function isSelf(req: Request, res: Response, next: NextFunction) {
-	if (!req.user || !req.params.id || req.user.cid.toString() !== req.params.id) {
+	if (!req.user || !req.params['id'] || req.user.cid.toString() !== req.params['id']) {
 		res.stdRes.ret_det = {
 			code: 403,
 			message: 'Not authorized',
@@ -41,7 +41,7 @@ export function isSelf(req: Request, res: Response, next: NextFunction) {
 		return res.json(res.stdRes);
 	}
 
-	next();
+	return next();
 }
 
 export function isInstructor(req: Request, res: Response, next: NextFunction) {

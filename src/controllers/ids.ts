@@ -45,7 +45,7 @@ router.get('/aircraft', async (req: Request, res: Response) => {
 });
 
 router.get('/aircraft/feed', (req: Request, res: Response) => {
-	const sub = new Redis(process.env.REDIS_URI!);
+	const sub = new Redis(process.env['REDIS_URI']!);
 
 	res.writeHead(200, {
 		'Content-Type': 'text/event-stream',
@@ -57,7 +57,7 @@ router.get('/aircraft/feed', (req: Request, res: Response) => {
 	sub.on('message', async (channel: string, message: any) => {
 		if (channel === 'PILOT:UPDATE') {
 			let data = await req.app.redis.hgetall(`PILOT:${message}`);
-			data.type = 'update';
+			data['type'] = 'update';
 			res.write(`data: ${JSON.stringify(data)}\n\n`);
 		}
 		if (channel === 'PILOT:DELETE') {
@@ -76,12 +76,12 @@ router.get('/aircraft/feed', (req: Request, res: Response) => {
 });
 
 router.get('/aircraft/:callsign', async (req: Request, res: Response) => {
-	let data = await req.app.redis.hgetall(`PILOT:${req.params.callsign}`);
+	let data = await req.app.redis.hgetall(`PILOT:${req.params['callsign']}`);
 	return res.json(data);
 });
 
 router.get('/atis', (req, res) => {
-	const sub = new Redis(process.env.REDIS_URI!);
+	const sub = new Redis(process.env['REDIS_URI']!);
 
 	res.writeHead(200, {
 		'Content-Type': 'text/event-stream',
@@ -93,7 +93,7 @@ router.get('/atis', (req, res) => {
 	sub.on('message', async (channel, message) => {
 		if (channel === 'ATIS:UPDATE') {
 			let data = await req.app.redis.hgetall(`ATIS:${message}`);
-			data.type = 'update';
+			data['type'] = 'update';
 			res.write(`data: ${JSON.stringify(data)}\n\n`);
 		}
 		if (channel === 'ATIS:DELETE') {
@@ -172,14 +172,14 @@ router.get('/stations', async (req: Request, res: Response) => {
 });
 
 router.get('/stations/:station', async (req: Request, res: Response) => {
-	const station = req.params.station!;
+	const station = req.params['station']!;
 	const metar = await req.app.redis.get(`METAR:${station.toUpperCase()}`);
 	const atisInfo = await req.app.redis.hgetall(`ATIS:${station}`);
 	return res.json({
 		metar,
-		dep: atisInfo.dep || null,
-		arr: atisInfo.arr || null,
-		letter: atisInfo.letter || null,
+		dep: atisInfo['dep'] || null,
+		arr: atisInfo['arr'] || null,
+		letter: atisInfo['letter'] || null,
 	});
 });
 
@@ -215,7 +215,7 @@ router.get('/vatsim-data', (_req: Request, res: Response) => {
 });
 
 router.get('/charts/:airportCode', async (req: Request, res: Response) => {
-	const airportCode = req.params.airportCode!.toUpperCase();
+	const airportCode = req.params['airportCode']!.toUpperCase();
 	try {
 		const response = await axios.get(`https://api.aviationapi.com/v1/charts?apt=${airportCode}`);
 		const charts = response.data[airportCode];
@@ -249,7 +249,7 @@ router.post('/pireps', async (req: Request, res: Response) => {
 });
 
 router.delete('/pireps/:id', async (req: Request, res: Response) => {
-	PirepModel.findByIdAndDelete(req.params.id)
+	PirepModel.findByIdAndDelete(req.params['id'])
 		.exec()
 		.then(() => {
 			return res.sendStatus(200);
@@ -262,7 +262,7 @@ router.delete('/pireps/:id', async (req: Request, res: Response) => {
 
 router.put('/config/:id', async (req: Request, res: Response) => {
 	try {
-		const updatedConfig = await ConfigModel.findOneAndUpdate({ id: req.params.id }, req.body, {
+		const updatedConfig = await ConfigModel.findOneAndUpdate({ id: req.params['id'] }, req.body, {
 			new: true,
 		}).exec();
 		if (!updatedConfig) {
@@ -277,7 +277,7 @@ router.put('/config/:id', async (req: Request, res: Response) => {
 
 router.get('/config/:id', async (req: Request, res: Response) => {
 	try {
-		const config = await ConfigModel.findOne({ id: req.params.id }).exec();
+		const config = await ConfigModel.findOne({ id: req.params['id'] }).exec();
 		if (!config) {
 			return res.status(404).send({ message: 'Config not found' });
 		}

@@ -27,7 +27,7 @@ env.config();
 
 const app = express();
 
-const SENTRY_DSN = process.env.SENTRY_DSN;
+const SENTRY_DSN = process.env['SENTRY_DSN'];
 
 if (SENTRY_DSN) {
 	Sentry.init({
@@ -89,7 +89,7 @@ app.use(
 	}),
 );
 
-const REDIS_URI = process.env.REDIS_URI;
+const REDIS_URI = process.env['REDIS_URI'];
 
 if (!REDIS_URI) {
 	throw new Error('REDIS_URI is not set in environment variables.');
@@ -101,7 +101,7 @@ app.redis.on('error', (err) => {
 });
 app.redis.on('connect', () => console.log('Successfully connected to Redis'));
 
-const CORS_ORIGIN = process.env.CORS_ORIGIN;
+const CORS_ORIGIN = process.env['CORS_ORIGIN'];
 
 if (!CORS_ORIGIN) {
 	throw new Error('CORS_ORIGIN is not set in environment variables.');
@@ -124,7 +124,7 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
 });
 
 function getS3Prefix() {
-	switch (process.env.S3_FOLDER_PREFIX) {
+	switch (process.env['S3_FOLDER_PREFIX']) {
 		case 'production':
 			return 'production';
 		case 'staging':
@@ -136,8 +136,8 @@ function getS3Prefix() {
 
 const S3_PREFIX = getS3Prefix(); // Get the correct environment folder
 
-const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;
-const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;
+const AWS_ACCESS_KEY_ID = process.env['AWS_ACCESS_KEY_ID'];
+const AWS_SECRET_ACCESS_KEY = process.env['AWS_SECRET_ACCESS_KEY'];
 
 if (!AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY) {
 	throw new Error(
@@ -154,7 +154,7 @@ app.s3 = new S3Client({
 	},
 });
 
-const MONGO_URI = process.env.MONGO_URI;
+const MONGO_URI = process.env['MONGO_URI'];
 
 if (!MONGO_URI) {
 	throw new Error('MONGO_URI is not est in environment variables.');
@@ -184,10 +184,10 @@ app.use('/stats', statsRouter);
 app.use('/exam', examRouter);
 app.use('/vatusa', vatusaRouter);
 
-if (process.env.NODE_ENV === 'production' && SENTRY_DSN) Sentry.setupExpressErrorHandler(app);
+if (process.env['NODE_ENV'] === 'production' && SENTRY_DSN) Sentry.setupExpressErrorHandler(app);
 
-app.listen(process.env.PORT, () => {
-	console.log('Listening on port ' + process.env.PORT);
+app.listen(process.env['PORT'], () => {
+	console.log('Listening on port ' + process.env['PORT']);
 });
 
 export function convertToReturnDetails(e: unknown): ReturnDetails {
