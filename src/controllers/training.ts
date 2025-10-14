@@ -1,6 +1,6 @@
 import axios from 'axios';
-import dayjs from 'dayjs';
 import { Router, type Request, type Response } from 'express';
+import { DateTime } from 'luxon';
 import { convertToReturnDetails } from '../app.js';
 import transporter, { type CustomMailOptions } from '../mailer.js';
 import { hasRole } from '../middleware/auth.js';
@@ -662,7 +662,7 @@ router.put(
 				`https://api.vatusa.net/v2/user/${session.studentCid}/training/record/?apikey=${process.env['VATUSA_API_KEY']}`,
 				{
 					instructor_id: session.instructorCid,
-					session_date: dayjs(req.body.startTime).format('YYYY-MM-DD HH:mm'),
+					session_date: DateTime.fromISO(req.body.startTime).toFormat('y-MM-dd HH:mm'),
 					position: req.body.position,
 					duration: duration,
 					movements: req.body.movements,
@@ -680,7 +680,7 @@ router.put(
 
 			// update the database flag to submitted to prevent further updates.
 			await TrainingSessionModel.findByIdAndUpdate(req.params['id'], {
-				sessiondate: dayjs(req.body.startTime).format('YYYY-MM-DD HH:mm'),
+				sessiondate: DateTime.fromISO(req.body.startTime).toFormat('y-MM-dd HH:mm'),
 				position: req.body.position,
 				progress: req.body.progress,
 				duration: duration,
