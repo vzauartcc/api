@@ -9,7 +9,7 @@ RUN npm ci
 
 COPY . .
 
-RUN npm run builder
+RUN npm run build
 
 # 2. Copy built files to new image
 FROM node:24-slim AS production
