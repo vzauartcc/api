@@ -2,7 +2,6 @@ import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client
 import * as Sentry from '@sentry/node';
 import cookie from 'cookie-parser';
 import cors from 'cors';
-import env from 'dotenv';
 import type { NextFunction, Request, Response } from 'express';
 import express from 'express';
 import { Redis } from 'ioredis';
@@ -22,8 +21,6 @@ import userRouter from './controllers/user.js';
 import vatusaRouter from './controllers/vatusa.js';
 import { DossierModel } from './models/dossier.js';
 import type { ReturnDetails } from './types/StandardResponse.js';
-
-env.config();
 
 const app = express();
 
