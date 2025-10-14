@@ -20,12 +20,7 @@ router.get('/', async (req: Request, res: Response) => {
 		.lean()
 		.exec();
 
-	res.stdRes.data = {
-		amount,
-		data: news,
-	};
-
-	return res.json(res.stdRes);
+	return res.json({ amount, data: news, ret_det: { code: 200, message: '' } });
 });
 
 router.post(

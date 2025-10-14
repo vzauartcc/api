@@ -816,7 +816,7 @@ router.put(
 			}
 
 			const assignedPosition = eventData.positions.find(
-				(pos: IEventPosition) => pos?._id === position,
+				(pos: IEventPosition) => pos.id === position,
 			);
 
 			if (!assignedPosition) {
@@ -984,7 +984,7 @@ router.post('/staffingRequest', async (req: Request, res: Response) => {
 			accepted: false,
 		});
 
-		const newRequestID = newRequest._id; // Access the new object's ID
+		const newRequestID = newRequest.id; // Access the new object's ID
 
 		// Send an email notification to the specified email address
 		transporter.sendMail({

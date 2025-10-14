@@ -95,7 +95,7 @@ router.post(
 			});
 			await newExam.save();
 
-			return res.status(201).json({ message: 'Exam created successfully', examId: newExam._id });
+			return res.status(201).json({ message: 'Exam created successfully', examId: newExam.id });
 		} catch (error) {
 			console.error('Error creating exam:', error);
 			return res.status(500).json({ message: 'Internal server error' });
@@ -224,7 +224,7 @@ router.post('/exams/:examId/start', getUser, async (req: Request, res: Response)
 	const timeRemaining = newAttempt.endTime.getTime() - Date.now();
 	return res
 		.status(201)
-		.json({ message: 'Exam started successfully', attemptId: newAttempt._id, timeRemaining });
+		.json({ message: 'Exam started successfully', attemptId: newAttempt.id, timeRemaining });
 });
 
 // @TODO: Convert to StandardResponse

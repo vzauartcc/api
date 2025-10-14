@@ -75,7 +75,7 @@ router.post(
 					message: 'File too large',
 				};
 			}
-			const tmpFile = await fs.readFile(req.file!.path);
+			const tmpFile = await fs.readFile(req.file.path);
 
 			await uploadToS3(`downloads/${req.file.filename}`, tmpFile, req.file.mimetype);
 
