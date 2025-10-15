@@ -31,10 +31,7 @@
 		"noUnusedParameters": true,
 		"erasableSyntaxOnly": true,
 		"noFallthroughCasesInSwitch": true,
-		"forceConsistentCasingInFileNames": true,
-
-		// Remove later
-		"allowJs": true
+		"forceConsistentCasingInFileNames": true
 	},
 	"include": ["src/**/*.ts", "src/**/*.json"],
 	"exclude": ["node_modules", "dist"]
