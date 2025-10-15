@@ -40,4 +40,6 @@ transport.use(
 	}),
 );
 
-export default transport;
+export function sendMail(opts: CustomMailOptions) {
+	transport.sendMail(opts);
+}

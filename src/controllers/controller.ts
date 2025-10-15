@@ -2,8 +2,7 @@ import axios from 'axios';
 import { Router, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
 import { convertToReturnDetails, uploadToS3 } from '../app.js';
-import type { CustomMailOptions } from '../mailer.js';
-import transporter from '../mailer.js';
+import { sendMail } from '../mailer.js';
 import { hasRole, isManagement, isStaff } from '../middleware/auth.js';
 import internalAuth from '../middleware/internalAuth.js';
 import getUser from '../middleware/user.js';
@@ -610,7 +609,7 @@ router.put('/visit/:cid', getUser, hasRole(['atm', 'datm']), async (req, res) =>
 			`https://api.vatusa.net/v2/facility/ZAU/roster/manageVisitor/${req.params['cid']}?apikey=${process.env['VATUSA_API_KEY']}`,
 		);
 
-		transporter.sendMail({
+		sendMail({
 			to: user.email,
 			from: {
 				name: 'Chicago ARTCC',
@@ -621,7 +620,7 @@ router.put('/visit/:cid', getUser, hasRole(['atm', 'datm']), async (req, res) =>
 			context: {
 				name: `${user.fname} ${user.lname}`,
 			},
-		} as CustomMailOptions);
+		});
 
 		await req.app.dossier.create({
 			by: req.user!.cid,
@@ -660,7 +659,7 @@ router.delete(
 				};
 			}
 
-			transporter.sendMail({
+			sendMail({
 				to: user.email,
 				from: {
 					name: 'Chicago ARTCC',
@@ -672,7 +671,7 @@ router.delete(
 					name: `${user.fname} ${user.lname}`,
 					reason: req.body.reason,
 				},
-			} as CustomMailOptions);
+			});
 
 			await req.app.dossier.create({
 				by: req.user!.cid,
@@ -743,7 +742,7 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response) => {
 			'ADM',
 		];
 
-		transporter.sendMail({
+		sendMail({
 			to: 'atm@zauartcc.org, datm@zauartcc.org, ta@zauartcc.org',
 			from: {
 				name: 'Chicago ARTCC',
@@ -760,7 +759,7 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response) => {
 				type: req.body.vis ? 'visitor' : 'member',
 				home: req.body.vis ? req.body.homeFacility : 'ZAU',
 			},
-		} as CustomMailOptions);
+		});
 
 		await req.app.dossier.create({
 			by: -1,
@@ -816,7 +815,7 @@ router.put('/:cid/member', internalAuth, async (req: Request, res: Response) => 
 			'ADM',
 		];
 		if (req.body.member || req.body.vis) {
-			transporter.sendMail({
+			sendMail({
 				to: 'atm@zauartcc.org, datm@zauartcc.org, ta@zauartcc.org',
 				from: {
 					name: 'Chicago ARTCC',
@@ -833,7 +832,7 @@ router.put('/:cid/member', internalAuth, async (req: Request, res: Response) => 
 					type: user.vis ? 'visitor' : 'member',
 					home: 'NA',
 				},
-			} as CustomMailOptions);
+			});
 		}
 
 		await req.app.dossier.create({

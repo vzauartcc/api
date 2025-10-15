@@ -3,7 +3,7 @@ import { fileTypeFromFile } from 'file-type';
 import fs from 'fs/promises';
 import multer from 'multer';
 import { convertToReturnDetails, deleteFromS3, uploadToS3 } from '../app.js';
-import transporter, { type CustomMailOptions } from '../mailer.js';
+import { sendMail } from '../mailer.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
 import EventModel from '../models/event.js';
@@ -879,7 +879,7 @@ router.put(
 			eventData.signups.forEach(async (signup: IEventSignup) => {
 				const user = signup.user as IUser;
 				if (user.email) {
-					transporter.sendMail({
+					sendMail({
 						to: user.email,
 						from: {
 							name: 'Chicago ARTCC',
@@ -892,7 +892,7 @@ router.put(
 							name: `${user.fname} ${user.lname}`,
 							slug: eventData.url,
 						},
-					} as CustomMailOptions);
+					});
 				}
 			});
 
@@ -987,7 +987,7 @@ router.post('/staffingRequest', async (req: Request, res: Response) => {
 		const newRequestID = newRequest.id; // Access the new object's ID
 
 		// Send an email notification to the specified email address
-		transporter.sendMail({
+		sendMail({
 			to: 'ec@zauartcc.org, aec@zauartcc.org',
 			from: {
 				name: 'Chicago ARTCC',
@@ -1005,7 +1005,7 @@ router.post('/staffingRequest', async (req: Request, res: Response) => {
 				description: req.body.description,
 				slug: newRequestID,
 			},
-		} as CustomMailOptions);
+		});
 
 		// Send a response to the client
 	} catch (e) {
@@ -1070,7 +1070,7 @@ router.put(
 
 			if (req.body.accepted) {
 				// Send an email notification to the specified email address
-				await transporter.sendMail({
+				await sendMail({
 					to: req.body.email,
 					from: {
 						name: 'Chicago ARTCC',
@@ -1087,7 +1087,7 @@ router.put(
 						route: req.body.route,
 						description: req.body.description,
 					},
-				} as CustomMailOptions);
+				});
 
 				await req.app.dossier.create({
 					by: req.user!.cid,

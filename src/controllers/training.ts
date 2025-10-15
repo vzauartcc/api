@@ -2,7 +2,7 @@ import axios from 'axios';
 import { Router, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
 import { convertToReturnDetails } from '../app.js';
-import transporter, { type CustomMailOptions } from '../mailer.js';
+import { sendMail } from '../mailer.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
 import { NotificationModel } from '../models/notification.js';
@@ -123,7 +123,7 @@ router.post('/request/new', getUser, async (req: Request, res: Response) => {
 			};
 		}
 
-		transporter.sendMail({
+		sendMail({
 			to: 'training@zauartcc.org',
 			from: {
 				name: 'Chicago ARTCC',
@@ -153,7 +153,7 @@ router.post('/request/new', getUser, async (req: Request, res: Response) => {
 				}),
 				milestone: milestone.code.toUpperCase() + ' - ' + milestone.name,
 			},
-		} as CustomMailOptions);
+		});
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
 		req.app.Sentry.captureException(e);
@@ -273,8 +273,9 @@ router.post(
 				};
 			}
 
-			transporter.sendMail({
-				to: `${student.email}, ${instructor.email}`,
+			sendMail({
+				to: '', // Hide student and instructor emails
+				bcc: `${student.email}, ${instructor.email}`,
 				from: {
 					name: 'Chicago ARTCC',
 					address: 'no-reply@zauartcc.org',
@@ -303,7 +304,7 @@ router.post(
 						hourCycle: 'h23',
 					}),
 				},
-			} as CustomMailOptions);
+			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
 			req.app.Sentry.captureException(e);
