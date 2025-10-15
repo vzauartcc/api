@@ -3,8 +3,8 @@ import * as Dossier from 'dossier';
 import { Redis } from 'ioredis';
 import type { IUser } from 'models/user.ts';
 import type { OauthRequest } from 'types/CustomRequest.ts';
-import type { SentryClient } from './types/SentryClient.ts';
-import type { StandardResponse } from './types/StandardResponse.ts';
+import type { SentryClient } from './SentryClient.ts';
+import type { StandardResponse } from './StandardResponse.ts';
 
 export interface IdsUser extends IUser {
 	idsToken?: string;

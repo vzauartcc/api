@@ -188,7 +188,6 @@ app.listen(process.env['PORT'], () => {
 });
 
 export function convertToReturnDetails(e: unknown): ReturnDetails {
-	console.trace(e);
 	// 1. Check if 'e' is a standard Error object
 	if (e instanceof Error) {
 		// Return a generic error structure
