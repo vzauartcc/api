@@ -41,5 +41,7 @@ transport.use(
 );
 
 export function sendMail(opts: CustomMailOptions) {
+	if (!process.env['EMAIL_PASSWORD']) return;
+
 	transport.sendMail(opts);
 }

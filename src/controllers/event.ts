@@ -965,7 +965,6 @@ router.post('/staffingRequest', async (req: Request, res: Response) => {
 			email: req.body.email,
 		}).exec();
 
-		console.log(count);
 		if (count >= 3) {
 			throw {
 				code: 400,
