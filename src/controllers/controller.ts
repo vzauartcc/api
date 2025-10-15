@@ -505,7 +505,7 @@ router.get('/stats/:cid', async (req: Request, res: Response) => {
 
 				// @ts-ignore
 				const type = pos[thePos[1]];
-				const length = end.diff(start) / 1000;
+				const length = Number(end.diff(start)) / 1000;
 				let ms = getMonthYearString(start);
 
 				// @ts-ignore
