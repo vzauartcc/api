@@ -10,19 +10,34 @@ npm-debug.log
 .local
 *.log
 
+# Build artifacts (will be created during the build stage)
+dist
+build
+temp
+
 # Git files
 .git
 .gitignore
 .github
+.gitattributes
 
 # Docker build files
 Dockerfile
-.dockerignore
 docker-compose.yml
 
-# Other common developer files
 # Mac OS X
 .DS_Store
-# VS Code
+
+# IDEs
 .vscode
 .idea
+
+#Linting
+.eslintignore
+.eslintrc.json
+eslint.config.mjs
+.prettierrc.json
+# Project Files
+README.md
+doppler-template.yaml
+*.tsbuildinfo
