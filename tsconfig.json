@@ -6,8 +6,11 @@
 		"baseUrl": "./src",
 
 		"module": "nodenext",
-		"target": "esnext",
+		"target": "es2024",
 		"esModuleInterop": true,
+		"moduleResolution": "node16",
+
+		"lib": ["es2024", "ESNext.Array", "ESNext.Collection", "ESNext.Iterator", "ESNext.Promise"],
 
 		"sourceMap": true,
 		"declaration": true,
@@ -31,7 +34,12 @@
 		"noUnusedParameters": true,
 		"erasableSyntaxOnly": true,
 		"noFallthroughCasesInSwitch": true,
-		"forceConsistentCasingInFileNames": true
+		"forceConsistentCasingInFileNames": true,
+
+		"allowUnusedLabels": false,
+		"allowUnreachableCode": false,
+
+		"checkJs": true
 	},
 	"include": ["src/**/*.ts", "src/**/*.json"],
 	"exclude": ["node_modules", "dist"]

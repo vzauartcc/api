@@ -504,7 +504,7 @@ router.post(
 				.then((res2) => res2.json())
 				.then(async (data) => {
 					let url = eventData.url;
-					let messageId = data.id;
+					let messageId = (data as { id: string }).id;
 					if (messageId !== undefined) {
 						await EventModel.findOneAndUpdate(
 							{ url: url },
