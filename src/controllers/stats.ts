@@ -329,6 +329,8 @@ router.get(
 					{
 						$match: {
 							timeStart: { $gte: startOfQuarter.toJSDate(), $lte: endOfQuarter.toJSDate() },
+							isStudent: false,
+							isInstructor: false,
 						},
 					},
 					{
@@ -339,16 +341,6 @@ router.get(
 						},
 					},
 					{ $match: { position: { $exists: true } } },
-					{
-						$match: {
-							$expr: {
-								$or: [
-									{ $in: ['$position', ['ORD_I_GND', 'ORD_S_TWR']] },
-									{ $not: { $regexMatch: { input: '$position', regex: '_[IS]_' } } },
-								],
-							},
-						},
-					},
 					{ $group: { _id: '$cid', totalTime: { $sum: '$totalTime' } } },
 				]).exec(),
 				TrainingRequestModel.aggregate([

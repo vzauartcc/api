@@ -74,19 +74,10 @@ router.get('/top', async (req: Request, res: Response) => {
 		const thisMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
 		const nextMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1));
 		const sessions = await ControllerHoursModel.find({
-			$or: [
-				{
-					$and: [
-						{ position: { $not: /.*_(I|M)_.*/ } },
-						{ timeStart: { $gt: thisMonth, $lt: nextMonth } },
-					],
-				},
-				{
-					$and: [
-						{ $or: [{ position: 'ORD_I_GND' }, { position: 'ORD_M_GND' }] },
-						{ timeStart: { $gt: thisMonth, $lt: nextMonth } },
-					],
-				},
+			$and: [
+				{ isInstructor: false },
+				{ isStudent: false },
+				{ timeStart: { $gt: thisMonth, $lt: nextMonth } },
 			],
 		})
 			.populate('user', 'fname lname cid')
