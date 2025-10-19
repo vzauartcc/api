@@ -119,10 +119,14 @@ router.get('/top', async (req: Request, res: Response) => {
 				len: posTime.len + len,
 			});
 		}
-		res.stdRes.data.controllers = Object.values(controllerTimes)
+		res.stdRes.data.controllers = controllerTimes
+			.values()
+			.toArray()
 			.sort((a, b) => b.len - a.len)
 			.slice(0, 5);
-		res.stdRes.data.positions = Object.values(positionTimes)
+		res.stdRes.data.positions = controllerTimes
+			.values()
+			.toArray()
 			.sort((a, b) => b.len - a.len)
 			.slice(0, 5);
 	} catch (e) {
