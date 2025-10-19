@@ -1,3 +1,7 @@
+/**
+ * Any changes to this model should be reflected to both the api and data-parser repositories.
+ **/
+
 import { Document, model, Schema } from 'mongoose';
 
 interface IPirep extends Document {
@@ -28,9 +32,9 @@ const PirepSchema = new Schema<IPirep>(
 		vis: { type: String },
 		temp: { type: String },
 		wind: { type: String },
-		urgent: { type: Boolean, required: true, default: false },
+		urgent: { type: Boolean, required: true },
 		raw: { type: String, required: true },
-		manual: { type: Boolean, required: true, default: false },
+		manual: { type: Boolean, required: true },
 	},
 	{ collection: 'pirep' },
 );

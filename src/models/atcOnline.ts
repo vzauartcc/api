@@ -1,3 +1,7 @@
+/**
+ * Any changes to this model should be reflected to both the api and data-parser repositories.
+ **/
+
 import { Document, model, Schema } from 'mongoose';
 import mongooseLeanVirtuals from 'mongoose-lean-virtuals';
 import zau from '../zau.js';
