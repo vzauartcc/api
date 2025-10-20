@@ -75,8 +75,8 @@ router.get('/top', async (req: Request, res: Response) => {
 		const nextMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1));
 		const sessions = await ControllerHoursModel.find({
 			$and: [
-				{ isInstructor: false },
-				{ isStudent: false },
+				{ isInstructor: { $ne: true } },
+				{ isStudent: { $ne: true } },
 				{ timeStart: { $gt: thisMonth, $lt: nextMonth } },
 			],
 		})

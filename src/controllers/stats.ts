@@ -330,8 +330,8 @@ router.get(
 					{
 						$match: {
 							timeStart: { $gte: startOfQuarter.toJSDate(), $lte: endOfQuarter.toJSDate() },
-							isStudent: false,
-							isInstructor: false,
+							isStudent: { $ne: true },
+							isInstructor: { $ne: true },
 						},
 					},
 					{
@@ -364,8 +364,8 @@ router.get(
 					{
 						$match: {
 							timeStart: { $gte: startOfQuarter.toJSDate(), $lte: endOfQuarter.toJSDate() },
-							isStudent: false,
-							isInstructor: false,
+							isStudent: { $ne: true },
+							isInstructor: { $ne: true },
 						},
 					},
 					{
