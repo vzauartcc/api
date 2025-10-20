@@ -74,19 +74,10 @@ router.get('/top', async (req: Request, res: Response) => {
 		const thisMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
 		const nextMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1));
 		const sessions = await ControllerHoursModel.find({
-			$or: [
-				{
-					$and: [
-						{ position: { $not: /.*_(I|M)_.*/ } },
-						{ timeStart: { $gt: thisMonth, $lt: nextMonth } },
-					],
-				},
-				{
-					$and: [
-						{ $or: [{ position: 'ORD_I_GND' }, { position: 'ORD_M_GND' }] },
-						{ timeStart: { $gt: thisMonth, $lt: nextMonth } },
-					],
-				},
+			$and: [
+				{ isInstructor: false },
+				{ isStudent: false },
+				{ timeStart: { $gt: thisMonth, $lt: nextMonth } },
 			],
 		})
 			.populate('user', 'fname lname cid')
@@ -128,10 +119,14 @@ router.get('/top', async (req: Request, res: Response) => {
 				len: posTime.len + len,
 			});
 		}
-		res.stdRes.data.controllers = Object.values(controllerTimes)
+		res.stdRes.data.controllers = controllerTimes
+			.values()
+			.toArray()
 			.sort((a, b) => b.len - a.len)
 			.slice(0, 5);
-		res.stdRes.data.positions = Object.values(positionTimes)
+		res.stdRes.data.positions = controllerTimes
+			.values()
+			.toArray()
 			.sort((a, b) => b.len - a.len)
 			.slice(0, 5);
 	} catch (e) {

@@ -1,3 +1,7 @@
+/**
+ * Any changes to this model should be reflected to both the api and data-parser repositories.
+ **/
+
 import { Document, model, Schema } from 'mongoose';
 
 interface IPirep extends Document {
@@ -5,12 +9,12 @@ interface IPirep extends Document {
 	location: string;
 	aircraft: string;
 	flightLevel: string;
-	skyCond: string;
-	turbulence: string;
-	icing: string;
-	vis: string;
-	temp: string;
-	wind: string;
+	skyCond?: string;
+	turbulence?: string;
+	icing?: string;
+	vis?: string;
+	temp?: string;
+	wind?: string;
 	urgent: boolean;
 	raw: string;
 	manual: boolean;
@@ -22,15 +26,15 @@ const PirepSchema = new Schema<IPirep>(
 		location: { type: String, required: true },
 		aircraft: { type: String, required: true },
 		flightLevel: { type: String, required: true },
-		skyCond: { type: String, required: true },
-		turbulence: { type: String, required: true },
-		icing: { type: String, required: true },
-		vis: { type: String, required: true },
-		temp: { type: String, required: true },
-		wind: { type: String, required: true },
-		urgent: { type: Boolean, default: false, required: true },
+		skyCond: { type: String },
+		turbulence: { type: String },
+		icing: { type: String },
+		vis: { type: String },
+		temp: { type: String },
+		wind: { type: String },
+		urgent: { type: Boolean, required: true },
 		raw: { type: String, required: true },
-		manual: { type: Boolean, default: false, required: true },
+		manual: { type: Boolean, required: true },
 	},
 	{ collection: 'pirep' },
 );
