@@ -278,6 +278,7 @@ interface UserDataEntry extends FlattenMaps<IUser> {
 	exempt: boolean;
 	protected: boolean;
 	tooLow: boolean;
+	obsTime: number;
 }
 
 interface UserDataMap {
@@ -324,7 +325,7 @@ router.get(
 
 			// SECTION: Fetch & Process Activity and Training Data
 			//console.log('Fetching activity and training data...');
-			const [activityReduced, trainingRequests, trainingSessions] = await Promise.all([
+			const [activityReduced, trainingRequests, trainingSessions, obsReduced] = await Promise.all([
 				ControllerHoursModel.aggregate([
 					{
 						$match: {
@@ -340,7 +341,7 @@ router.get(
 							totalTime: { $divide: [{ $subtract: ['$timeEnd', '$timeStart'] }, 1000] },
 						},
 					},
-					{ $match: { position: { $exists: true } } },
+					{ $match: { position: { $exists: true, $not: /_OBS$/ } } },
 					{ $group: { _id: '$cid', totalTime: { $sum: '$totalTime' } } },
 				]).exec(),
 				TrainingRequestModel.aggregate([
@@ -359,6 +360,24 @@ router.get(
 					},
 					{ $group: { _id: '$studentCid', totalSessions: { $sum: 1 } } },
 				]).exec(),
+				ControllerHoursModel.aggregate([
+					{
+						$match: {
+							timeStart: { $gte: startOfQuarter.toJSDate(), $lte: endOfQuarter.toJSDate() },
+							isStudent: false,
+							isInstructor: false,
+						},
+					},
+					{
+						$project: {
+							cid: 1,
+							position: { $toUpper: '$position' },
+							totalTime: { $divide: [{ $subtract: ['$timeEnd', '$timeStart'] }, 1000] },
+						},
+					},
+					{ $match: { position: { $exists: true, $regex: /_OBS$/ } } },
+					{ $group: { _id: '$cid', totalTime: { $sum: '$totalTime' } } },
+				]).exec(),
 			]);
 
 			// Convert activity data into lookup objects for quick access
@@ -371,6 +390,7 @@ router.get(
 			const trainingSessionsMap = Object.fromEntries(
 				trainingSessions.map(({ _id, totalSessions }) => [_id, totalSessions]),
 			);
+			const obsMap = Object.fromEntries(obsReduced.map(({ _id, totalTime }) => [_id, totalTime]));
 
 			//console.log('Activity and training data mapped');
 
@@ -380,9 +400,11 @@ router.get(
 
 			for (const user of users) {
 				if (user.cid === testUserCID) console.log(`Processing test user: ${user.cid}`);
+
 				const totalTime = activityMap[user.cid] || 0;
 				const totalRequests = trainingRequestsMap[user.cid] || 0;
 				const totalSessions = trainingSessionsMap[user.cid] || 0;
+				const obsTime = user.rating === 1 ? obsMap[user.cid] || 0 : 0;
 
 				const exempt = isExempt(user, startOfQuarter);
 				const protectedStatus =
@@ -398,6 +420,7 @@ router.get(
 					exempt,
 					protected: protectedStatus,
 					tooLow: false,
+					obsTime,
 				};
 			}
 
@@ -413,11 +436,23 @@ router.get(
 					console.log(`Total Sessions: ${user.totalSessions}`);
 					console.log(`Rating: ${user.rating}`);
 					console.log(`Exempt: ${user.exempt}`);
+					if (user.rating === 1) {
+						console.log(`OBS Time: ${user.obsTime}`);
+					}
 				}
 
 				// Apply tooLow checks
 				if (!user.exempt) {
-					if (user.totalTime < 3600 * 3) {
+					if (user.rating === 1) {
+						if (user.obsTime < 3600 * 2) {
+							if (user.cid === testUserCID) {
+								console.log(
+									`❌ Test User ${cid} flagged tooLow: obsTime (${user.totalTime}s) is less than 2 hours`,
+								);
+							}
+							tooLow = true;
+						}
+					} else if (user.totalTime < 3600 * 3) {
 						if (user.cid === testUserCID) {
 							console.log(
 								`❌ Test User ${cid} flagged tooLow: totalTime (${user.totalTime}s) is less than 3 hours`,
