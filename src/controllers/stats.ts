@@ -31,7 +31,7 @@ const months = [
 	'December',
 ];
 const ratings = [
-	'Unknown',
+	'Suspended / Unknown',
 	'OBS',
 	'S1',
 	'S2',
