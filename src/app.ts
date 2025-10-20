@@ -20,17 +20,22 @@ import trainingRouter from './controllers/training.js';
 import userRouter from './controllers/user.js';
 import vatusaRouter from './controllers/vatusa.js';
 import { DossierModel } from './models/dossier.js';
+import { NoOpSentryWrapper, SentryWrapper } from './types/SentryClient.js';
 import type { ReturnDetails } from './types/StandardResponse.js';
 
 const app = express();
 
 const SENTRY_DSN = process.env['SENTRY_DSN'];
 
+// Sentry config should come first.
 if (SENTRY_DSN) {
 	Sentry.init({
 		dsn: SENTRY_DSN,
 		tracesSampleRate: 1.0,
 	});
+	app.Sentry = SentryWrapper;
+} else {
+	app.Sentry = NoOpSentryWrapper;
 }
 
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -181,7 +186,19 @@ app.use('/stats', statsRouter);
 app.use('/exam', examRouter);
 app.use('/vatusa', vatusaRouter);
 
+// Sentry error capturing should be after all routes are registered.
 if (process.env['NODE_ENV'] === 'production' && SENTRY_DSN) Sentry.setupExpressErrorHandler(app);
+
+// Future use: Fallback express error handler
+// app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
+// 	if (res.headersSent) {
+// 		return next(err);
+// 	}
+
+// 	res.status(err.status || 500).json({
+// 		message: 'An internal server error occurred.',
+// 	});
+// });
 
 app.listen(process.env['PORT'], () => {
 	console.log('Listening on port ' + process.env['PORT']);
