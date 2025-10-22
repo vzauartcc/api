@@ -2,7 +2,7 @@ import axios from 'axios';
 import { randomUUID } from 'crypto';
 import { Router, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { convertToReturnDetails, uploadToS3 } from '../app.js';
+import { convertToReturnDetails, getQuarterStart, uploadToS3 } from '../app.js';
 import getUser, { deleteAuthCookie, type UserPayload } from '../middleware/user.js';
 import oAuth from '../middleware/vatsim.js';
 import { ControllerHoursModel } from '../models/controllerHours.js';
@@ -200,9 +200,12 @@ router.get('/logout', async (req: Request, res: Response) => {
 
 router.get('/sessions', getUser, async (req: Request, res: Response) => {
 	try {
-		const sessions = await ControllerHoursModel.find({ cid: req.user!.cid })
+		const quarterStart = getQuarterStart();
+		const sessions = await ControllerHoursModel.find({
+			cid: req.user!.cid,
+			timeStart: { $gt: quarterStart },
+		})
 			.sort({ timeStart: -1 })
-			.limit(20)
 			.lean()
 			.exec();
 		res.stdRes.data = sessions;

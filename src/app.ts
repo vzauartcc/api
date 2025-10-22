@@ -257,3 +257,13 @@ export function deleteFromS3(filename: string) {
 		}),
 	);
 }
+
+export function getQuarterStart(date: Date = new Date()): Date {
+	const year = date.getUTCFullYear();
+	const month = date.getUTCMonth();
+
+	const quarterIndex = Math.floor(month / 3);
+	const startMonth = quarterIndex * 3;
+
+	return new Date(Date.UTC(year, startMonth, 1));
+}
