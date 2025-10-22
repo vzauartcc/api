@@ -19,6 +19,7 @@ const DossierSchema = new Schema<IDossier>(
 		action: { type: String },
 	},
 	{
+		collection: 'dossier',
 		timestamps: true,
 	},
 );
