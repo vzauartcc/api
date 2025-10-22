@@ -20,6 +20,7 @@ const AbsenceSchema = new Schema<IAbsence>(
 		reason: { type: String, required: true },
 	},
 	{
+		collection: 'absence',
 		timestamps: true,
 	},
 );

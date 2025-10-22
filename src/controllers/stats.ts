@@ -46,7 +46,7 @@ const ratings = [
 	'ADM',
 ];
 
-let testUserCID = 10000002;
+let testUserCID = 0;
 
 router.get(
 	'/admin',
@@ -218,24 +218,19 @@ router.get(
 	},
 );
 
-// Helper function to calculate the start and end of a quarter given a year and quarter number
-function getQuarterStartEnd(quarter: number, year: number) {
-	const startOfQuarter = DateTime.utc(year)
-		.startOf('year')
-		.plus({ months: (quarter - 1) * 3 }); // First day of the quarter
-	const endOfQuarter = startOfQuarter.plus({ months: 3 }).minus({ days: 1 }).endOf('day'); // Last day of the quarter
-	return { startOfQuarter, endOfQuarter };
-}
-
-function isExempt(user: IUser, startOfQuarter: DateTime<true> | DateTime<false>) {
+function isExempt(user: IUser, startOfPeriod: Date) {
 	if (user.cid === testUserCID) {
 		console.log(`Checking exemption for test user ${user.cid}`);
-		console.log(`User joinDate: ${user.joinDate}, Start of Quarter: ${startOfQuarter}`);
+		console.log(
+			`User joinDate: ${user.joinDate}, Start of ${zau.activity.period.unit}: ${startOfPeriod}`,
+		);
 	}
 
-	if (user.joinDate && user.joinDate >= startOfQuarter.toJSDate()) {
+	if (user.joinDate && user.joinDate >= startOfPeriod) {
 		if (user.cid === testUserCID) {
-			console.log(`Test user ${user.cid} is exempt: joined during the quarter.`);
+			console.log(
+				`Test user ${user.cid} is exempt: joined during the ${zau.activity.period.unit}.`,
+			);
 		}
 		return true;
 	}
@@ -252,12 +247,14 @@ function isExempt(user: IUser, startOfQuarter: DateTime<true> | DateTime<false>)
 				console.log(`Cert code: ${cert.code}, Gained Date: ${gainedDate}`);
 			}
 
-			return cert.code === 'gnd' && gainedDate && gainedDate >= startOfQuarter.toJSDate();
+			return cert.code === 'gnd' && gainedDate && gainedDate >= startOfPeriod;
 		});
 
 		if (promotedToS1) {
 			if (user.cid === testUserCID) {
-				console.log(`Test user ${user.cid} is exempt: promoted from OBS to S1 during the quarter.`);
+				console.log(
+					`Test user ${user.cid} is exempt: promoted from OBS to S1 during the ${zau.activity.period.unit}.`,
+				);
 			}
 			return true;
 		}
@@ -297,13 +294,15 @@ router.get(
 				testUserCID = parseInt(req.query['cid'] as string, 10);
 			}
 
-			// SECTION: Get Quarter & Year
-			const quarter =
-				parseInt(req.query['quarter'] as string, 10) ||
-				Math.floor((DateTime.utc().month - 1) / 3) + 1;
+			// SECTION: Get Period & Year
+			const period =
+				parseInt(req.query['period'] as string) || zau.activity.period.periodFromDate();
 			const year = parseInt(req.query['year'] as string, 10) || DateTime.utc().year;
-			const { startOfQuarter, endOfQuarter } = getQuarterStartEnd(quarter, year);
-			//console.log(`Quarter: ${quarter}, Year: ${year}, Start: ${startOfQuarter}, End: ${endOfQuarter}`);
+			const startofPeriod = zau.activity.period.periodStartFromPeriod(period, year);
+			const endOfPeriod = zau.activity.period.periodEndFromPeriod(period, year);
+			console.log(
+				`${zau.activity.period.unit}: ${period}, Year: ${year}, Start: ${startofPeriod}, End: ${endOfPeriod}`,
+			);
 
 			// SECTION: Fetch Users Data
 			//console.log('Fetching users...');
@@ -329,7 +328,7 @@ router.get(
 				ControllerHoursModel.aggregate([
 					{
 						$match: {
-							timeStart: { $gte: startOfQuarter.toJSDate(), $lte: endOfQuarter.toJSDate() },
+							timeStart: { $gte: startofPeriod, $lte: endOfPeriod },
 							isStudent: { $ne: true },
 							isInstructor: { $ne: true },
 						},
@@ -347,7 +346,7 @@ router.get(
 				TrainingRequestModel.aggregate([
 					{
 						$match: {
-							startTime: { $gte: startOfQuarter.toJSDate(), $lte: endOfQuarter.toJSDate() },
+							startTime: { $gte: startofPeriod, $lte: endOfPeriod },
 						},
 					},
 					{ $group: { _id: '$studentCid', totalRequests: { $sum: 1 } } },
@@ -355,7 +354,7 @@ router.get(
 				TrainingSessionModel.aggregate([
 					{
 						$match: {
-							startTime: { $gte: startOfQuarter.toJSDate(), $lte: endOfQuarter.toJSDate() },
+							startTime: { $gte: startofPeriod, $lte: endOfPeriod },
 						},
 					},
 					{ $group: { _id: '$studentCid', totalSessions: { $sum: 1 } } },
@@ -363,7 +362,7 @@ router.get(
 				ControllerHoursModel.aggregate([
 					{
 						$match: {
-							timeStart: { $gte: startOfQuarter.toJSDate(), $lte: endOfQuarter.toJSDate() },
+							timeStart: { $gte: startofPeriod, $lte: endOfPeriod },
 							isStudent: { $ne: true },
 							isInstructor: { $ne: true },
 						},
@@ -406,7 +405,7 @@ router.get(
 				const totalSessions = trainingSessionsMap[user.cid] || 0;
 				const obsTime = user.rating === 1 ? obsMap[user.cid] || 0 : 0;
 
-				const exempt = isExempt(user, startOfQuarter);
+				const exempt = isExempt(user, startofPeriod);
 				const protectedStatus =
 					user.isStaff ||
 					[1202744].includes(user.cid) ||
@@ -444,18 +443,21 @@ router.get(
 				// Apply tooLow checks
 				if (!user.exempt) {
 					if (user.rating === 1) {
-						if (user.obsTime < 3600 * 2) {
+						if (
+							user.obsTime < zau.activity.requirements.observer.seconds &&
+							user.totalSessions < zau.activity.requirements.observer.trainingSessions
+						) {
 							if (user.cid === testUserCID) {
 								console.log(
-									`❌ Test User ${cid} flagged tooLow: obsTime (${user.totalTime}s) is less than 2 hours`,
+									`❌ Test User ${cid} flagged tooLow: obsTime (${user.totalTime}s) is less than ${zau.activity.requirements.observer.hours} ${zau.activity.requirements.unit}`,
 								);
 							}
 							tooLow = true;
 						}
-					} else if (user.totalTime < 3600 * 3) {
+					} else if (user.totalTime < zau.activity.requirements.controller.seconds) {
 						if (user.cid === testUserCID) {
 							console.log(
-								`❌ Test User ${cid} flagged tooLow: totalTime (${user.totalTime}s) is less than 3 hours`,
+								`❌ Test User ${cid} flagged tooLow: totalTime (${user.totalTime}s) is less than ${zau.activity.requirements.controller.hours} ${zau.activity.requirements.unit}`,
 							);
 						}
 						tooLow = true;
