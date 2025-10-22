@@ -40,7 +40,7 @@ const activity = {
 		periodsInYear,
 		periodLength,
 		startOfCurrent: getPeriodStartFromDate(),
-		endOfCurrent: getPeriodStartFromDate(),
+		endOfCurrent: getPeriodEndFromDate(),
 		periodStartFromDate: function (date: Date = new Date()) {
 			return getPeriodStartFromDate(date);
 		},
