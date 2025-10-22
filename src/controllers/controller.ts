@@ -18,7 +18,7 @@ const router = Router();
 router.get('/', async (req: Request, res: Response) => {
 	try {
 		const allUsers: IUser[] = await UserModel.find({})
-			.select('-email -idsToken -discordInfo -discord -certificationDate -broadcast')
+			.select('-email -idsToken -discordInfo -certificationDate -broadcast')
 			.sort({
 				lname: 'asc',
 				fname: 'asc',
