@@ -124,7 +124,7 @@ router.get('/top', async (req: Request, res: Response) => {
 			.toArray()
 			.sort((a, b) => b.len - a.len)
 			.slice(0, 5);
-		res.stdRes.data.positions = controllerTimes
+		res.stdRes.data.positions = positionTimes
 			.values()
 			.toArray()
 			.sort((a, b) => b.len - a.len)

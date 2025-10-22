@@ -7,7 +7,9 @@ import getUser, { deleteAuthCookie, type UserPayload } from '../middleware/user.
 import oAuth from '../middleware/vatsim.js';
 import { ControllerHoursModel } from '../models/controllerHours.js';
 import { NotificationModel } from '../models/notification.js';
+import { TrainingSessionModel } from '../models/trainingSession.js';
 import { UserModel } from '../models/user.js';
+import zau from '../zau.js';
 
 const router = Router();
 
@@ -200,12 +202,26 @@ router.get('/logout', async (req: Request, res: Response) => {
 
 router.get('/sessions', getUser, async (req: Request, res: Response) => {
 	try {
-		const sessions = await ControllerHoursModel.find({ cid: req.user!.cid })
+		const sessions = await ControllerHoursModel.find({
+			cid: req.user!.cid,
+			timeStart: { $gt: zau.activity.period.startOfCurrent },
+		})
 			.sort({ timeStart: -1 })
-			.limit(20)
 			.lean()
 			.exec();
-		res.stdRes.data = sessions;
+		const training = await TrainingSessionModel.find({
+			studentCid: req.user!.cid,
+			startTime: zau.activity.period.startOfCurrent,
+		})
+			.sort({ startTime: -1 })
+			.lean()
+			.exec();
+		res.stdRes.data = {
+			sessions,
+			training,
+			period: zau.activity.period,
+			requirements: zau.activity.requirements,
+		};
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
 		req.app.Sentry.captureException(e);

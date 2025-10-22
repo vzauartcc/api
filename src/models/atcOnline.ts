@@ -20,15 +20,18 @@ interface IAtcOnline extends Document {
 	ratingLong: string;
 }
 
-const AtcOnlineSchema = new Schema<IAtcOnline>({
-	cid: { type: Number, required: true },
-	name: { type: String, required: true },
-	rating: { type: Number, required: true },
-	pos: { type: String, required: true },
-	timeStart: { type: Date, required: true },
-	atis: { type: String, required: true, default: '' },
-	frequency: { type: Number, required: true },
-});
+const AtcOnlineSchema = new Schema<IAtcOnline>(
+	{
+		cid: { type: Number, required: true },
+		name: { type: String, required: true },
+		rating: { type: Number, required: true },
+		pos: { type: String, required: true },
+		timeStart: { type: Date, required: true },
+		atis: { type: String, required: true, default: '' },
+		frequency: { type: Number, required: true },
+	},
+	{ collection: 'atcOnline' },
+);
 
 AtcOnlineSchema.virtual('ratingShort').get(function (this: IAtcOnline) {
 	return zau.ratingsShort[this.rating];

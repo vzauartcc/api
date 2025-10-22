@@ -10,6 +10,7 @@ on:
 jobs:
   Build-and-Push:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.base.ref != 'main'
 
     steps:
       - name: Checkout master

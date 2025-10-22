@@ -1,4 +1,83 @@
+const periodUnitName = 'quarter';
+const periodsInYear = 4;
+const periodLength = 12 / periodsInYear;
+
+function getPeriodStartFromDate(date: Date = new Date()): Date {
+	const year = date.getUTCFullYear();
+	const month = date.getUTCMonth();
+
+	const periodIndex = Math.floor(month / periodLength);
+	const startMonth = periodIndex * periodLength;
+
+	return new Date(Date.UTC(year, startMonth, 1));
+}
+
+function getPeriodEndFromDate(date: Date = new Date()): Date {
+	return new Date(
+		getPeriodStartFromDate(date).setUTCMonth(
+			getPeriodStartFromDate(date).getUTCMonth() + periodLength,
+			1,
+		),
+	);
+}
+
+function getPeriodStartFromPeriod(period: number, year = new Date().getUTCFullYear()): Date {
+	return getPeriodStartFromDate(new Date(year, period * periodLength - periodLength, 1));
+}
+
+function getPeriodEndFromPeriod(period: number, year = new Date().getUTCFullYear()): Date {
+	const endUnit = new Date(year, period * periodLength, 0);
+	return getPeriodEndFromDate(new Date(year, endUnit.getUTCMonth(), endUnit.getDate()));
+}
+
+function getPeriodFromDate(date: Date = new Date()): number {
+	return Math.ceil((1 + date.getUTCMonth()) / periodLength);
+}
+
+const activity = {
+	period: {
+		unit: periodUnitName,
+		periodsInYear,
+		periodLength,
+		startOfCurrent: getPeriodStartFromDate(),
+		endOfCurrent: getPeriodEndFromDate(),
+		periodStartFromDate: function (date: Date = new Date()) {
+			return getPeriodStartFromDate(date);
+		},
+		periodEndFromDate: (date: Date = new Date()) => {
+			return getPeriodEndFromDate(date);
+		},
+		periodStartFromPeriod: function (period: number, year = new Date().getUTCFullYear()) {
+			return getPeriodStartFromPeriod(period, year);
+		},
+		periodEndFromPeriod: function (period: number, year = new Date().getUTCFullYear()) {
+			return getPeriodEndFromPeriod(period, year);
+		},
+		periodFromDate: function (date: Date = new Date()) {
+			return getPeriodFromDate(date);
+		},
+	},
+	requirements: {
+		unit: 'hours',
+		observer: {
+			hours: 2,
+			minutes: 2 * 60,
+			seconds: 2 * 60 * 60,
+			milliseconds: 2 * 60 * 60 * 1000,
+			trainingSessions: 2,
+		},
+		controller: {
+			hours: 3,
+			minutes: 3 * 60,
+			seconds: 3 * 60 * 60,
+			milliseconds: 3 * 60 * 60 * 1000,
+			trainingSessions: 0,
+		},
+	},
+};
+
 export default {
+	activity,
 	atcPos: [
 		'ARR',
 		'AZO',
