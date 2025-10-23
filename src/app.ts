@@ -1,5 +1,6 @@
 import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import * as Sentry from '@sentry/node';
+import axios from 'axios';
 import cookie from 'cookie-parser';
 import cors from 'cors';
 import type { NextFunction, Request, Response } from 'express';
@@ -257,3 +258,10 @@ export function deleteFromS3(filename: string) {
 		}),
 	);
 }
+
+export const vatusaApi = axios.create({
+	baseURL: 'https://api.vatusa.net/v2',
+	params: {
+		apiKey: process.env['VATUSA_API_KEY'],
+	},
+});
