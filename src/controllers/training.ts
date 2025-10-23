@@ -125,10 +125,6 @@ router.post('/request/new', getUser, async (req: Request, res: Response) => {
 
 		sendMail({
 			to: 'training@zauartcc.org',
-			from: {
-				name: 'Chicago ARTCC',
-				address: 'no-reply@zauartcc.org',
-			},
 			subject: `New Training Request: ${student.fname} ${student.lname} | Chicago ARTCC`,
 			template: 'newRequest',
 			context: {
@@ -276,10 +272,6 @@ router.post(
 			sendMail({
 				to: '', // Hide student and instructor emails
 				bcc: `${student.email}, ${instructor.email}`,
-				from: {
-					name: 'Chicago ARTCC',
-					address: 'no-reply@zauartcc.org',
-				},
 				subject: 'Training Request Taken | Chicago ARTCC',
 				template: 'requestTaken',
 				context: {
@@ -539,7 +531,7 @@ router.get(
 			if (!controller) {
 				throw {
 					code: 400,
-					messgage: 'User not found',
+					message: 'User not found',
 				};
 			}
 

@@ -54,7 +54,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 		const durationMs = Number(durationNs) / 1_000_000;
 
 		console.log(
-			`[Timer] ${req.method} ${req.originalUrl} - Status ${res.statusCode} - ${durationMs.toFixed(3)}ms`,
+			`[Timer] [${new Date().toUTCString()}] ${req.method} ${req.originalUrl} - Status ${res.statusCode} ${req.user ? `- ${req.user.cid} ` : ''}- ${durationMs.toFixed(3)}ms`,
 		);
 
 		res.removeListener('finish', logRequestDuration);

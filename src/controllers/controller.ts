@@ -611,10 +611,6 @@ router.put('/visit/:cid', getUser, hasRole(['atm', 'datm']), async (req, res) =>
 
 		sendMail({
 			to: user.email,
-			from: {
-				name: 'Chicago ARTCC',
-				address: 'no-reply@zauartcc.org',
-			},
 			subject: `Visiting Application Accepted | Chicago ARTCC`,
 			template: 'visitAccepted',
 			context: {
@@ -661,10 +657,6 @@ router.delete(
 
 			sendMail({
 				to: user.email,
-				from: {
-					name: 'Chicago ARTCC',
-					address: 'no-reply@zauartcc.org',
-				},
 				subject: `Visiting Application Rejected | Chicago ARTCC`,
 				template: 'visitRejected',
 				context: {
@@ -744,10 +736,6 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response) => {
 
 		sendMail({
 			to: 'atm@zauartcc.org, datm@zauartcc.org, ta@zauartcc.org',
-			from: {
-				name: 'Chicago ARTCC',
-				address: 'no-reply@zauartcc.org',
-			},
 			subject: `New ${req.body.vis ? 'Visitor' : 'Member'}: ${req.body.fname} ${req.body.lname} | Chicago ARTCC`,
 			template: 'newController',
 			context: {
@@ -817,10 +805,6 @@ router.put('/:cid/member', internalAuth, async (req: Request, res: Response) => 
 		if (req.body.member || req.body.vis) {
 			sendMail({
 				to: 'atm@zauartcc.org, datm@zauartcc.org, ta@zauartcc.org',
-				from: {
-					name: 'Chicago ARTCC',
-					address: 'no-reply@zauartcc.org',
-				},
 				subject: `New ${user.vis ? 'Visitor' : 'Member'}: ${user.fname} ${user.lname} | Chicago ARTCC`,
 				template: 'newController',
 				context: {
