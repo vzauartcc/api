@@ -19,6 +19,7 @@ import statsRouter from './controllers/stats.js';
 import trainingRouter from './controllers/training.js';
 import userRouter from './controllers/user.js';
 import vatusaRouter from './controllers/vatusa.js';
+import { sendMail } from './mailer.js';
 import { DossierModel } from './models/dossier.js';
 import { NoOpSentryWrapper, SentryWrapper } from './types/SentryClient.js';
 import type { ReturnDetails } from './types/StandardResponse.js';
@@ -202,6 +203,19 @@ if (process.env['NODE_ENV'] === 'production' && SENTRY_DSN) Sentry.setupExpressE
 
 app.listen(process.env['PORT'], () => {
 	console.log('Listening on port ' + process.env['PORT']);
+
+	sendMail({
+		to: 'webmaster@zauartcc.org',
+		from: {
+			name: 'Chicago ARTCC',
+			address: 'no-reply@zauartcc.org',
+		},
+		subject: `API Started`,
+		template: 'visitAccepted',
+		context: {
+			name: `Test User 1`,
+		},
+	});
 });
 
 export function convertToReturnDetails(e: unknown): ReturnDetails {
