@@ -9,7 +9,7 @@ export interface CustomMailOptions extends SendMailOptions {
 	context?: Record<string, any>;
 }
 
-const emailDir = path.resolve();
+const emailDir = path.join(import.meta.dirname, '/email');
 
 handlebars.registerHelper('formatDate', function (date: string) {
 	return DateTime.fromJSDate(new Date(date)).setZone('America/Chicago').toFormat('MM-dd-y t');
@@ -29,11 +29,11 @@ const transport = nodemailer.createTransport({
 transport.use(
 	'compile',
 	neh({
-		viewPath: emailDir + '/email',
+		viewPath: emailDir,
 		viewEngine: {
 			extname: '.hbs',
-			layoutsDir: emailDir + '/email',
-			partialsDir: emailDir + '/email',
+			layoutsDir: emailDir,
+			partialsDir: emailDir,
 			defaultLayout: 'main',
 		},
 		extName: '.hbs',
