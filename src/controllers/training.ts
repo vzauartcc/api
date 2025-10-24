@@ -886,7 +886,7 @@ router.post(
 			});
 
 			axios.post(
-				`https://discord.com/api/v10/channels/1341139323604439090/message`,
+				`https://discord.com/api/channels/1341139323604439090/message`,
 				{
 					content: `**SOLO ENDORSEMENT ISSUANCE**\n\nStudent Name: ${student.fname} ${student.lname}${student.discord ? ` <@${student.discord}>` : ''}\nInstructor Name: ${req.user!.fname} ${req.user!.lname}\nIssued Date: ${new Date().toLocaleDateString()}\nExpires Date: ${endDate.toLocaleDateString()}\nPosition: ${req.body.position}\n<@&1215950778120933467>`,
 				},
