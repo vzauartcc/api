@@ -20,7 +20,7 @@ interface ITrainingSession extends SoftDeleteDocument, ITimestamps {
 	studentNotes?: string;
 	insNotes?: string;
 	submitted: boolean;
-	synced?: boolean;
+	vatusaId?: number;
 
 	// Virtuals
 	milestone?: PopulatedDoc<ITrainingRequestMilestone & Document>;
@@ -44,7 +44,7 @@ const TrainingSessionSchema = new Schema<ITrainingSession>(
 		studentNotes: { type: String },
 		insNotes: { type: String },
 		submitted: { type: Boolean, required: true },
-		synced: { type: Boolean },
+		vatusaId: { type: Number },
 	},
 	{ collection: 'trainingSessions', timestamps: true },
 );

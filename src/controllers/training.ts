@@ -1,7 +1,6 @@
-import axios from 'axios';
 import { Router, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
-import { convertToReturnDetails } from '../app.js';
+import { convertToReturnDetails, vatusaApi } from '../app.js';
 import { sendMail } from '../mailer.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
@@ -12,6 +11,7 @@ import { TrainingSessionModel } from '../models/trainingSession.js';
 import { UserModel } from '../models/user.js';
 
 const router = Router();
+const fifteen = 15 * 60 * 1000;
 
 router.get('/request/upcoming', getUser, async (req: Request, res: Response) => {
 	try {
@@ -618,18 +618,10 @@ router.put(
 
 			const duration = `${('00' + hours).slice(-2)}:${('00' + minutes).slice(-2)}`;
 
-			const session = await TrainingSessionModel.findByIdAndUpdate(req.params['id'], {
-				sessiondate: req.body.startTime.slice(1, 11),
-				position: req.body.position,
-				progress: req.body.progress,
-				duration: duration,
-				movements: req.body.movements,
-				location: req.body.location,
-				ots: req.body.ots,
-				studentNotes: req.body.studentNotes,
-				insNotes: req.body.insNotes,
-				submitted: true,
-			}).exec();
+			const session = await TrainingSessionModel.findByIdAndUpdate(
+				req.params['id'],
+				req.body,
+			).exec();
 
 			if (!session) {
 				throw {
@@ -638,54 +630,32 @@ router.put(
 				};
 			}
 
+			// Send the training record to vatusa
+			const vatusaRes = await vatusaApi.post(`/user/${session.studentCid}/training/record`, {
+				instructor_id: session.instructorCid,
+				session_date: DateTime.fromISO(req.body.startTime).toFormat('y-MM-dd HH:mm'),
+				position: req.body.position,
+				duration: duration,
+				movements: req.body.movements,
+				score: req.body.progress,
+				notes: req.body.studentNotes,
+				ots_status: req.body.ots,
+				location: req.body.location,
+				is_cbt: false,
+				solo_granted: false,
+			});
+
+			// update the database flag to submitted to prevent further updates.
+			session.vatusaId = vatusaRes.data.id;
+			session.submitted = true;
+			session.save();
+
 			const instructor = await UserModel.findOne({ cid: session.instructorCid })
 				.select('fname lname')
 				.lean()
 				.exec();
 
-			// Send the training record to vatusa
-			const vatusaApi = axios.create({
-				baseURL: 'https://api.vatusa.net/v2',
-				params: {
-					apiKey: process.env['VATUSA_API_KEY'],
-				},
-			});
-
-			const Response = await vatusaApi.post(
-				`https://api.vatusa.net/v2/user/${session.studentCid}/training/record/?apikey=${process.env['VATUSA_API_KEY']}`,
-				{
-					instructor_id: session.instructorCid,
-					session_date: DateTime.fromISO(req.body.startTime).toFormat('y-MM-dd HH:mm'),
-					position: req.body.position,
-					duration: duration,
-					movements: req.body.movements,
-					score: req.body.progress,
-					notes: req.body.studentNotes,
-					ots_status: req.body.ots,
-					location: req.body.location,
-					is_cbt: false,
-					solo_granted: false,
-				},
-			);
-
-			// If we get here, vatusa update was successful
-			console.log('VATUSA API Training note submitted - status: ' + Response.status);
-
-			// update the database flag to submitted to prevent further updates.
-			await TrainingSessionModel.findByIdAndUpdate(req.params['id'], {
-				sessiondate: DateTime.fromISO(req.body.startTime).toFormat('y-MM-dd HH:mm'),
-				position: req.body.position,
-				progress: req.body.progress,
-				duration: duration,
-				movements: req.body.movements,
-				location: req.body.location,
-				ots: req.body.ots,
-				studentNotes: req.body.studentNotes,
-				insNotes: req.body.insNotes,
-				submitted: true,
-			}).exec();
-
-			await NotificationModel.create({
+			NotificationModel.create({
 				recipient: session.studentCid,
 				read: false,
 				title: 'Training Notes Submitted',
