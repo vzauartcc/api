@@ -95,9 +95,12 @@ router.post('/info', async (req: Request, res: Response) => {
 			})
 			.then((response) => response.data)
 			.catch((err) => {
+				console.log(`Error fetching Discord account information`, err);
 				req.app.Sentry.captureException(err);
 				return null;
 			});
+
+		console.log('discord user object is:', discordUser);
 
 		if (!discordUser) {
 			throw {
