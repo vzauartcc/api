@@ -314,6 +314,7 @@ router.post(
 		}
 	},
 );
+
 router.delete('/request/:id', getUser, async (req: Request, res: Response) => {
 	try {
 		const request = await TrainingRequestModel.findById(req.params['id']).exec();
@@ -405,6 +406,47 @@ router.get(
 				.exec();
 
 			res.stdRes.data = sessions;
+		} catch (e) {
+			res.stdRes.ret_det = convertToReturnDetails(e);
+			req.app.Sentry.captureException(e);
+		} finally {
+			return res.json(res.stdRes);
+		}
+	},
+);
+
+router.delete(
+	'/session/:id',
+	getUser,
+	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
+	async (req: Request, res: Response) => {
+		try {
+			if (!req.params['id'] || req.params['id'] === 'undefined') {
+				throw {
+					code: 400,
+					message: 'Id required.',
+				};
+			}
+
+			const session = await TrainingSessionModel.findById(req.params['id']);
+
+			if (!session) {
+				throw {
+					code: 400,
+					message: 'Training session not found.',
+				};
+			}
+
+			if (session.instructorCid !== req.user!.cid) {
+				throw {
+					code: 403,
+					message: 'Bad request',
+				};
+			}
+
+			await TrainingSessionModel.findByIdAndUpdate(req.params['id'], {
+				$unset: { instructorCid: '' },
+			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
 			req.app.Sentry.captureException(e);
@@ -905,21 +947,21 @@ router.post(
 				recipient: req.body.student,
 				read: false,
 				title: 'Solo Endorsement Issued',
-				content: `You have been issued a solo endorsement for <b>${req.body.position}</b> by <b>${req.user!.fname} ${req.user!.lname}</b>. It will expire on ${endDate.toLocaleDateString()}`,
+				content: `You have been issued a solo endorsement for <b>${req.body.position}</b> by <b>${req.user!.fname} ${req.user!.lname}</b>. It will expire on ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}`,
 			});
 
 			req.app.dossier.create({
 				by: req.user!.cid,
 				affected: req.body.student,
-				action: `%b issued a solo endorsement for %a to work ${req.body.position} until ${endDate.toLocaleDateString()}`,
+				action: `%b issued a solo endorsement for %a to work ${req.body.position} until ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}`,
 			});
 
-			if (process.env['NODE_ENV'] === 'production') {
+			if (process.env['DISCORD_TOKEN'] !== '') {
 				try {
 					await axios.post(
 						`https://discord.com/api/channels/1341139323604439090/messages`,
 						{
-							content: `**SOLO ENDORSEMENT ISSUED**\n\nStudent Name: ${student.fname} ${student.lname}${student.discord ? ` <@${student.discord}>` : ''}\nInstructor Name: ${req.user!.fname} ${req.user!.lname}\nIssued Date: ${new Date().toLocaleDateString()}\nExpires Date: ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}\nPosition: ${req.body.position}\n<@&1215950778120933467>`,
+							content: `**SOLO ENDORSEMENT ISSUED**\n\nStudent Name: ${student.fname} ${student.lname}${student.discord ? ` <@${student.discord}>` : ''}\nInstructor Name: ${req.user!.fname} ${req.user!.lname}\nIssued Date: ${DateTime.fromJSDate(new Date()).toUTC().toFormat(zau.DATE_FORMAT)}\nExpires Date: ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}\nPosition: ${req.body.position}\n<@&1215950778120933467>`,
 						},
 						{
 							headers: {
@@ -980,7 +1022,7 @@ router.delete(
 			req.app.dossier.create({
 				by: req.user!.cid,
 				affected: req.body.student,
-				action: `%b deleted a solo endorsement for %a to work ${req.body.position} until ${solo.expirationDate.toLocaleDateString()}`,
+				action: `%b deleted a solo endorsement for %a to work ${req.body.position} until ${DateTime.fromJSDate(solo.expirationDate).toUTC().toFormat(zau.DATE_FORMAT)}`,
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
