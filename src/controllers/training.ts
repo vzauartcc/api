@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { Router, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
 import { convertToReturnDetails, vatusaApi } from '../app.js';
@@ -5,6 +6,7 @@ import { sendMail } from '../mailer.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
 import { NotificationModel } from '../models/notification.js';
+import { SoloEndorsementModel } from '../models/soloEndorsement.js';
 import { TrainingRequestMilestoneModel } from '../models/trainingMilestone.js';
 import { TrainingRequestModel } from '../models/trainingRequest.js';
 import { TrainingSessionModel } from '../models/trainingSession.js';
@@ -819,6 +821,104 @@ router.post(
 			doc.vatusaId = vatusaRes.data.id;
 			doc.submitted = true;
 			doc.save();
+		} catch (e) {
+			res.stdRes.ret_det = convertToReturnDetails(e);
+			req.app.Sentry.captureException(e);
+		} finally {
+			return res.json(res.stdRes);
+		}
+	},
+);
+
+router.post(
+	'/solo',
+	getUser,
+	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
+	async (req: Request, res: Response) => {
+		try {
+			if (
+				!req.body.student ||
+				!req.body.position ||
+				!req.body.expirationDate ||
+				!req.body.vatusaId
+			) {
+				throw {
+					code: 400,
+					message: 'All fields are required.',
+				};
+			}
+
+			const student = await UserModel.findOne({ cid: req.body.student }).exec();
+			if (!student) {
+				throw {
+					code: 400,
+					message: 'Student not found.',
+				};
+			}
+
+			const endDate = new Date(req.body.expirationDate);
+
+			SoloEndorsementModel.create({
+				studentCid: student.cid,
+				instructorCid: req.user!.cid,
+				position: req.body.position,
+				vatusaId: req.body.vatusaId,
+				endTime: endDate,
+			});
+
+			NotificationModel.create({
+				recipient: req.body.student,
+				read: false,
+				title: 'Solo Endorsement Issued',
+				content: `You have been issued a solo endorsement for <b>${req.body.position}</b> by <b>${req.user!.fname} ${req.user!.lname}</b>. It will expire on ${endDate.toLocaleDateString()}`,
+			});
+
+			req.app.dossier.create({
+				by: req.user!.cid,
+				affected: req.body.student,
+				action: `%b issued a solo endorsement for %a to work ${req.body.position} until ${endDate.toLocaleDateString()}`,
+			});
+
+			axios.post(
+				`https://discord.com/api/v10/channels/1341139323604439090/message`,
+				{
+					content: `**SOLO ENDORSEMENT ISSUANCE**\n\nStudent Name: ${student.fname} ${student.lname}${student.discord ? ` <@${student.discord}>` : ''}\nInstructor Name: ${req.user!.fname} ${req.user!.lname}\nIssued Date: ${new Date().toLocaleDateString()}\nExpires Date: ${endDate.toLocaleDateString()}\nPosition: ${req.body.position}\n<@&1215950778120933467>`,
+				},
+				{
+					headers: {
+						Authorization: `Bot ${process.env['DISCORD_TOKEN']}`,
+						'Content-Type': 'application/json',
+						'User-Agent': 'vZAU ARTCC API Integration',
+					},
+				},
+			);
+		} catch (e) {
+			res.stdRes.ret_det = convertToReturnDetails(e);
+			req.app.Sentry.captureException(e);
+		} finally {
+			return res.json(res.stdRes);
+		}
+	},
+);
+
+router.delete(
+	'/solo/:id',
+	getUser,
+	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
+	async (req: Request, res: Response) => {
+		try {
+			const solo = await SoloEndorsementModel.findOne({
+				id: req.params['id'],
+				deleted: false,
+			}).exec();
+			if (!solo) {
+				throw {
+					code: 404,
+					message: 'Solo endorsement not found.',
+				};
+			}
+
+			vatusaApi.delete(`/solo?id=${solo.vatusaId}`);
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
 			req.app.Sentry.captureException(e);
