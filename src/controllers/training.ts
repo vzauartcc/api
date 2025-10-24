@@ -671,4 +671,161 @@ router.put(
 	},
 );
 
+router.post(
+	'/session/save',
+	getUser,
+	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
+	async (req: Request, res: Response) => {
+		try {
+			if (
+				req.body.student === null ||
+				req.body.milestone === null ||
+				req.body.position === '' ||
+				req.body.startTime === null ||
+				req.body.endTime === null ||
+				req.body.progress === null ||
+				req.body.movements === null ||
+				req.body.location === null ||
+				req.body.ots === null ||
+				req.body.studentNotes === null ||
+				(req.body.studentNotes && req.body.studentNotes.length > 3000) ||
+				(req.body.insNotes && req.body.insNotes.length > 3000)
+			) {
+				throw {
+					code: 400,
+					message: 'You must fill out all required forms',
+				};
+			}
+
+			const start = new Date(
+				Math.round(new Date(req.body.startTime).getTime() / fifteen) * fifteen,
+			);
+			const end = new Date(Math.round(new Date(req.body.endTime).getTime() / fifteen) * fifteen);
+
+			if (end < start) {
+				throw {
+					code: 400,
+					message: 'End Time must be before Start Time',
+				};
+			}
+
+			const delta = Math.abs(end.getTime() - start.getTime()) / 1000;
+			const hours = Math.floor(delta / 3600);
+			const minutes = Math.floor(delta / 60) % 60;
+
+			const duration = `${('00' + hours).slice(-2)}:${('00' + minutes).slice(-2)}`;
+
+			await TrainingSessionModel.create({
+				studentCid: req.body.student,
+				instructorCid: req.user!.cid,
+				milestoneCode: req.body.milestone,
+				position: req.body.position,
+				startTime: start,
+				endTime: end,
+				progress: req.body.progress,
+				duration: duration,
+				movements: req.body.movements,
+				location: req.body.location,
+				ots: req.body.ots,
+				studentNotes: req.body.studentNotes,
+				insNotes: req.body.insNotes,
+				submitted: false,
+			});
+		} catch (e) {
+			res.stdRes.ret_det = convertToReturnDetails(e);
+			req.app.Sentry.captureException(e);
+		} finally {
+			return res.json(res.stdRes);
+		}
+	},
+);
+
+router.post(
+	'/session/submit',
+	getUser,
+	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
+	async (req: Request, res: Response) => {
+		try {
+			if (
+				req.body.student === null ||
+				req.body.milestone === null ||
+				req.body.position === '' ||
+				req.body.startTime === null ||
+				req.body.endTime === null ||
+				req.body.progress === null ||
+				req.body.movements === null ||
+				req.body.location === null ||
+				req.body.ots === null ||
+				req.body.studentNotes === null ||
+				(req.body.studentNotes && req.body.studentNotes.length > 3000) ||
+				(req.body.insNotes && req.body.insNotes.length > 3000)
+			) {
+				throw {
+					code: 400,
+					message: 'You must fill out all required forms',
+				};
+			}
+
+			const start = new Date(
+				Math.round(new Date(req.body.startTime).getTime() / fifteen) * fifteen,
+			);
+			const end = new Date(Math.round(new Date(req.body.endTime).getTime() / fifteen) * fifteen);
+
+			if (end < start) {
+				throw {
+					code: 400,
+					message: 'End Time must be before Start Time',
+				};
+			}
+
+			const delta = Math.abs(end.getTime() - start.getTime()) / 1000;
+
+			const hours = Math.floor(delta / 3600);
+			const minutes = Math.floor(delta / 60) % 60;
+
+			const duration = `${('00' + hours).slice(-2)}:${('00' + minutes).slice(-2)}`;
+
+			const doc = await TrainingSessionModel.create({
+				studentCid: req.body.student,
+				instructorCid: req.user!.cid,
+				milestoneCode: req.body.milestone,
+				position: req.body.position,
+				startTime: start,
+				endTime: end,
+				progress: req.body.progress,
+				duration: duration,
+				movements: req.body.movements,
+				location: req.body.location,
+				ots: req.body.ots,
+				studentNotes: req.body.studentNotes,
+				insNotes: req.body.insNotes,
+				submitted: true,
+			});
+
+			const vatusaRes = await vatusaApi.post(`/user/${req.body.student}/training/record`, {
+				instructor_id: req.user!.cid,
+				session_date: DateTime.fromJSDate(start).toFormat('y-MM-dd HH:mm'),
+				position: req.body.position,
+				duration: duration,
+				movements: req.body.movements,
+				score: req.body.progress,
+				notes: req.body.studentNotes,
+				ots_status: req.body.ots,
+				location: req.body.location,
+				is_cbt: false,
+				solo_granted: false,
+			});
+
+			doc.vatusaId = vatusaRes.data.id;
+			doc.submitted = true;
+			doc.save();
+		} catch (e) {
+			res.stdRes.ret_det = convertToReturnDetails(e);
+			req.app.Sentry.captureException(e);
+		} finally {
+			return res.json(res.stdRes);
+		}
+	},
+);
+
 export default router;
