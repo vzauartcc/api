@@ -41,6 +41,12 @@ router.get('/request/upcoming', getUser, async (req: Request, res: Response) => 
 
 router.post('/request/new', getUser, async (req: Request, res: Response) => {
 	try {
+		if (!req.body.never || req.body.never) {
+			throw {
+				code: 400,
+				message: 'Temporarily disabled.',
+			};
+		}
 		if (
 			!req.body.submitter ||
 			!req.body.startTime ||
