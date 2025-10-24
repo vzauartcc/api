@@ -140,18 +140,7 @@ router.post('/info', async (req: Request, res: Response) => {
 
 router.delete('/user', getUser, async (req: Request, res: Response) => {
 	try {
-		const user = await UserModel.findOne({ cid: req.user!.cid }).exec();
-		if (!user) {
-			throw {
-				code: 400,
-				message: 'Bad request.',
-			};
-		}
-
-		delete user.discordInfo;
-		delete user.discord;
-
-		await user.save();
+		await UserModel.updateOne({ cid: req.user!.cid }, { $unset: { discord: '', discordInfo: '' } });
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
 		req.app.Sentry.captureException(e);
