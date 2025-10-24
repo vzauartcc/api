@@ -64,8 +64,6 @@ router.post('/info', async (req: Request, res: Response) => {
 			};
 		}
 
-		console.log(`user is`, user.cid);
-
 		const oauth = new Discord();
 		const token = await oauth
 			.tokenRequest({
@@ -77,7 +75,6 @@ router.post('/info', async (req: Request, res: Response) => {
 				scope: 'identify',
 			})
 			.catch((err) => {
-				console.log(`Token request error`, err);
 				req.app.Sentry.captureException(err);
 				return null;
 			});
@@ -89,23 +86,19 @@ router.post('/info', async (req: Request, res: Response) => {
 			};
 		}
 
-		console.log('Token', token.token_type, token.access_token);
-
-		const { data: discordUser } = await axios
+		const response = await axios
 			.get('https://discord.com/api/users/@me', {
 				headers: {
 					Authorization: `${token.token_type} ${token.access_token}`,
-					'User-Agent': 'Chicago ARTCC API',
+					'User-Agent': 'vZAU ARTCC API',
 				},
 			})
-			.then((response) => response.data)
 			.catch((err) => {
-				console.log(`Error fetching Discord account information`, err);
 				req.app.Sentry.captureException(err);
 				return null;
 			});
 
-		console.log('discord user object is:', discordUser);
+		const discordUser = response?.data;
 
 		if (!discordUser) {
 			throw {
