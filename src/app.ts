@@ -1,7 +1,9 @@
 import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import * as Sentry from '@sentry/node';
+import axios from 'axios';
 import cookie from 'cookie-parser';
 import cors from 'cors';
+import { Cron } from 'croner';
 import type { NextFunction, Request, Response } from 'express';
 import express from 'express';
 import { Redis } from 'ioredis';
@@ -20,15 +22,18 @@ import trainingRouter from './controllers/training.js';
 import userRouter from './controllers/user.js';
 import vatusaRouter from './controllers/vatusa.js';
 import { DossierModel } from './models/dossier.js';
+import { soloExpiringNotifications, syncVatusaSoloEndorsements } from './tasks/solo.js';
 import { NoOpSentryWrapper, SentryWrapper } from './types/SentryClient.js';
 import type { ReturnDetails } from './types/StandardResponse.js';
 
+console.log(`Starting application. . . .`);
 const app = express();
 
 const SENTRY_DSN = process.env['SENTRY_DSN'];
 
 // Sentry config should come first.
 if (SENTRY_DSN) {
+	console.log('Initializing Sentry');
 	Sentry.init({
 		dsn: SENTRY_DSN,
 		tracesSampleRate: 1.0,
@@ -38,11 +43,13 @@ if (SENTRY_DSN) {
 	app.Sentry = NoOpSentryWrapper;
 }
 
+console.log('Hooking timing middleware. . . .');
 app.use((req: Request, res: Response, next: NextFunction) => {
 	if (
 		req.originalUrl.includes('favicon') ||
 		req.originalUrl.includes('/online') ||
-		req.originalUrl.includes('/ids/')
+		req.originalUrl.includes('/ids/') ||
+		req.originalUrl.includes('/controller/stats')
 	)
 		return next();
 
@@ -54,7 +61,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 		const durationMs = Number(durationNs) / 1_000_000;
 
 		console.log(
-			`[Timer] ${req.method} ${req.originalUrl} - Status ${res.statusCode} - ${durationMs.toFixed(3)}ms`,
+			`[Timer] [${new Date().toUTCString()}] ${req.method} ${req.originalUrl} - Status ${res.statusCode} ${req.user ? `- ${req.user.cid} ` : ''}- ${durationMs.toFixed(3)}ms`,
 		);
 
 		res.removeListener('finish', logRequestDuration);
@@ -79,8 +86,10 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
 	next();
 });
 
+console.log('Enabling cookie parsing. . . .');
 app.use(cookie());
 
+console.log('Setting JSON and URL Encode limits. . . .');
 app.use(express.json({ limit: '50mb' }));
 
 app.use(
@@ -97,6 +106,7 @@ if (!REDIS_URI) {
 	throw new Error('REDIS_URI is not set in environment variables.');
 }
 
+console.log('Connecting to redis. . . .');
 app.redis = new Redis(REDIS_URI);
 app.redis.on('error', (err) => {
 	throw new Error(`Failed to connect to Redis: ${err}`);
@@ -110,6 +120,7 @@ if (!CORS_ORIGIN) {
 }
 const origins = CORS_ORIGIN.split('|');
 
+console.log('Allowing CORS origins. . . .');
 app.use(
 	cors({
 		origin: origins,
@@ -117,6 +128,7 @@ app.use(
 	}),
 );
 
+console.log('Setting Access Control headers. . . .');
 app.use((_req: Request, res: Response, next: NextFunction) => {
 	res.setHeader('Access-Control-Allow-Origin', '*');
 	res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
@@ -147,6 +159,7 @@ if (!AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY) {
 	);
 }
 
+console.log('Connecting to S3 bucket. . . .');
 app.s3 = new S3Client({
 	endpoint: 'https://sfo3.digitaloceanspaces.com', // DigitalOcean Spaces or AWS S3
 	region: 'us-east-1', // DigitalOcean Spaces requires a region (choose the closest one)
@@ -164,6 +177,7 @@ if (!MONGO_URI) {
 
 app.dossier = DossierModel;
 
+console.log('Connecting to MongoDB. . . .');
 // Connect to MongoDB
 mongoose.set('toJSON', { virtuals: true });
 mongoose.set('toObject', { virtuals: true });
@@ -172,6 +186,7 @@ mongoose.connect(MONGO_URI);
 const db = mongoose.connection;
 db.once('open', () => console.log('Successfully connected to MongoDB'));
 
+console.log('Setting up routes. . . .');
 app.use('/online', onlineRouter);
 app.use('/user', userRouter);
 app.use('/controller', controllerRouter);
@@ -187,7 +202,10 @@ app.use('/exam', examRouter);
 app.use('/vatusa', vatusaRouter);
 
 // Sentry error capturing should be after all routes are registered.
-if (process.env['NODE_ENV'] === 'production' && SENTRY_DSN) Sentry.setupExpressErrorHandler(app);
+if (process.env['NODE_ENV'] === 'production' && SENTRY_DSN) {
+	console.log('Setting up Sentry Express error handler. . . .');
+	Sentry.setupExpressErrorHandler(app);
+}
 
 // Future use: Fallback express error handler
 // app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
@@ -200,9 +218,16 @@ if (process.env['NODE_ENV'] === 'production' && SENTRY_DSN) Sentry.setupExpressE
 // 	});
 // });
 
+console.log('Starting Express listener. . . .');
 app.listen(process.env['PORT'], () => {
 	console.log('Listening on port ' + process.env['PORT']);
 });
+
+console.log(`Starting Solo Expiration Notification task. . . .`);
+new Cron('0 0 * * *', () => soloExpiringNotifications());
+
+console.log(`Starting VATUSA Solo Endorsement sync task. . . .`);
+new Cron('0 * * * *', () => syncVatusaSoloEndorsements());
 
 export function convertToReturnDetails(e: unknown): ReturnDetails {
 	// 1. Check if 'e' is a standard Error object
@@ -257,3 +282,10 @@ export function deleteFromS3(filename: string) {
 		}),
 	);
 }
+
+export const vatusaApi = axios.create({
+	baseURL: 'https://api.vatusa.net/v2',
+	params: {
+		apiKey: process.env['VATUSA_API_KEY'],
+	},
+});

@@ -881,10 +881,6 @@ router.put(
 				if (user.email) {
 					sendMail({
 						to: user.email,
-						from: {
-							name: 'Chicago ARTCC',
-							address: 'no-reply@zauartcc.org',
-						},
 						subject: `Position Assignments for ${eventData.name} | Chicago ARTCC`,
 						template: 'event',
 						context: {
@@ -988,10 +984,6 @@ router.post('/staffingRequest', async (req: Request, res: Response) => {
 		// Send an email notification to the specified email address
 		sendMail({
 			to: 'ec@zauartcc.org, aec@zauartcc.org',
-			from: {
-				name: 'Chicago ARTCC',
-				address: 'no-reply@zauartcc.org',
-			},
 			subject: `New Staffing Request from ${req.body.vaName} | Chicago ARTCC`,
 			template: `staffingRequest`,
 			context: {
@@ -1071,10 +1063,6 @@ router.put(
 				// Send an email notification to the specified email address
 				await sendMail({
 					to: req.body.email,
-					from: {
-						name: 'Chicago ARTCC',
-						address: 'no-reply@zauartcc.org',
-					},
 					subject: `Staffing Request for ${req.body.vaName} accepted | Chicago ARTCC`,
 					template: `staffingRequestAccepted`,
 					context: {

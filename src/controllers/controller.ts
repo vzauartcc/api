@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Router, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
-import { convertToReturnDetails, uploadToS3 } from '../app.js';
+import { convertToReturnDetails, uploadToS3, vatusaApi } from '../app.js';
 import { sendMail } from '../mailer.js';
 import { hasRole, isManagement, isStaff } from '../middleware/auth.js';
 import internalAuth from '../middleware/internalAuth.js';
@@ -605,16 +605,10 @@ router.put('/visit/:cid', getUser, hasRole(['atm', 'datm']), async (req, res) =>
 
 		await user.save();
 
-		await axios.post(
-			`https://api.vatusa.net/v2/facility/ZAU/roster/manageVisitor/${req.params['cid']}?apikey=${process.env['VATUSA_API_KEY']}`,
-		);
+		await vatusaApi.post(`/facility/ZAU/roster/manageVisitor/${req.params['cid']}`);
 
 		sendMail({
 			to: user.email,
-			from: {
-				name: 'Chicago ARTCC',
-				address: 'no-reply@zauartcc.org',
-			},
 			subject: `Visiting Application Accepted | Chicago ARTCC`,
 			template: 'visitAccepted',
 			context: {
@@ -661,10 +655,6 @@ router.delete(
 
 			sendMail({
 				to: user.email,
-				from: {
-					name: 'Chicago ARTCC',
-					address: 'no-reply@zauartcc.org',
-				},
 				subject: `Visiting Application Rejected | Chicago ARTCC`,
 				template: 'visitRejected',
 				context: {
@@ -744,10 +734,6 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response) => {
 
 		sendMail({
 			to: 'atm@zauartcc.org, datm@zauartcc.org, ta@zauartcc.org',
-			from: {
-				name: 'Chicago ARTCC',
-				address: 'no-reply@zauartcc.org',
-			},
 			subject: `New ${req.body.vis ? 'Visitor' : 'Member'}: ${req.body.fname} ${req.body.lname} | Chicago ARTCC`,
 			template: 'newController',
 			context: {
@@ -817,10 +803,6 @@ router.put('/:cid/member', internalAuth, async (req: Request, res: Response) => 
 		if (req.body.member || req.body.vis) {
 			sendMail({
 				to: 'atm@zauartcc.org, datm@zauartcc.org, ta@zauartcc.org',
-				from: {
-					name: 'Chicago ARTCC',
-					address: 'no-reply@zauartcc.org',
-				},
 				subject: `New ${user.vis ? 'Visitor' : 'Member'}: ${user.fname} ${user.lname} | Chicago ARTCC`,
 				template: 'newController',
 				context: {
@@ -1022,23 +1004,14 @@ router.delete('/:cid', getUser, hasRole(['atm', 'datm']), async (req: Request, r
 		}
 
 		if (user.vis) {
-			await axios.delete(
-				`https://api.vatusa.net/v2/facility/ZAU/roster/manageVisitor/${req.params['cid']}`,
-				{
-					params: {
-						apikey: process.env['VATUSA_API_KEY'],
-					},
-					data: {
-						reason: req.body.reason,
-						by: req.user!.cid,
-					},
+			await vatusaApi.delete(`/facility/ZAU/roster/manageVisitor/${req.params['cid']}`, {
+				data: {
+					reason: req.body.reason,
+					by: req.user!.cid,
 				},
-			);
+			});
 		} else {
-			await axios.delete(`https://api.vatusa.net/v2/facility/ZAU/roster/${req.params['cid']}`, {
-				params: {
-					apikey: process.env['VATUSA_API_KEY'],
-				},
+			await vatusaApi.delete(`/facility/ZAU/roster/${req.params['cid']}`, {
 				data: {
 					reason: req.body.reason,
 					by: req.user!.cid,

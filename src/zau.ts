@@ -77,6 +77,7 @@ const activity = {
 };
 
 export default {
+	DATE_FORMAT: 'MM/dd/y',
 	activity,
 	atcPos: [
 		'ARR',
