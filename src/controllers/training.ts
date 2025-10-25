@@ -888,7 +888,7 @@ router.get(
 			const today = new Date();
 			const solos = await SoloEndorsementModel.find({
 				deleted: false,
-				expirationDate: {
+				expires: {
 					$gte: new Date(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
 				},
 			})
@@ -940,7 +940,7 @@ router.post(
 				instructorCid: req.user!.cid,
 				position: req.body.position,
 				vatusaId: req.body.vatusaId,
-				expirationDate: endDate,
+				expires: endDate,
 			});
 
 			NotificationModel.create({
@@ -961,7 +961,7 @@ router.post(
 					await axios.post(
 						`https://discord.com/api/channels/1341139323604439090/messages`,
 						{
-							content: `**SOLO ENDORSEMENT ISSUED**\n\nStudent Name: ${student.fname} ${student.lname}${student.discord ? ` <@${student.discord}>` : ''}\nInstructor Name: ${req.user!.fname} ${req.user!.lname}\nIssued Date: ${DateTime.fromJSDate(new Date()).toUTC().toFormat(zau.DATE_FORMAT)}\nExpires Date: ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}\nPosition: ${req.body.position}\n<@&1215950778120933467>`,
+							content: `:student: **SOLO ENDORSEMENT ISSUED** :student:\n\nStudent Name: ${student.fname} ${student.lname}${student.discord ? ` <@${student.discord}>` : ''}\nInstructor Name: ${req.user!.fname} ${req.user!.lname}\nIssued Date: ${DateTime.fromJSDate(new Date()).toUTC().toFormat(zau.DATE_FORMAT)}\nExpires Date: ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}\nPosition: ${req.body.position}\n<@&1215950778120933467>`,
 						},
 						{
 							headers: {
@@ -1022,7 +1022,7 @@ router.delete(
 			req.app.dossier.create({
 				by: req.user!.cid,
 				affected: req.body.student,
-				action: `%b deleted a solo endorsement for %a to work ${req.body.position} until ${DateTime.fromJSDate(solo.expirationDate).toUTC().toFormat(zau.DATE_FORMAT)}`,
+				action: `%b deleted a solo endorsement for %a to work ${req.body.position} until ${DateTime.fromJSDate(solo.expires).toUTC().toFormat(zau.DATE_FORMAT)}`,
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);

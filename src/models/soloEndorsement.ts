@@ -7,9 +7,11 @@ import type { IUser } from './user.js';
 interface ISoloEndorsement extends SoftDeleteDocument, ITimestamps {
 	studentCid: number;
 	instructorCid: number;
-	expirationDate: Date;
+	expires: Date;
 	position: string;
 	vatusaId: number;
+	// Sent notification of expiring less than two days
+	notified: boolean;
 
 	// Virutals
 	student?: IUser;
@@ -20,9 +22,10 @@ const SoloEndorsementSchema = new Schema<ISoloEndorsement>(
 	{
 		studentCid: { type: Number, required: true, ref: 'User' },
 		instructorCid: { type: Number, required: true, ref: 'User' },
-		expirationDate: { type: Date, required: true },
+		expires: { type: Date, required: true },
 		position: { type: String, required: true },
 		vatusaId: { type: Number, required: true },
+		notified: { type: Boolean },
 	},
 	{ collection: 'soloEndorsements', timestamps: true },
 );

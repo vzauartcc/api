@@ -30,6 +30,7 @@
 		"axios": "^1.12.2",
 		"cookie-parser": "^1.4.7",
 		"cors": "^2.8.5",
+		"croner": "^9.1.0",
 		"discord-oauth2": "^2.12.1",
 		"discord.js": "^14.22.1",
 		"express": "^5.1.0",

@@ -3,6 +3,7 @@ import * as Sentry from '@sentry/node';
 import axios from 'axios';
 import cookie from 'cookie-parser';
 import cors from 'cors';
+import { Cron } from 'croner';
 import type { NextFunction, Request, Response } from 'express';
 import express from 'express';
 import { Redis } from 'ioredis';
@@ -21,6 +22,7 @@ import trainingRouter from './controllers/training.js';
 import userRouter from './controllers/user.js';
 import vatusaRouter from './controllers/vatusa.js';
 import { DossierModel } from './models/dossier.js';
+import { soloExpiringNotifications } from './tasks/solo.js';
 import { NoOpSentryWrapper, SentryWrapper } from './types/SentryClient.js';
 import type { ReturnDetails } from './types/StandardResponse.js';
 
@@ -46,7 +48,8 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 	if (
 		req.originalUrl.includes('favicon') ||
 		req.originalUrl.includes('/online') ||
-		req.originalUrl.includes('/ids/')
+		req.originalUrl.includes('/ids/') ||
+		req.originalUrl.includes('/controller/stats')
 	)
 		return next();
 
@@ -219,6 +222,9 @@ console.log('Starting Express listener. . . .');
 app.listen(process.env['PORT'], () => {
 	console.log('Listening on port ' + process.env['PORT']);
 });
+
+console.log(`Starting Solo Expiration Notification task. . . .`);
+new Cron('0 0 * * *', () => soloExpiringNotifications());
 
 export function convertToReturnDetails(e: unknown): ReturnDetails {
 	// 1. Check if 'e' is a standard Error object
