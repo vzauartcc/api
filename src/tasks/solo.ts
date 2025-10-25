@@ -1,5 +1,7 @@
 import { DateTime } from 'luxon';
+import { vatusaApi } from '../app.js';
 import discord from '../discord.js';
+import { DossierModel } from '../models/dossier.js';
 import { SoloEndorsementModel } from '../models/soloEndorsement.js';
 import zau from '../zau.js';
 
@@ -37,5 +39,55 @@ export async function soloExpiringNotifications() {
 		} catch (err) {
 			console.log('Error posting solo endorsement expiration to discord', err);
 		}
+	}
+}
+
+const ZAU_FACILITIES = ['CHI', 'ORD', 'MKE', 'SBN', 'LAF', 'MDW'];
+export async function syncVatusaSoloEndorsements() {
+	try {
+		const { data } = await vatusaApi.get('/solo');
+
+		if (!data || !data.data) return;
+
+		for (const solo of data.data) {
+			if (solo.position.length < 3) continue;
+
+			const facility = solo.position.slice(0, 3);
+			if (!ZAU_FACILITIES.includes(facility)) continue;
+
+			const ours = await SoloEndorsementModel.findOne({ vatusaId: solo.id }).exec();
+			if (ours) {
+				if (ours.expires.getTime() === new Date(solo.expires).getTime()) continue;
+
+				ours.expires = new Date(solo.expires);
+				await ours.save();
+
+				continue;
+			}
+
+			console.log(
+				'VATUSA has an extra solo endorsement, creating',
+				solo.cid,
+				solo.position,
+				solo.expires,
+			);
+
+			await SoloEndorsementModel.create({
+				studentCid: solo.cid,
+				instructorCid: -1,
+				expires: new Date(solo.expires),
+				position: solo.position,
+				vatusaId: solo.id,
+				createdAt: solo.created_at,
+			});
+
+			await DossierModel.create({
+				by: -1,
+				affected: solo.cid,
+				action: `An external service issued a solo endorsement for %a to work ${solo.position} until ${DateTime.fromJSDate(new Date(solo.expires)).toUTC().toFormat(zau.DATE_FORMAT)}`,
+			});
+		}
+	} catch (err) {
+		console.error(`Error syncing VATUSA solo endorsements:`, err);
 	}
 }

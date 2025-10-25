@@ -22,7 +22,7 @@ import trainingRouter from './controllers/training.js';
 import userRouter from './controllers/user.js';
 import vatusaRouter from './controllers/vatusa.js';
 import { DossierModel } from './models/dossier.js';
-import { soloExpiringNotifications } from './tasks/solo.js';
+import { soloExpiringNotifications, syncVatusaSoloEndorsements } from './tasks/solo.js';
 import { NoOpSentryWrapper, SentryWrapper } from './types/SentryClient.js';
 import type { ReturnDetails } from './types/StandardResponse.js';
 
@@ -225,6 +225,9 @@ app.listen(process.env['PORT'], () => {
 
 console.log(`Starting Solo Expiration Notification task. . . .`);
 new Cron('0 0 * * *', () => soloExpiringNotifications());
+
+console.log(`Starting VATUSA Solo Endorsement sync task. . . .`);
+new Cron('0 * * * *', () => syncVatusaSoloEndorsements());
 
 export function convertToReturnDetails(e: unknown): ReturnDetails {
 	// 1. Check if 'e' is a standard Error object
