@@ -1,7 +1,7 @@
-import axios from 'axios';
 import { Router, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
 import { convertToReturnDetails, vatusaApi } from '../app.js';
+import discord from '../discord.js';
 import { sendMail } from '../mailer.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
@@ -958,19 +958,9 @@ router.post(
 
 			if (process.env['DISCORD_TOKEN'] !== '') {
 				try {
-					await axios.post(
-						`https://discord.com/api/channels/1341139323604439090/messages`,
-						{
-							content: `:student: **SOLO ENDORSEMENT ISSUED** :student:\n\nStudent Name: ${student.fname} ${student.lname}${student.discord ? ` <@${student.discord}>` : ''}\nInstructor Name: ${req.user!.fname} ${req.user!.lname}\nIssued Date: ${DateTime.fromJSDate(new Date()).toUTC().toFormat(zau.DATE_FORMAT)}\nExpires Date: ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}\nPosition: ${req.body.position}\n<@&1215950778120933467>`,
-						},
-						{
-							headers: {
-								Authorization: `Bot ${process.env['DISCORD_TOKEN']}`,
-								'Content-Type': 'application/json',
-								'User-Agent': 'vZAU ARTCC API Integration',
-							},
-						},
-					);
+					await discord.sendMessage('1341139323604439090', {
+						content: `:student: **SOLO ENDORSEMENT ISSUED** :student:\n\nStudent Name: ${student.fname} ${student.lname}${student.discord ? ` <@${student.discord}>` : ''}\nInstructor Name: ${req.user!.fname} ${req.user!.lname}\nIssued Date: ${DateTime.fromJSDate(new Date()).toUTC().toFormat(zau.DATE_FORMAT)}\nExpires Date: ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}\nPosition: ${req.body.position}\n<@&1215950778120933467>`,
+					});
 				} catch (err) {
 					console.log('Error posting solo endorsement to discord', err);
 				}

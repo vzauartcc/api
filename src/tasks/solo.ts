@@ -1,5 +1,5 @@
-import axios from 'axios';
 import { DateTime } from 'luxon';
+import discord from '../discord.js';
 import { SoloEndorsementModel } from '../models/soloEndorsement.js';
 import zau from '../zau.js';
 
@@ -28,19 +28,10 @@ export async function soloExpiringNotifications() {
 
 	for (const solo of solos) {
 		try {
-			await axios.post(
-				`https://discord.com/api/channels/1341139323604439090/messages`,
-				{
-					content: `:timer: **SOLO ENDORSEMENT EXPIRING SOON** :timer:\n<@&1215950778120933467>\n\nStudent Name: ${solo.student!.fname} ${solo.student!.lname}\nExpiration Date: ${DateTime.fromJSDate(solo.expires).toUTC().toFormat(zau.DATE_FORMAT)} (<t:${Math.floor(solo.expires.getTime() / 1000)}:R>)\nPosition: ${solo.position}\n\n[Manage Solo Endorsements](https://${process.env['DOMAIN']}/ins/solo)`,
-				},
-				{
-					headers: {
-						Authorization: `Bot ${process.env['DISCORD_TOKEN']}`,
-						'Content-Type': 'application/json',
-						'User-Agent': 'vZAU ARTCC API Integration',
-					},
-				},
-			);
+			await discord.sendMessage('1341139323604439090', {
+				content: `:timer: **SOLO ENDORSEMENT EXPIRING SOON** :timer:\n<@&1215950778120933467>\n\nStudent Name: ${solo.student!.fname} ${solo.student!.lname}\nExpiration Date: ${DateTime.fromJSDate(solo.expires).toUTC().toFormat(zau.DATE_FORMAT)} (<t:${Math.floor(solo.expires.getTime() / 1000)}:R>)\nPosition: ${solo.position}\n\n[Manage Solo Endorsements](https://${process.env['DOMAIN']}/ins/solo)`,
+			});
+
 			solo.notified = true;
 			solo.save();
 		} catch (err) {
