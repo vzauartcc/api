@@ -885,15 +885,13 @@ router.get(
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
 	async (req: Request, res: Response) => {
 		try {
-			const today = new Date();
 			const solos = await SoloEndorsementModel.find({
 				deleted: false,
-				expires: {
-					$gte: new Date(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
-				},
 			})
 				.populate('student', 'fname lname')
 				.populate('instructor', 'fname lname')
+				.sort({ expires: 'desc' })
+				.limit(50)
 				.lean({ virtuals: true })
 				.exec();
 
