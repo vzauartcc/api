@@ -27,6 +27,9 @@ jobs:
           tags: |
             ghcr.io/vzauartcc/api:${{ github.sha }}
             ghcr.io/vzauartcc/api:master
+            ghcr.io/vzauartcc/api:buildcache
+          cache-from: type=registry,ref=ghcr.io/vzauartcc/api:buildcache
+          cache-to: type=registry,ref=ghcr.io/vzauartcc/api:buildcache,mode=max
 
   Deploy-to-Prod:
     needs: Build-and-Push
