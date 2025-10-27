@@ -230,8 +230,10 @@ new Cron('0 0 * * *', () => soloExpiringNotifications());
 console.log(`Starting VATUSA Solo Endorsement sync task. . . .`);
 new Cron('0 * * * *', () => syncVatusaSoloEndorsements());
 
-console.log(`Starting VATUSA Training Records sync task. . . .`);
-new Cron('0 6 * * *', () => syncVatusaTrainingRecords());
+if (process.env['NODE_ENV'] === 'production') {
+	console.log(`Starting VATUSA Training Records sync task. . . .`);
+	new Cron('0 6 * * *', () => syncVatusaTrainingRecords());
+}
 
 export function convertToReturnDetails(e: unknown): ReturnDetails {
 	// 1. Check if 'e' is a standard Error object
