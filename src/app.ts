@@ -286,6 +286,6 @@ export function deleteFromS3(filename: string) {
 export const vatusaApi = axios.create({
 	baseURL: 'https://api.vatusa.net/v2',
 	params: {
-		apiKey: process.env['VATUSA_API_KEY'],
+		apikey: process.env['VATUSA_API_KEY'],
 	},
 });
