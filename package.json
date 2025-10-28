@@ -46,7 +46,8 @@
 		"multer": "^2.0.2",
 		"multer-s3": "^3.0.1",
 		"nodemailer": "^7.0.6",
-		"nodemailer-express-handlebars": "^7.0.0"
+		"nodemailer-express-handlebars": "^7.0.0",
+		"string-similarity-js": "^2.1.4"
 	},
 	"devDependencies": {
 		"@eslint/eslintrc": "^3.3.1",

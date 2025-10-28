@@ -23,6 +23,7 @@ import userRouter from './controllers/user.js';
 import vatusaRouter from './controllers/vatusa.js';
 import { DossierModel } from './models/dossier.js';
 import { soloExpiringNotifications, syncVatusaSoloEndorsements } from './tasks/solo.js';
+import { syncVatusaTrainingRecords } from './tasks/trainingRecords.js';
 import { NoOpSentryWrapper, SentryWrapper } from './types/SentryClient.js';
 import type { ReturnDetails } from './types/StandardResponse.js';
 
@@ -228,6 +229,11 @@ new Cron('0 0 * * *', () => soloExpiringNotifications());
 
 console.log(`Starting VATUSA Solo Endorsement sync task. . . .`);
 new Cron('0 * * * *', () => syncVatusaSoloEndorsements());
+
+if (process.env['NODE_ENV'] === 'production') {
+	console.log(`Starting VATUSA Training Records sync task. . . .`);
+	new Cron('0 6 * * *', () => syncVatusaTrainingRecords());
+}
 
 export function convertToReturnDetails(e: unknown): ReturnDetails {
 	// 1. Check if 'e' is a standard Error object

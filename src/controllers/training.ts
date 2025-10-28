@@ -661,6 +661,13 @@ router.put(
 				};
 			}
 
+			if (req.body.ots !== 0 && req.body.ots !== 3) {
+				throw {
+					code: 400,
+					message: 'Cannot update training notes for an OTS session',
+				};
+			}
+
 			const delta =
 				Math.abs(new Date(req.body.endTime).getTime() - new Date(req.body.startTime).getTime()) /
 				1000;
@@ -681,25 +688,38 @@ router.put(
 				};
 			}
 
-			// Send the training record to vatusa
-			const vatusaRes = await vatusaApi.post(`/user/${session.studentCid}/training/record`, {
-				instructor_id: session.instructorCid,
-				session_date: DateTime.fromISO(req.body.startTime).toFormat('y-MM-dd HH:mm'),
-				position: req.body.position,
-				duration: duration,
-				movements: req.body.movements,
-				score: req.body.progress,
-				notes: req.body.studentNotes,
-				ots_status: req.body.ots,
-				location: req.body.location,
-				is_cbt: false,
-				solo_granted: false,
-			});
+			if (!session.vatusaId || session.vatusaId === 0) {
+				// Send the training record to vatusa
+				const vatusaRes = await vatusaApi.post(`/user/${session.studentCid}/training/record`, {
+					instructor_id: session.instructorCid,
+					session_date: DateTime.fromISO(req.body.startTime).toFormat('y-MM-dd HH:mm'),
+					position: req.body.position,
+					duration: duration,
+					movements: req.body.movements,
+					score: req.body.progress,
+					notes: req.body.studentNotes,
+					ots_status: req.body.ots,
+					location: req.body.location,
+					is_cbt: false,
+					solo_granted: false,
+				});
 
-			// update the database flag to submitted to prevent further updates.
-			session.vatusaId = vatusaRes.data.id;
-			session.submitted = true;
-			session.save();
+				// store the vatusa id for updating it later
+				session.vatusaId = vatusaRes.data.id;
+				session.submitted = true; // submitted sessions show in a different section of the UI
+				session.save();
+			} else {
+				await vatusaApi.put(`/training/record/${session.vatusaId}`, {
+					session_date: DateTime.fromISO(req.body.startTime).toFormat('y-MM-dd HH:mm'),
+					position: req.body.position,
+					duration: duration,
+					movements: req.body.movements,
+					score: req.body.progress,
+					notes: req.body.studentNotes,
+					ots_status: req.body.ots,
+					location: req.body.location,
+				});
+			}
 
 			const instructor = await UserModel.findOne({ cid: session.instructorCid })
 				.select('fname lname')
