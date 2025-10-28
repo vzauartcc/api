@@ -82,6 +82,7 @@ export async function syncVatusaTrainingRecords() {
 
 			const match = matches[0]!;
 			zau.vatusaId = match.id;
+			zau.submitted = true;
 			await zau.save();
 			syncedCount++;
 		}
