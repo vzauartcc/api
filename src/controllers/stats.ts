@@ -405,7 +405,7 @@ router.get(
 				const totalSessions = trainingSessionsMap[user.cid] || 0;
 				const obsTime = user.rating === 1 ? obsMap[user.cid] || 0 : 0;
 
-				const exempt = isExempt(user, startofPeriod);
+				const exempt = isExempt(user as unknown as IUser, startofPeriod);
 				const protectedStatus =
 					user.isStaff ||
 					[1202744].includes(user.cid) ||
