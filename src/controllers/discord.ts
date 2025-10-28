@@ -1,7 +1,7 @@
-import axios from 'axios';
 import Discord from 'discord-oauth2';
 import { Router, type Request, type Response } from 'express';
 import { convertToReturnDetails } from '../app.js';
+import discord from '../discord.js';
 import internalAuth from '../middleware/internalAuth.js';
 import getUser from '../middleware/user.js';
 import { UserModel } from '../models/user.js';
@@ -86,26 +86,16 @@ router.post('/info', async (req: Request, res: Response) => {
 			};
 		}
 
-		const response = await axios
-			.get('https://discord.com/api/users/@me', {
-				headers: {
-					Authorization: `${token.token_type} ${token.access_token}`,
-					'User-Agent': 'vZAU ARTCC API',
-				},
-			})
-			.catch((err) => {
-				req.app.Sentry.captureException(err);
-				return null;
-			});
+		const response = await discord.getCurrentUser();
 
-		const discordUser = response?.data;
-
-		if (!discordUser) {
+		if (!response || !response.data) {
 			throw {
 				code: 403,
 				message: 'Unable to retrieve Discord info',
 			};
 		}
+
+		const discordUser = response.data;
 
 		user.discordInfo = {
 			clientId: discordUser.id,
@@ -140,18 +130,7 @@ router.post('/info', async (req: Request, res: Response) => {
 
 router.delete('/user', getUser, async (req: Request, res: Response) => {
 	try {
-		const user = await UserModel.findOne({ cid: req.user!.cid }).exec();
-		if (!user) {
-			throw {
-				code: 400,
-				message: 'Bad request.',
-			};
-		}
-
-		delete user.discordInfo;
-		delete user.discord;
-
-		await user.save();
+		await UserModel.updateOne({ cid: req.user!.cid }, { $unset: { discord: '', discordInfo: '' } });
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
 		req.app.Sentry.captureException(e);

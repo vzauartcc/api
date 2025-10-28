@@ -1,17 +1,20 @@
-import axios from 'axios';
 import { Router, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
-import { convertToReturnDetails } from '../app.js';
+import { convertToReturnDetails, vatusaApi } from '../app.js';
+import discord from '../discord.js';
 import { sendMail } from '../mailer.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
 import { NotificationModel } from '../models/notification.js';
+import { SoloEndorsementModel } from '../models/soloEndorsement.js';
 import { TrainingRequestMilestoneModel } from '../models/trainingMilestone.js';
 import { TrainingRequestModel } from '../models/trainingRequest.js';
 import { TrainingSessionModel } from '../models/trainingSession.js';
 import { UserModel } from '../models/user.js';
+import zau from '../zau.js';
 
 const router = Router();
+const fifteen = 15 * 60 * 1000;
 
 router.get('/request/upcoming', getUser, async (req: Request, res: Response) => {
 	try {
@@ -39,6 +42,12 @@ router.get('/request/upcoming', getUser, async (req: Request, res: Response) => 
 
 router.post('/request/new', getUser, async (req: Request, res: Response) => {
 	try {
+		if (!req.body.never || req.body.never) {
+			throw {
+				code: 400,
+				message: 'Temporarily disabled.',
+			};
+		}
 		if (
 			!req.body.submitter ||
 			!req.body.startTime ||
@@ -125,10 +134,6 @@ router.post('/request/new', getUser, async (req: Request, res: Response) => {
 
 		sendMail({
 			to: 'training@zauartcc.org',
-			from: {
-				name: 'Chicago ARTCC',
-				address: 'no-reply@zauartcc.org',
-			},
 			subject: `New Training Request: ${student.fname} ${student.lname} | Chicago ARTCC`,
 			template: 'newRequest',
 			context: {
@@ -276,10 +281,6 @@ router.post(
 			sendMail({
 				to: '', // Hide student and instructor emails
 				bcc: `${student.email}, ${instructor.email}`,
-				from: {
-					name: 'Chicago ARTCC',
-					address: 'no-reply@zauartcc.org',
-				},
 				subject: 'Training Request Taken | Chicago ARTCC',
 				template: 'requestTaken',
 				context: {
@@ -313,6 +314,7 @@ router.post(
 		}
 	},
 );
+
 router.delete('/request/:id', getUser, async (req: Request, res: Response) => {
 	try {
 		const request = await TrainingRequestModel.findById(req.params['id']).exec();
@@ -397,6 +399,7 @@ router.get(
 			const sessions = await TrainingSessionModel.find({
 				instructorCid: req.user!.cid,
 				submitted: false,
+				deleted: { $ne: true },
 			})
 				.populate('student', 'fname lname cid vis')
 				.populate('milestone', 'name code')
@@ -404,6 +407,45 @@ router.get(
 				.exec();
 
 			res.stdRes.data = sessions;
+		} catch (e) {
+			res.stdRes.ret_det = convertToReturnDetails(e);
+			req.app.Sentry.captureException(e);
+		} finally {
+			return res.json(res.stdRes);
+		}
+	},
+);
+
+router.delete(
+	'/session/:id',
+	getUser,
+	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
+	async (req: Request, res: Response) => {
+		try {
+			if (!req.params['id'] || req.params['id'] === 'undefined') {
+				throw {
+					code: 400,
+					message: 'Id required.',
+				};
+			}
+
+			const session = await TrainingSessionModel.findById(req.params['id']);
+
+			if (!session) {
+				throw {
+					code: 400,
+					message: 'Training session not found.',
+				};
+			}
+
+			if (session.instructorCid !== req.user!.cid) {
+				throw {
+					code: 403,
+					message: 'Bad request',
+				};
+			}
+
+			await session.delete();
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
 			req.app.Sentry.captureException(e);
@@ -539,7 +581,7 @@ router.get(
 			if (!controller) {
 				throw {
 					code: 400,
-					messgage: 'User not found',
+					message: 'User not found',
 				};
 			}
 
@@ -618,26 +660,40 @@ router.put(
 				};
 			}
 
-			const delta =
-				Math.abs(new Date(req.body.endTime).getTime() - new Date(req.body.startTime).getTime()) /
-				1000;
+			if (req.body.ots !== 0 && req.body.ots !== 3) {
+				throw {
+					code: 400,
+					message: 'Cannot update training notes for an OTS session',
+				};
+			}
+
+			const startTime = new Date(req.body.startTime);
+			const endTime = new Date(req.body.endTime);
+
+			if (startTime.getTime() >= endTime.getTime()) {
+				throw {
+					code: 400,
+					message: 'Start Time must be before End Time',
+				};
+			}
+
+			if (startTime.getTime() > Date.now() || endTime.getTime() > Date.now()) {
+				throw {
+					code: 400,
+					message: 'Start and End Time must be before today',
+				};
+			}
+
+			const delta = Math.abs(endTime.getTime() - startTime.getTime()) / 1000;
 			const hours = Math.floor(delta / 3600);
 			const minutes = Math.floor(delta / 60) % 60;
 
 			const duration = `${('00' + hours).slice(-2)}:${('00' + minutes).slice(-2)}`;
 
-			const session = await TrainingSessionModel.findByIdAndUpdate(req.params['id'], {
-				sessiondate: req.body.startTime.slice(1, 11),
-				position: req.body.position,
-				progress: req.body.progress,
-				duration: duration,
-				movements: req.body.movements,
-				location: req.body.location,
-				ots: req.body.ots,
-				studentNotes: req.body.studentNotes,
-				insNotes: req.body.insNotes,
-				submitted: true,
-			}).exec();
+			const session = await TrainingSessionModel.findByIdAndUpdate(
+				req.params['id'],
+				req.body,
+			).exec();
 
 			if (!session) {
 				throw {
@@ -646,22 +702,9 @@ router.put(
 				};
 			}
 
-			const instructor = await UserModel.findOne({ cid: session.instructorCid })
-				.select('fname lname')
-				.lean()
-				.exec();
-
-			// Send the training record to vatusa
-			const vatusaApi = axios.create({
-				baseURL: 'https://api.vatusa.net/v2',
-				params: {
-					apiKey: process.env['VATUSA_API_KEY'],
-				},
-			});
-
-			const Response = await vatusaApi.post(
-				`https://api.vatusa.net/v2/user/${session.studentCid}/training/record/?apikey=${process.env['VATUSA_API_KEY']}`,
-				{
+			if (!session.vatusaId || session.vatusaId === 0) {
+				// Send the training record to vatusa
+				const vatusaRes = await vatusaApi.post(`/user/${session.studentCid}/training/record`, {
 					instructor_id: session.instructorCid,
 					session_date: DateTime.fromISO(req.body.startTime).toFormat('y-MM-dd HH:mm'),
 					position: req.body.position,
@@ -673,16 +716,181 @@ router.put(
 					location: req.body.location,
 					is_cbt: false,
 					solo_granted: false,
-				},
+				});
+
+				// store the vatusa id for updating it later
+				session.vatusaId = vatusaRes.data.id;
+				session.submitted = true; // submitted sessions show in a different section of the UI
+				session.save();
+			} else {
+				await vatusaApi.put(`/training/record/${session.vatusaId}`, {
+					session_date: DateTime.fromISO(req.body.startTime).toFormat('y-MM-dd HH:mm'),
+					position: req.body.position,
+					duration: duration,
+					movements: req.body.movements,
+					score: req.body.progress,
+					notes: req.body.studentNotes,
+					ots_status: req.body.ots,
+					location: req.body.location,
+				});
+			}
+
+			const instructor = await UserModel.findOne({ cid: session.instructorCid })
+				.select('fname lname')
+				.lean()
+				.exec();
+
+			NotificationModel.create({
+				recipient: session.studentCid,
+				read: false,
+				title: 'Training Notes Submitted',
+				content: `The training notes from your session with <b>${instructor!.fname + ' ' + instructor!.lname}</b> have been submitted.`,
+				link: `/dash/training/session/${req.params['id']}`,
+			});
+		} catch (e) {
+			res.stdRes.ret_det = convertToReturnDetails(e);
+			req.app.Sentry.captureException(e);
+		} finally {
+			return res.json(res.stdRes);
+		}
+	},
+);
+
+router.post(
+	'/session/save',
+	getUser,
+	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
+	async (req: Request, res: Response) => {
+		try {
+			if (
+				req.body.student === null ||
+				req.body.milestone === null ||
+				req.body.position === '' ||
+				req.body.startTime === null ||
+				req.body.endTime === null ||
+				req.body.progress === null ||
+				req.body.movements === null ||
+				req.body.location === null ||
+				req.body.ots === null ||
+				req.body.studentNotes === null ||
+				(req.body.studentNotes && req.body.studentNotes.length > 3000) ||
+				(req.body.insNotes && req.body.insNotes.length > 3000)
+			) {
+				throw {
+					code: 400,
+					message: 'You must fill out all required forms',
+				};
+			}
+
+			const start = new Date(
+				Math.round(new Date(req.body.startTime).getTime() / fifteen) * fifteen,
 			);
+			const end = new Date(Math.round(new Date(req.body.endTime).getTime() / fifteen) * fifteen);
 
-			// If we get here, vatusa update was successful
-			console.log('VATUSA API Training note submitted - status: ' + Response.status);
+			if (end < start) {
+				throw {
+					code: 400,
+					message: 'End Time must be before Start Time',
+				};
+			}
 
-			// update the database flag to submitted to prevent further updates.
-			await TrainingSessionModel.findByIdAndUpdate(req.params['id'], {
-				sessiondate: DateTime.fromISO(req.body.startTime).toFormat('y-MM-dd HH:mm'),
+			if (start.getTime() > Date.now() || end.getTime() > Date.now()) {
+				throw {
+					code: 400,
+					message: 'Start and End Time must be before today',
+				};
+			}
+
+			const delta = Math.abs(end.getTime() - start.getTime()) / 1000;
+			const hours = Math.floor(delta / 3600);
+			const minutes = Math.floor(delta / 60) % 60;
+
+			const duration = `${('00' + hours).slice(-2)}:${('00' + minutes).slice(-2)}`;
+
+			await TrainingSessionModel.create({
+				studentCid: req.body.student,
+				instructorCid: req.user!.cid,
+				milestoneCode: req.body.milestone,
 				position: req.body.position,
+				startTime: start,
+				endTime: end,
+				progress: req.body.progress,
+				duration: duration,
+				movements: req.body.movements,
+				location: req.body.location,
+				ots: req.body.ots,
+				studentNotes: req.body.studentNotes,
+				insNotes: req.body.insNotes,
+				submitted: false,
+			});
+		} catch (e) {
+			res.stdRes.ret_det = convertToReturnDetails(e);
+			req.app.Sentry.captureException(e);
+		} finally {
+			return res.json(res.stdRes);
+		}
+	},
+);
+
+router.post(
+	'/session/submit',
+	getUser,
+	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
+	async (req: Request, res: Response) => {
+		try {
+			if (
+				req.body.student === null ||
+				req.body.milestone === null ||
+				req.body.position === '' ||
+				req.body.startTime === null ||
+				req.body.endTime === null ||
+				req.body.progress === null ||
+				req.body.movements === null ||
+				req.body.location === null ||
+				req.body.ots === null ||
+				req.body.studentNotes === null ||
+				(req.body.studentNotes && req.body.studentNotes.length > 3000) ||
+				(req.body.insNotes && req.body.insNotes.length > 3000)
+			) {
+				throw {
+					code: 400,
+					message: 'You must fill out all required forms',
+				};
+			}
+
+			const start = new Date(
+				Math.round(new Date(req.body.startTime).getTime() / fifteen) * fifteen,
+			);
+			const end = new Date(Math.round(new Date(req.body.endTime).getTime() / fifteen) * fifteen);
+
+			if (end < start) {
+				throw {
+					code: 400,
+					message: 'End Time must be before Start Time',
+				};
+			}
+
+			if (start.getTime() > Date.now() || end.getTime() > Date.now()) {
+				throw {
+					code: 400,
+					message: 'Start and End Time must be before today',
+				};
+			}
+
+			const delta = Math.abs(end.getTime() - start.getTime()) / 1000;
+
+			const hours = Math.floor(delta / 3600);
+			const minutes = Math.floor(delta / 60) % 60;
+
+			const duration = `${('00' + hours).slice(-2)}:${('00' + minutes).slice(-2)}`;
+
+			const doc = await TrainingSessionModel.create({
+				studentCid: req.body.student,
+				instructorCid: req.user!.cid,
+				milestoneCode: req.body.milestone,
+				position: req.body.position,
+				startTime: start,
+				endTime: end,
 				progress: req.body.progress,
 				duration: duration,
 				movements: req.body.movements,
@@ -691,14 +899,187 @@ router.put(
 				studentNotes: req.body.studentNotes,
 				insNotes: req.body.insNotes,
 				submitted: true,
-			}).exec();
+			});
 
-			await NotificationModel.create({
-				recipient: session.studentCid,
+			const vatusaRes = await vatusaApi.post(`/user/${req.body.student}/training/record`, {
+				instructor_id: req.user!.cid,
+				session_date: DateTime.fromJSDate(start).toFormat('y-MM-dd HH:mm'),
+				position: req.body.position,
+				duration: duration,
+				movements: req.body.movements,
+				score: req.body.progress,
+				notes: req.body.studentNotes,
+				ots_status: req.body.ots,
+				location: req.body.location,
+				is_cbt: false,
+				solo_granted: false,
+			});
+
+			doc.vatusaId = vatusaRes.data.id;
+			doc.submitted = true;
+			doc.save();
+		} catch (e) {
+			res.stdRes.ret_det = convertToReturnDetails(e);
+			req.app.Sentry.captureException(e);
+		} finally {
+			return res.json(res.stdRes);
+		}
+	},
+);
+
+router.get(
+	'/solo',
+	getUser,
+	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
+	async (req: Request, res: Response) => {
+		try {
+			const solos = await SoloEndorsementModel.find({
+				deleted: false,
+			})
+				.populate('student', 'fname lname')
+				.populate('instructor', 'fname lname')
+				.sort({ expires: 'desc' })
+				.limit(50)
+				.lean({ virtuals: true })
+				.exec();
+
+			res.stdRes.data = solos;
+		} catch (e) {
+			res.stdRes.ret_det = convertToReturnDetails(e);
+			req.app.Sentry.captureException(e);
+		} finally {
+			return res.json(res.stdRes);
+		}
+	},
+);
+
+router.post(
+	'/solo',
+	getUser,
+	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
+	async (req: Request, res: Response) => {
+		try {
+			if (!req.body.student || !req.body.position || !req.body.expirationDate) {
+				throw {
+					code: 400,
+					message: 'All fields are required.',
+				};
+			}
+
+			const student = await UserModel.findOne({ cid: req.body.student }).exec();
+			if (!student) {
+				throw {
+					code: 400,
+					message: 'Student not found.',
+				};
+			}
+
+			const endDate = new Date(req.body.expirationDate);
+
+			let vatusaId = 0;
+			try {
+				const { data: vatusaResponse } = await vatusaApi.post('/solo', {
+					cid: student.cid,
+					position: req.body.position,
+					expDate: DateTime.fromJSDate(endDate).toUTC().toFormat('yyyy-MM-dd'),
+				});
+				vatusaId = vatusaResponse.data.id || 0;
+			} catch (err) {
+				throw {
+					code: 500,
+					message: (err as any).response?.data?.data?.msg || 'VATUSA Error',
+				};
+			}
+
+			SoloEndorsementModel.create({
+				studentCid: student.cid,
+				instructorCid: req.user!.cid,
+				position: req.body.position,
+				vatusaId: vatusaId,
+				expires: endDate,
+			});
+
+			NotificationModel.create({
+				recipient: req.body.student,
 				read: false,
-				title: 'Training Notes Submitted',
-				content: `The training notes from your session with <b>${instructor!.fname + ' ' + instructor!.lname}</b> have been submitted.`,
-				link: `/dash/training/session/${req.params['id']}`,
+				title: 'Solo Endorsement Issued',
+				content: `You have been issued a solo endorsement for <b>${req.body.position}</b> by <b>${req.user!.fname} ${req.user!.lname}</b>. It will expire on ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}`,
+			});
+
+			req.app.dossier.create({
+				by: req.user!.cid,
+				affected: req.body.student,
+				action: `%b issued a solo endorsement for %a to work ${req.body.position} until ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}`,
+			});
+
+			if (process.env['DISCORD_TOKEN'] !== '') {
+				try {
+					await discord.sendMessage('1341139323604439090', {
+						content:
+							':student: **SOLO ENDORSEMENT ISSUED** :student:\n\n' +
+							`Student Name: ${student.fname} ${student.lname}${student.discord ? ` <@${student.discord}>` : ''}\n` +
+							`Instructor Name: ${req.user!.fname} ${req.user!.lname}\n` +
+							`Issued Date: ${DateTime.fromJSDate(new Date()).toUTC().toFormat(zau.DATE_FORMAT)}\n` +
+							`Expires Date: ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}\n` +
+							`Position: ${req.body.position}\n` +
+							zau.isProd
+								? '<@&1215950778120933467>'
+								: '\nThis was sent from a test environment and is not real.',
+					});
+				} catch (err) {
+					console.log('Error posting solo endorsement to discord', err);
+				}
+			}
+		} catch (e) {
+			res.stdRes.ret_det = convertToReturnDetails(e);
+			req.app.Sentry.captureException(e);
+		} finally {
+			return res.json(res.stdRes);
+		}
+	},
+);
+
+router.delete(
+	'/solo/:id',
+	getUser,
+	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
+	async (req: Request, res: Response) => {
+		try {
+			if (!req.params['id'] || req.params['id'] === 'undefined') {
+				throw {
+					code: 400,
+					message: 'Id required.',
+				};
+			}
+
+			const solo = await SoloEndorsementModel.findOne({
+				id: req.params['id'],
+				deleted: false,
+			}).exec();
+			if (!solo) {
+				throw {
+					code: 404,
+					message: 'Solo endorsement not found.',
+				};
+			}
+
+			await solo.delete();
+
+			if (zau.isProd) {
+				try {
+					await vatusaApi.delete(`/solo?id=${solo.vatusaId}`);
+				} catch (err) {
+					throw {
+						code: 500,
+						message: 'Error deleting from VATUSA',
+					};
+				}
+			}
+
+			req.app.dossier.create({
+				by: req.user!.cid,
+				affected: req.body.student,
+				action: `%b deleted a solo endorsement for %a to work ${req.body.position} until ${DateTime.fromJSDate(solo.expires).toUTC().toFormat(zau.DATE_FORMAT)}`,
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
