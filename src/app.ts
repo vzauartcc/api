@@ -24,25 +24,10 @@ import vatusaRouter from './controllers/vatusa.js';
 import { DossierModel } from './models/dossier.js';
 import { soloExpiringNotifications, syncVatusaSoloEndorsements } from './tasks/solo.js';
 import { syncVatusaTrainingRecords } from './tasks/trainingRecords.js';
-import { NoOpSentryWrapper, SentryWrapper } from './types/SentryClient.js';
 import type { ReturnDetails } from './types/StandardResponse.js';
 
 console.log(`Starting application. . . .`);
 const app = express();
-
-const SENTRY_DSN = process.env['SENTRY_DSN'];
-
-// Sentry config should come first.
-if (SENTRY_DSN) {
-	console.log('Initializing Sentry');
-	Sentry.init({
-		dsn: SENTRY_DSN,
-		tracesSampleRate: 1.0,
-	});
-	app.Sentry = SentryWrapper;
-} else {
-	app.Sentry = NoOpSentryWrapper;
-}
 
 console.log('Hooking timing middleware. . . .');
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -203,10 +188,11 @@ app.use('/exam', examRouter);
 app.use('/vatusa', vatusaRouter);
 
 // Sentry error capturing should be after all routes are registered.
-if (process.env['NODE_ENV'] === 'production' && SENTRY_DSN) {
+if (process.env['NODE_ENV'] === 'production') {
 	console.log('Setting up Sentry Express error handler. . . .');
 	Sentry.setupExpressErrorHandler(app);
 }
+console.log('Is Sentry initialized and enabled', Sentry.isInitialized(), Sentry.isEnabled());
 
 // Future use: Fallback express error handler
 // app.use((err: any, _req: Request, res: Response, next: NextFunction) => {

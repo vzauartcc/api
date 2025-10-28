@@ -19,6 +19,8 @@ WORKDIR /usr/src/app
 COPY --from=builder /usr/src/app/dist ./dist
 COPY --from=builder /usr/src/app/node_modules ./node_modules
 
+ENV NODE_OPTIONS="--import ./dist/instrument.js"
+
 # 3. Expose port and start app
 EXPOSE 3000
 
