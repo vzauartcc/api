@@ -1065,13 +1065,15 @@ router.delete(
 
 			await solo.delete();
 
-			try {
-				await vatusaApi.delete(`/solo?id=${solo.vatusaId}`);
-			} catch (err) {
-				throw {
-					code: 500,
-					message: 'Error deleting from VATUSA',
-				};
+			if (zau.isProd) {
+				try {
+					await vatusaApi.delete(`/solo?id=${solo.vatusaId}`);
+				} catch (err) {
+					throw {
+						code: 500,
+						message: 'Error deleting from VATUSA',
+					};
+				}
 			}
 
 			req.app.dossier.create({
