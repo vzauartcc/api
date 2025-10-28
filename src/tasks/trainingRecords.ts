@@ -50,6 +50,7 @@ export async function syncVatusaTrainingRecords() {
 
 		let syncedCount = 0;
 		let addedCount = 0;
+		let updatedCount = 0;
 
 		for (const zau of zauSessions) {
 			const matches = vatusaData.filter(
@@ -88,45 +89,64 @@ export async function syncVatusaTrainingRecords() {
 		}
 
 		for (const record of vatusaData) {
-			if (zauRecords.some((z) => z.vatusaId === record.id)) {
-				continue;
-			}
+			const conformedNote = record.notes
+				.replaceAll('<p>', '')
+				.replaceAll('</p>', '')
+				.replaceAll('\\n', '')
+				.replaceAll('&amp;', '-')
+				.replaceAll('&apos;', "'")
+				.replaceAll('&gt;', '>')
+				.replaceAll('&lt;', '<')
+				.replaceAll('<br>', '')
+				.replaceAll('<li>', '- ')
+				.replaceAll('</li>', '');
 
-			await TrainingSessionModel.create({
-				studentCid: record.student_id,
-				instructorCid: record.instructor_id,
-				milestoneCode: 'UNKNOWN',
-				position: record.position,
-				startTime: new Date(record.session_date + '+00:00'),
-				endTime: new Date(
-					new Date(record.session_date + '+00:00').getTime() +
-						parseInt(record.duration.slice(0, 2)) * 3_600_000 +
-						parseInt(record.duration.slice(3, 5)) * 60_000,
-				),
-				progress: record.score,
-				duration: record.duration.slice(0, -3),
-				movements: record.movements || 0,
-				location: record.location,
-				ots: record.ots_status,
-				studentNotes: record.notes
-					.replaceAll('<p>', '')
-					.replaceAll('</p>', '')
-					.replaceAll('\\n', '')
-					.replaceAll('&amp;', '-')
-					.replaceAll('&apos;', "'")
-					.replaceAll('&gt;', '>')
-					.replaceAll('&lt;', '<')
-					.replaceAll('<br>', '')
-					.replaceAll('<li>', '- ')
-					.replaceAll('</li>', ''),
-				submitted: true,
-				vatusaId: record.id,
-			});
-			addedCount++;
+			const matched = zauRecords.find((z) => z.vatusaId === record.id);
+
+			if (!matched) {
+				await TrainingSessionModel.create({
+					studentCid: record.student_id,
+					instructorCid: record.instructor_id,
+					milestoneCode: 'UNKNOWN',
+					position: record.position,
+					startTime: new Date(record.session_date + '+00:00'),
+					endTime: new Date(
+						new Date(record.session_date + '+00:00').getTime() +
+							parseInt(record.duration.slice(0, 2)) * 3_600_000 +
+							parseInt(record.duration.slice(3, 5)) * 60_000,
+					),
+					progress: record.score,
+					duration: record.duration.slice(0, -3),
+					movements: record.movements || 0,
+					location: record.location,
+					ots: record.ots_status,
+					studentNotes: conformedNote,
+					submitted: true,
+					vatusaId: record.id,
+				});
+				addedCount++;
+			} else {
+				if (stringSimilarity(conformedNote, matched.studentNotes || '') < 0.9) {
+					matched.studentNotes = conformedNote;
+					matched.progress = record.score;
+					matched.movements = record.movements || 0;
+					matched.location = record.location;
+					matched.position = record.position;
+					matched.startTime = new Date(record.session_date + '+00:00');
+					matched.endTime = new Date(
+						new Date(record.session_date + '+00:00').getTime() +
+							parseInt(record.duration.slice(0, 2)) * 3_600_000 +
+							parseInt(record.duration.slice(3, 5)) * 60_000,
+					);
+					await matched.save();
+					updatedCount++;
+				}
+			}
 		}
 
 		console.log(`Synced ${syncedCount} training records from VATUSA.`);
 		console.log(`Added ${addedCount} new training records from VATUSA.`);
+		console.log(`Updated ${updatedCount} training sessions with VATUSA's notes.`);
 	} catch (err) {
 		console.log('Error syncing VATUSA Training Records', err);
 	}
