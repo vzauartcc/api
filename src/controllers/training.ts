@@ -444,9 +444,7 @@ router.delete(
 				};
 			}
 
-			await TrainingSessionModel.findByIdAndUpdate(req.params['id'], {
-				$unset: { instructorCid: '' },
-			});
+			await session.delete();
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
 			req.app.Sentry.captureException(e);
