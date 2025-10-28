@@ -231,13 +231,13 @@ new Cron(
 	() => soloExpiringNotifications(),
 );
 
-console.log(`Starting VATUSA Solo Endorsement sync task. . . .`);
+console.log(`Starting VATUSA Solo Endorsement Sync task. . . .`);
 new Cron('0 * * * *', { name: 'Solo Endorsement Sync', catch: true }, () =>
 	syncVatusaSoloEndorsements(),
 );
 
 if (process.env['NODE_ENV'] === 'production') {
-	console.log(`Starting VATUSA Training Records sync task. . . .`);
+	console.log(`Starting VATUSA Training Records Sync task. . . .`);
 	new Cron(
 		'0 6 * * *',
 		{ name: 'Training Record Sync', timezone: 'America/Chicago', catch: true },
