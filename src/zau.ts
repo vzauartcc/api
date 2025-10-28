@@ -77,6 +77,7 @@ const activity = {
 };
 
 export default {
+	isProd: process.env['NODE_ENV'] === 'production',
 	DATE_FORMAT: 'MM/dd/y',
 	activity,
 	atcPos: [

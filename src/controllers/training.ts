@@ -667,9 +667,24 @@ router.put(
 				};
 			}
 
-			const delta =
-				Math.abs(new Date(req.body.endTime).getTime() - new Date(req.body.startTime).getTime()) /
-				1000;
+			const startTime = new Date(req.body.startTime);
+			const endTime = new Date(req.body.endTime);
+
+			if (startTime.getTime() >= endTime.getTime()) {
+				throw {
+					code: 400,
+					message: 'Start Time must be before End Time',
+				};
+			}
+
+			if (startTime.getTime() > Date.now() || endTime.getTime() > Date.now()) {
+				throw {
+					code: 400,
+					message: 'Start and End Time must be before today',
+				};
+			}
+
+			const delta = Math.abs(endTime.getTime() - startTime.getTime()) / 1000;
 			const hours = Math.floor(delta / 3600);
 			const minutes = Math.floor(delta / 60) % 60;
 
@@ -779,6 +794,13 @@ router.post(
 				};
 			}
 
+			if (start.getTime() > Date.now() || end.getTime() > Date.now()) {
+				throw {
+					code: 400,
+					message: 'Start and End Time must be before today',
+				};
+			}
+
 			const delta = Math.abs(end.getTime() - start.getTime()) / 1000;
 			const hours = Math.floor(delta / 3600);
 			const minutes = Math.floor(delta / 60) % 60;
@@ -845,6 +867,13 @@ router.post(
 				throw {
 					code: 400,
 					message: 'End Time must be before Start Time',
+				};
+			}
+
+			if (start.getTime() > Date.now() || end.getTime() > Date.now()) {
+				throw {
+					code: 400,
+					message: 'Start and End Time must be before today',
 				};
 			}
 
@@ -986,7 +1015,16 @@ router.post(
 			if (process.env['DISCORD_TOKEN'] !== '') {
 				try {
 					await discord.sendMessage('1341139323604439090', {
-						content: `:student: **SOLO ENDORSEMENT ISSUED** :student:\n\nStudent Name: ${student.fname} ${student.lname}${student.discord ? ` <@${student.discord}>` : ''}\nInstructor Name: ${req.user!.fname} ${req.user!.lname}\nIssued Date: ${DateTime.fromJSDate(new Date()).toUTC().toFormat(zau.DATE_FORMAT)}\nExpires Date: ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}\nPosition: ${req.body.position}\n<@&1215950778120933467>`,
+						content:
+							':student: **SOLO ENDORSEMENT ISSUED** :student:\n\n' +
+							`Student Name: ${student.fname} ${student.lname}${student.discord ? ` <@${student.discord}>` : ''}\n` +
+							`Instructor Name: ${req.user!.fname} ${req.user!.lname}\n` +
+							`Issued Date: ${DateTime.fromJSDate(new Date()).toUTC().toFormat(zau.DATE_FORMAT)}\n` +
+							`Expires Date: ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}\n` +
+							`Position: ${req.body.position}\n` +
+							zau.isProd
+								? '<@&1215950778120933467>'
+								: '\nThis was sent from a test environment and is not real.',
 					});
 				} catch (err) {
 					console.log('Error posting solo endorsement to discord', err);
