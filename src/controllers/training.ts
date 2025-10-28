@@ -930,12 +930,7 @@ router.post(
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
 	async (req: Request, res: Response) => {
 		try {
-			if (
-				!req.body.student ||
-				!req.body.position ||
-				!req.body.expirationDate ||
-				!req.body.vatusaId
-			) {
+			if (!req.body.student || !req.body.position || !req.body.expirationDate) {
 				throw {
 					code: 400,
 					message: 'All fields are required.',
@@ -952,11 +947,26 @@ router.post(
 
 			const endDate = new Date(req.body.expirationDate);
 
+			let vatusaId = 0;
+			try {
+				const { data: vatusaResponse } = await vatusaApi.post('/solo', {
+					cid: student.cid,
+					position: req.body.position,
+					expDate: DateTime.fromJSDate(endDate).toUTC().toFormat('yyyy-MM-dd'),
+				});
+				vatusaId = vatusaResponse.data.id || 0;
+			} catch (err) {
+				throw {
+					code: 500,
+					message: (err as any).response?.data?.data?.msg || 'VATUSA Error',
+				};
+			}
+
 			SoloEndorsementModel.create({
 				studentCid: student.cid,
 				instructorCid: req.user!.cid,
 				position: req.body.position,
-				vatusaId: req.body.vatusaId,
+				vatusaId: vatusaId,
 				expires: endDate,
 			});
 
