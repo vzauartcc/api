@@ -399,6 +399,7 @@ router.get(
 			const sessions = await TrainingSessionModel.find({
 				instructorCid: req.user!.cid,
 				submitted: false,
+				deleted: { $ne: true },
 			})
 				.populate('student', 'fname lname cid vis')
 				.populate('milestone', 'name code')

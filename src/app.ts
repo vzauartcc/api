@@ -225,17 +225,23 @@ app.listen(process.env['PORT'], () => {
 });
 
 console.log(`Starting Solo Expiration Notification task. . . .`);
-new Cron('0 0 * * *', { name: 'Solo Expiration Notifications', timezone: 'Etc/UTC' }, () =>
-	soloExpiringNotifications(),
+new Cron(
+	'0 0 * * *',
+	{ name: 'Solo Expiration Notifications', timezone: 'Etc/UTC', catch: true },
+	() => soloExpiringNotifications(),
 );
 
 console.log(`Starting VATUSA Solo Endorsement sync task. . . .`);
-new Cron('0 * * * *', { name: 'Solo Endorsement Sync' }, () => syncVatusaSoloEndorsements());
+new Cron('0 * * * *', { name: 'Solo Endorsement Sync', catch: true }, () =>
+	syncVatusaSoloEndorsements(),
+);
 
 if (process.env['NODE_ENV'] === 'production') {
 	console.log(`Starting VATUSA Training Records sync task. . . .`);
-	new Cron('0 6 * * *', { name: 'Training Record Sync', timezone: 'America/Chicago' }, () =>
-		syncVatusaTrainingRecords(),
+	new Cron(
+		'0 6 * * *',
+		{ name: 'Training Record Sync', timezone: 'America/Chicago', catch: true },
+		() => syncVatusaTrainingRecords(),
 	);
 }
 
