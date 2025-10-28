@@ -10,14 +10,14 @@ import { AbsenceModel } from '../models/absence.js';
 import { ControllerHoursModel } from '../models/controllerHours.js';
 import { NotificationModel } from '../models/notification.js';
 import { RoleModel } from '../models/role.js';
-import { UserModel, type IUser } from '../models/user.js';
+import { UserModel } from '../models/user.js';
 import { VisitApplicationModel } from '../models/visitApplication.js';
 
 const router = Router();
 
 router.get('/', async (req: Request, res: Response) => {
 	try {
-		const allUsers: IUser[] = await UserModel.find({})
+		const allUsers = await UserModel.find({})
 			.select('-email -idsToken -discordInfo -certificationDate -broadcast')
 			.sort({
 				lname: 'asc',

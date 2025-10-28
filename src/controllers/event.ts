@@ -9,7 +9,7 @@ import getUser from '../middleware/user.js';
 import EventModel from '../models/event.js';
 import type { IEventPosition, IEventPositionData } from '../models/eventPosition.js';
 import type { IEventSignup } from '../models/eventSignup.js';
-import { StaffingRequestModel, type IStaffingRequest } from '../models/staffingRequest.js';
+import { StaffingRequestModel } from '../models/staffingRequest.js';
 import { UserModel, type IUser } from '../models/user.js';
 
 const router = Router();
@@ -87,7 +87,7 @@ router.get('/staffingRequest', async (req: Request, res: Response) => {
 		const limit = +(req.query['limit'] as string) || 10;
 
 		const count = await StaffingRequestModel.countDocuments({ deleted: false }).exec();
-		let requests: IStaffingRequest[] = [];
+		let requests: any[] = [];
 
 		if (count > 0) {
 			requests = await StaffingRequestModel.find({ deleted: false })

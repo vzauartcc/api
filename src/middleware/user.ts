@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import type { IUser } from '../models/user.js';
 import { UserModel } from '../models/user.js';
 
 export interface UserPayload {
@@ -56,7 +57,7 @@ export default async function (req: Request, res: Response, next: NextFunction) 
 			return res.json(res.stdRes);
 		}
 
-		req.user = user;
+		req.user = user as unknown as IUser;
 	} catch (err) {
 		delete req.user;
 		deleteAuthCookie(res);
