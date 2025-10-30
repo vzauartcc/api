@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { IDiscordMessage } from './types/Discord.js';
+import type { IDiscordMessage } from '../types/Discord.js';
 
 const discord = axios.create({
 	baseURL: 'https://discord.com/api',

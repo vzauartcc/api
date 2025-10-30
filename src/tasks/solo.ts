@@ -1,9 +1,9 @@
 import { DateTime } from 'luxon';
-import { vatusaApi } from '../app.js';
-import discord from '../discord.js';
+import discord from '../helpers/discord.js';
+import { vatusaApi } from '../helpers/vatusa.js';
+import zau from '../helpers/zau.js';
 import { DossierModel } from '../models/dossier.js';
 import { SoloEndorsementModel } from '../models/soloEndorsement.js';
-import zau from '../zau.js';
 
 export async function soloExpiringNotifications() {
 	if (!process.env['DISCORD_TOKEN'] || process.env['DISCORD_TOKEN'] === '') {

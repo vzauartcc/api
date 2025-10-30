@@ -1,9 +1,10 @@
 import Discord from 'discord-oauth2';
 import { Router, type Request, type Response } from 'express';
 import { convertToReturnDetails } from '../app.js';
-import discord from '../discord.js';
+import discord from '../helpers/discord.js';
 import internalAuth from '../middleware/internalAuth.js';
 import getUser from '../middleware/user.js';
+import { DossierModel } from '../models/dossier.js';
 import { UserModel } from '../models/user.js';
 
 const router = Router();
@@ -115,7 +116,7 @@ router.post('/info', async (req: Request, res: Response) => {
 
 		await user.save();
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: user.cid,
 			affected: -1,
 			action: `%b connected their Discord.`,

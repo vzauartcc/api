@@ -1,13 +1,16 @@
 import axios from 'axios';
 import { Router, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
-import { convertToReturnDetails, uploadToS3, vatusaApi } from '../app.js';
-import { sendMail } from '../mailer.js';
+import { convertToReturnDetails } from '../app.js';
+import { sendMail } from '../helpers/mailer.js';
+import { uploadToS3 } from '../helpers/s3.js';
+import { vatusaApi } from '../helpers/vatusa.js';
 import { hasRole, isManagement, isStaff } from '../middleware/auth.js';
 import internalAuth from '../middleware/internalAuth.js';
 import getUser from '../middleware/user.js';
 import { AbsenceModel } from '../models/absence.js';
 import { ControllerHoursModel } from '../models/controllerHours.js';
+import { DossierModel } from '../models/dossier.js';
 import { NotificationModel } from '../models/notification.js';
 import { RoleModel } from '../models/role.js';
 import { UserModel } from '../models/user.js';
@@ -276,7 +279,7 @@ router.post('/absence', getUser, isManagement, async (req: Request, res: Respons
 			})}</b>.`,
 		});
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: req.user!.cid,
 			affected: req.body.controller,
 			action: `%b added a leave of absence for %a: ${req.body.reason}`,
@@ -308,7 +311,7 @@ router.delete('/absence/:id', getUser, isManagement, async (req: Request, res: R
 
 		await absence.delete();
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: req.user!.cid,
 			affected: absence.controller,
 			action: `%b deleted the leave of absence for %a.`,
@@ -324,11 +327,10 @@ router.delete('/absence/:id', getUser, isManagement, async (req: Request, res: R
 router.get('/log', getUser, isStaff, async (req: Request, res: Response) => {
 	const page = +(req.query['page'] as string) || 1;
 	const limit = +(req.query['limit'] as string) || 20;
-	const amount = await req.app.dossier.countDocuments();
+	const amount = await DossierModel.countDocuments();
 
 	try {
-		const dossier = await req.app.dossier
-			.find()
+		const dossier = await DossierModel.find()
 			.sort({
 				createdAt: 'desc',
 			})
@@ -427,7 +429,7 @@ router.put('/:cid/rating', internalAuth, async (req: Request, res: Response) => 
 
 			await user.save();
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: -1,
 				affected: req.params['cid'],
 				action: `%a was set as Rating ${req.body.rating} by an external service.`,
@@ -616,7 +618,7 @@ router.put('/visit/:cid', getUser, hasRole(['atm', 'datm']), async (req, res) =>
 			},
 		});
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: req.user!.cid,
 			affected: user.cid,
 			action: `%b approved the visiting application for %a.`,
@@ -663,7 +665,7 @@ router.delete(
 				},
 			});
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: user.cid,
 				action: `%b rejected the visiting application for %a: ${req.body.reason}`,
@@ -747,7 +749,7 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response) => {
 			},
 		});
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: -1,
 			affected: req.body.cid,
 			action: `%a was created by an external service.`,
@@ -771,18 +773,28 @@ router.put('/:cid/member', internalAuth, async (req: Request, res: Response) => 
 			};
 		}
 
-		const oi = await UserModel.find({ deletedAt: null, member: true }).select('oi').lean().exec();
+		let assignedOi: string | null = null;
+		if (req.body.member === true) {
+			const oi = await UserModel.find({ deletedAt: null, member: true }).select('oi').lean().exec();
+			assignedOi = generateOperatingInitials(
+				user.fname,
+				user.lname,
+				oi.map((oi) => oi.oi || '').filter((oi) => oi !== ''),
+			);
 
+			user.joinDate = req.body.joinDate || new Date();
+			user.removalDate = null;
+		} else {
+			user.history.push({
+				start: user.joinDate!,
+				end: new Date(),
+				reason: `Removed from roster by an external service.`,
+			});
+			user.joinDate = null;
+			user.removalDate = new Date();
+		}
 		user.member = req.body.member;
-		user.oi = req.body.member
-			? generateOperatingInitials(
-					user.fname,
-					user.lname,
-					oi.map((oi) => oi.oi || '').filter((oi) => oi !== ''),
-				)
-			: null;
-		user.joinDate = req.body.member ? new Date() : null;
-		user.removalDate = null;
+		user.oi = assignedOi;
 
 		await user.save();
 		const ratings = [
@@ -817,7 +829,7 @@ router.put('/:cid/member', internalAuth, async (req: Request, res: Response) => 
 			});
 		}
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: -1,
 			affected: req.params['cid'],
 			action: `%a was ${req.body.member ? 'added to' : 'removed from'} the roster by an external service.`,
@@ -842,11 +854,10 @@ router.put('/:cid/visit', internalAuth, async (req: Request, res: Response) => {
 		}
 
 		user.vis = req.body.vis;
-		user.joinDate = new Date();
 
 		await user.save();
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: -1,
 			affected: req.params['cid'],
 			action: `%a was set as a ${req.body.vis ? 'visiting controller' : 'home controller'} by an external service.`,
@@ -942,7 +953,7 @@ router.put(
 			).exec();
 
 			// Log the update in the user's dossier
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: req.params['cid'],
 				action: `%a was updated by %b.`,
@@ -988,13 +999,7 @@ router.delete('/:cid', getUser, hasRole(['atm', 'datm']), async (req: Request, r
 			};
 		}
 
-		const user = await UserModel.findOneAndUpdate(
-			{ cid: req.params['cid'] },
-			{
-				member: false,
-				removalDate: new Date().toISOString(),
-			},
-		).exec();
+		const user = await UserModel.findOne({ cid: req.params['cid'] });
 
 		if (!user) {
 			throw {
@@ -1002,6 +1007,17 @@ router.delete('/:cid', getUser, hasRole(['atm', 'datm']), async (req: Request, r
 				message: 'User not found.',
 			};
 		}
+
+		user.member = false;
+		user.removalDate = new Date();
+		user.history.push({
+			start: user.joinDate!,
+			end: new Date(),
+			reason: req.body.reason,
+		});
+		user.joinDate = null;
+
+		await user.save();
 
 		if (user.vis) {
 			await vatusaApi.delete(`/facility/ZAU/roster/manageVisitor/${req.params['cid']}`, {
@@ -1019,7 +1035,7 @@ router.delete('/:cid', getUser, hasRole(['atm', 'datm']), async (req: Request, r
 			});
 		}
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: req.user!.cid,
 			affected: req.params['cid'],
 			action: `%a was removed from the roster by %b: ${req.body.reason}`,

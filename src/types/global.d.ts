@@ -1,5 +1,3 @@
-import type { S3Client } from '@aws-sdk/client-s3';
-import * as Dossier from 'dossier';
 import { Redis } from 'ioredis';
 import type { IUser } from 'models/user.ts';
 import type { OauthRequest } from 'types/CustomRequest.ts';
@@ -24,10 +22,6 @@ declare global {
 			// customConfig: Record<string, any>;
 
 			Sentry: SentryClient;
-
-			s3: S3Client;
-
-			dossier: Dossier;
 		}
 
 		export interface Response {

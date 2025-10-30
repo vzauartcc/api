@@ -1,6 +1,4 @@
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import * as Sentry from '@sentry/node';
-import axios from 'axios';
 import cookie from 'cookie-parser';
 import cors from 'cors';
 import { Cron } from 'croner';
@@ -21,44 +19,13 @@ import statsRouter from './controllers/stats.js';
 import trainingRouter from './controllers/training.js';
 import userRouter from './controllers/user.js';
 import vatusaRouter from './controllers/vatusa.js';
-import { DossierModel } from './models/dossier.js';
+import { setupS3 } from './helpers/s3.js';
 import { soloExpiringNotifications, syncVatusaSoloEndorsements } from './tasks/solo.js';
 import { syncVatusaTrainingRecords } from './tasks/trainingRecords.js';
 import type { ReturnDetails } from './types/StandardResponse.js';
 
 console.log(`Starting application. . . .`);
 const app = express();
-
-console.log('Hooking timing middleware. . . .');
-app.use((req: Request, res: Response, next: NextFunction) => {
-	if (
-		req.originalUrl.includes('favicon') ||
-		req.originalUrl.includes('/online') ||
-		req.originalUrl.includes('/ids/') ||
-		req.originalUrl.includes('/controller/stats')
-	)
-		return next();
-
-	const start = process.hrtime.bigint();
-
-	const logRequestDuration = () => {
-		const durationNs = process.hrtime.bigint() - start;
-
-		const durationMs = Number(durationNs) / 1_000_000;
-
-		console.log(
-			`[Timer] [${new Date().toUTCString()}] ${req.method} ${req.originalUrl} - Status ${res.statusCode} ${req.user ? `- ${req.user.cid} ` : ''}- ${durationMs.toFixed(3)}ms`,
-		);
-
-		res.removeListener('finish', logRequestDuration);
-		res.removeListener('close', logRequestDuration);
-	};
-
-	res.on('finish', logRequestDuration);
-	res.on('close', logRequestDuration);
-
-	next();
-});
 
 app.use((_req: Request, res: Response, next: NextFunction) => {
 	res.stdRes = {
@@ -123,45 +90,14 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
 	next();
 });
 
-function getS3Prefix() {
-	switch (process.env['S3_FOLDER_PREFIX']) {
-		case 'production':
-			return 'production';
-		case 'staging':
-			return 'staging';
-		default:
-			return 'development';
-	}
-}
-
-const S3_PREFIX = getS3Prefix(); // Get the correct environment folder
-
-const AWS_ACCESS_KEY_ID = process.env['AWS_ACCESS_KEY_ID'];
-const AWS_SECRET_ACCESS_KEY = process.env['AWS_SECRET_ACCESS_KEY'];
-
-if (!AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY) {
-	throw new Error(
-		'AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY is not set in environment variables.',
-	);
-}
-
 console.log('Connecting to S3 bucket. . . .');
-app.s3 = new S3Client({
-	endpoint: 'https://sfo3.digitaloceanspaces.com', // DigitalOcean Spaces or AWS S3
-	region: 'us-east-1', // DigitalOcean Spaces requires a region (choose the closest one)
-	credentials: {
-		accessKeyId: AWS_ACCESS_KEY_ID,
-		secretAccessKey: AWS_SECRET_ACCESS_KEY,
-	},
-});
+setupS3();
 
 const MONGO_URI = process.env['MONGO_URI'];
 
 if (!MONGO_URI) {
 	throw new Error('MONGO_URI is not est in environment variables.');
 }
-
-app.dossier = DossierModel;
 
 console.log('Connecting to MongoDB. . . .');
 // Connect to MongoDB
@@ -262,32 +198,3 @@ export function convertToReturnDetails(e: unknown): ReturnDetails {
 		};
 	}
 }
-
-export function uploadToS3(filename: string, tmpFile: any, mime: string, options = {}) {
-	return app.s3.send(
-		new PutObjectCommand({
-			...options,
-			Bucket: 'zauartcc',
-			Key: `${S3_PREFIX}/${filename}`,
-			Body: tmpFile,
-			ContentType: mime,
-			ACL: 'public-read',
-		}),
-	);
-}
-
-export function deleteFromS3(filename: string) {
-	return app.s3.send(
-		new DeleteObjectCommand({
-			Bucket: 'zauartcc',
-			Key: `${S3_PREFIX}/${filename}`,
-		}),
-	);
-}
-
-export const vatusaApi = axios.create({
-	baseURL: 'https://api.vatusa.net/v2',
-	params: {
-		apikey: process.env['VATUSA_API_KEY'],
-	},
-});

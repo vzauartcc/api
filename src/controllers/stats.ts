@@ -3,6 +3,7 @@ import { Router, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
 import type { FlattenMaps } from 'mongoose';
 import { convertToReturnDetails } from '../app.js';
+import zau from '../helpers/zau.js';
 import { hasRole } from '../middleware/auth.js';
 import internalAuth from '../middleware/internalAuth.js';
 import getUser from '../middleware/user.js';
@@ -11,7 +12,6 @@ import { FeedbackModel } from '../models/feedback.js';
 import { TrainingRequestModel } from '../models/trainingRequest.js';
 import { TrainingSessionModel } from '../models/trainingSession.js';
 import { UserModel, type IUser } from '../models/user.js';
-import zau from '../zau.js';
 
 const router = Router();
 

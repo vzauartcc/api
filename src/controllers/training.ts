@@ -1,21 +1,24 @@
 import { Router, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
-import { convertToReturnDetails, vatusaApi } from '../app.js';
-import discord from '../discord.js';
-import { sendMail } from '../mailer.js';
+import { convertToReturnDetails } from '../app.js';
+import discord from '../helpers/discord.js';
+import { sendMail } from '../helpers/mailer.js';
+import { vatusaApi } from '../helpers/vatusa.js';
+import zau from '../helpers/zau.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
+import { DossierModel } from '../models/dossier.js';
 import { NotificationModel } from '../models/notification.js';
 import { SoloEndorsementModel } from '../models/soloEndorsement.js';
 import { TrainingRequestMilestoneModel } from '../models/trainingMilestone.js';
 import { TrainingRequestModel } from '../models/trainingRequest.js';
 import { TrainingSessionModel } from '../models/trainingSession.js';
 import { UserModel } from '../models/user.js';
-import zau from '../zau.js';
 
 const router = Router();
 const fifteen = 15 * 60 * 1000;
 
+//#region Trainig Requests
 router.get('/request/upcoming', getUser, async (req: Request, res: Response) => {
 	try {
 		const upcoming = await TrainingRequestModel.find({
@@ -389,7 +392,9 @@ router.get(
 		}
 	},
 );
+//#endregion
 
+//#region Training Sessions
 router.get(
 	'/session/open',
 	getUser,
@@ -455,6 +460,7 @@ router.delete(
 	},
 );
 
+//#region Fetching Sessions
 router.get('/session/:id', getUser, async (req: Request, res: Response) => {
 	try {
 		const isIns = ['ta', 'ins', 'mtr', 'ia', 'atm', 'datm'].some((r) =>
@@ -621,7 +627,9 @@ router.get(
 		}
 	},
 );
+//#endregion
 
+//#region Editing Sessions
 router.put(
 	'/session/save/:id',
 	getUser,
@@ -721,7 +729,7 @@ router.put(
 				// store the vatusa id for updating it later
 				session.vatusaId = vatusaRes.data.id;
 				session.submitted = true; // submitted sessions show in a different section of the UI
-				session.save();
+				await session.save();
 			} else {
 				await vatusaApi.put(`/training/record/${session.vatusaId}`, {
 					session_date: DateTime.fromISO(req.body.startTime).toFormat('y-MM-dd HH:mm'),
@@ -755,7 +763,9 @@ router.put(
 		}
 	},
 );
+//#endregion
 
+//#region Instructor New Sessions
 router.post(
 	'/session/save',
 	getUser,
@@ -917,7 +927,15 @@ router.post(
 
 			doc.vatusaId = vatusaRes.data.id;
 			doc.submitted = true;
-			doc.save();
+			await doc.save();
+
+			await NotificationModel.create({
+				recipient: doc.studentCid,
+				read: false,
+				title: 'Training Notes Submitted',
+				content: `The training notes from your session with <b>${req.user!.fname + ' ' + req.user!.lname}</b> have been submitted.`,
+				link: `/dash/training/session/${doc._id}`,
+			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
 			req.app.Sentry.captureException(e);
@@ -926,7 +944,11 @@ router.post(
 		}
 	},
 );
+//#endregion
 
+//#endregion
+
+//#region Solo Endorsements
 router.get(
 	'/solo',
 	getUser,
@@ -1006,7 +1028,7 @@ router.post(
 				content: `You have been issued a solo endorsement for <b>${req.body.position}</b> by <b>${req.user!.fname} ${req.user!.lname}</b>. It will expire on ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}`,
 			});
 
-			req.app.dossier.create({
+			DossierModel.create({
 				by: req.user!.cid,
 				affected: req.body.student,
 				action: `%b issued a solo endorsement for %a to work ${req.body.position} until ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}`,
@@ -1076,7 +1098,7 @@ router.delete(
 				}
 			}
 
-			req.app.dossier.create({
+			DossierModel.create({
 				by: req.user!.cid,
 				affected: req.body.student,
 				action: `%b deleted a solo endorsement for %a to work ${req.body.position} until ${DateTime.fromJSDate(solo.expires).toUTC().toFormat(zau.DATE_FORMAT)}`,
@@ -1089,5 +1111,6 @@ router.delete(
 		}
 	},
 );
+//#endregion
 
 export default router;

@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { convertToReturnDetails } from '../app.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
+import { DossierModel } from '../models/dossier.js';
 import { FeedbackModel } from '../models/feedback.js';
 import { NotificationModel } from '../models/notification.js';
 import { UserModel } from '../models/user.js';
@@ -81,7 +82,7 @@ router.post('/', async (req: Request, res: Response) => {
 			approved: false,
 		});
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: req.body.cid,
 			affected: req.body.controller,
 			action: `%b submitted feedback about %a.`,
@@ -164,7 +165,7 @@ router.put(
 				link: '/dash/feedback',
 			});
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: approved.controllerCid,
 				action: `%b approved feedback for %a.`,
@@ -195,7 +196,7 @@ router.put(
 
 			await feedback.delete();
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: feedback.controllerCid,
 				action: `%b rejected feedback for %a.`,
