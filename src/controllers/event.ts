@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { fileTypeFromFile } from 'file-type';
 import fs from 'fs/promises';
 import multer from 'multer';
-import { convertToReturnDetails, deleteFromS3, uploadToS3 } from '../app.js';
+import { convertToReturnDetails } from '../app.js';
 import { sendMail } from '../mailer.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
@@ -11,6 +11,7 @@ import type { IEventPosition, IEventPositionData } from '../models/eventPosition
 import type { IEventSignup } from '../models/eventSignup.js';
 import { StaffingRequestModel } from '../models/staffingRequest.js';
 import { UserModel, type IUser } from '../models/user.js';
+import { deleteFromS3, uploadToS3 } from '../s3.js';
 
 const router = Router();
 

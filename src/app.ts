@@ -1,4 +1,3 @@
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import * as Sentry from '@sentry/node';
 import axios from 'axios';
 import cookie from 'cookie-parser';
@@ -22,6 +21,7 @@ import trainingRouter from './controllers/training.js';
 import userRouter from './controllers/user.js';
 import vatusaRouter from './controllers/vatusa.js';
 import { DossierModel } from './models/dossier.js';
+import { setupS3 } from './s3.js';
 import { soloExpiringNotifications, syncVatusaSoloEndorsements } from './tasks/solo.js';
 import { syncVatusaTrainingRecords } from './tasks/trainingRecords.js';
 import type { ReturnDetails } from './types/StandardResponse.js';
@@ -123,37 +123,8 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
 	next();
 });
 
-function getS3Prefix() {
-	switch (process.env['S3_FOLDER_PREFIX']) {
-		case 'production':
-			return 'production';
-		case 'staging':
-			return 'staging';
-		default:
-			return 'development';
-	}
-}
-
-const S3_PREFIX = getS3Prefix(); // Get the correct environment folder
-
-const AWS_ACCESS_KEY_ID = process.env['AWS_ACCESS_KEY_ID'];
-const AWS_SECRET_ACCESS_KEY = process.env['AWS_SECRET_ACCESS_KEY'];
-
-if (!AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY) {
-	throw new Error(
-		'AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY is not set in environment variables.',
-	);
-}
-
 console.log('Connecting to S3 bucket. . . .');
-app.s3 = new S3Client({
-	endpoint: 'https://sfo3.digitaloceanspaces.com', // DigitalOcean Spaces or AWS S3
-	region: 'us-east-1', // DigitalOcean Spaces requires a region (choose the closest one)
-	credentials: {
-		accessKeyId: AWS_ACCESS_KEY_ID,
-		secretAccessKey: AWS_SECRET_ACCESS_KEY,
-	},
-});
+setupS3();
 
 const MONGO_URI = process.env['MONGO_URI'];
 
@@ -261,28 +232,6 @@ export function convertToReturnDetails(e: unknown): ReturnDetails {
 			message: `An unexpected error occurred: ${String(e)}`,
 		};
 	}
-}
-
-export function uploadToS3(filename: string, tmpFile: any, mime: string, options = {}) {
-	return app.s3.send(
-		new PutObjectCommand({
-			...options,
-			Bucket: 'zauartcc',
-			Key: `${S3_PREFIX}/${filename}`,
-			Body: tmpFile,
-			ContentType: mime,
-			ACL: 'public-read',
-		}),
-	);
-}
-
-export function deleteFromS3(filename: string) {
-	return app.s3.send(
-		new DeleteObjectCommand({
-			Bucket: 'zauartcc',
-			Key: `${S3_PREFIX}/${filename}`,
-		}),
-	);
 }
 
 export const vatusaApi = axios.create({

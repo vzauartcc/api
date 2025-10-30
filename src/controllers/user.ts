@@ -2,7 +2,7 @@ import axios from 'axios';
 import { randomUUID } from 'crypto';
 import { Router, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { convertToReturnDetails, uploadToS3 } from '../app.js';
+import { convertToReturnDetails } from '../app.js';
 import internalAuth from '../middleware/internalAuth.js';
 import getUser, { deleteAuthCookie, type UserPayload } from '../middleware/user.js';
 import oAuth from '../middleware/vatsim.js';
@@ -10,6 +10,7 @@ import { ControllerHoursModel } from '../models/controllerHours.js';
 import { NotificationModel } from '../models/notification.js';
 import { TrainingSessionModel } from '../models/trainingSession.js';
 import { UserModel } from '../models/user.js';
+import { uploadToS3 } from '../s3.js';
 import zau from '../zau.js';
 
 const router = Router();

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Router, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
-import { convertToReturnDetails, uploadToS3, vatusaApi } from '../app.js';
+import { convertToReturnDetails, vatusaApi } from '../app.js';
 import { sendMail } from '../mailer.js';
 import { hasRole, isManagement, isStaff } from '../middleware/auth.js';
 import internalAuth from '../middleware/internalAuth.js';
@@ -12,6 +12,7 @@ import { NotificationModel } from '../models/notification.js';
 import { RoleModel } from '../models/role.js';
 import { UserModel } from '../models/user.js';
 import { VisitApplicationModel } from '../models/visitApplication.js';
+import { uploadToS3 } from '../s3.js';
 
 const router = Router();
 
