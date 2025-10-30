@@ -1,3 +1,4 @@
+import { captureException } from '@sentry/node';
 import { Router, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
 import { convertToReturnDetails } from '../app.js';
@@ -37,7 +38,7 @@ router.get('/request/upcoming', getUser, async (req: Request, res: Response) => 
 		res.stdRes.data = upcoming;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -164,7 +165,7 @@ router.post('/request/new', getUser, async (req: Request, res: Response) => {
 		});
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -188,7 +189,7 @@ router.get('/milestones', getUser, async (req: Request, res: Response) => {
 		};
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -221,7 +222,7 @@ router.get(
 			res.stdRes.data = requests;
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -311,7 +312,7 @@ router.post(
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -351,7 +352,7 @@ router.delete('/request/:id', getUser, async (req: Request, res: Response) => {
 		}
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -386,7 +387,7 @@ router.get(
 			res.stdRes.data = requests;
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -414,7 +415,7 @@ router.get(
 			res.stdRes.data = sessions;
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -453,7 +454,7 @@ router.delete(
 			await session.delete();
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -489,7 +490,7 @@ router.get('/session/:id', getUser, async (req: Request, res: Response) => {
 		}
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -529,7 +530,7 @@ router.get(
 			};
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -568,7 +569,7 @@ router.get('/sessions/past', getUser, async (req: Request, res: Response) => {
 		};
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -621,7 +622,7 @@ router.get(
 			};
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -639,7 +640,7 @@ router.put(
 			await TrainingSessionModel.findByIdAndUpdate(req.params['id'], req.body).exec();
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -757,7 +758,7 @@ router.put(
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -835,7 +836,7 @@ router.post(
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -938,7 +939,7 @@ router.post(
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -953,7 +954,7 @@ router.get(
 	'/solo',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
-	async (req: Request, res: Response) => {
+	async (_req: Request, res: Response) => {
 		try {
 			const solos = await SoloEndorsementModel.find({
 				deleted: false,
@@ -968,7 +969,7 @@ router.get(
 			res.stdRes.data = solos;
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -1054,7 +1055,7 @@ router.post(
 			}
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -1105,7 +1106,7 @@ router.delete(
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}

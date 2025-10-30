@@ -1,3 +1,4 @@
+import { captureException } from '@sentry/node';
 import axios from 'axios';
 import type { NextFunction, Request, Response } from 'express';
 
@@ -58,7 +59,7 @@ export default async function (req: Request, res: Response, next: NextFunction) 
 		req.oauth = response.data;
 		return next();
 	} catch (e) {
-		req.app.Sentry.captureException(e);
+		captureException(e);
 		return res.status(500).send();
 	}
 }

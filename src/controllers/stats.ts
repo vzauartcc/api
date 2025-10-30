@@ -1,3 +1,4 @@
+import { captureException } from '@sentry/node';
 import axios from 'axios';
 import { Router, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
@@ -52,7 +53,7 @@ router.get(
 	'/admin',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'fe', 'ec', 'wm']),
-	async (req: Request, res: Response) => {
+	async (_req: Request, res: Response) => {
 		try {
 			const d = new Date();
 			const thisMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
@@ -146,7 +147,7 @@ router.get(
 			};
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -157,7 +158,7 @@ router.get(
 	'/ins',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
-	async (req: Request, res: Response) => {
+	async (_req: Request, res: Response) => {
 		try {
 			let lastTraining = await TrainingSessionModel.aggregate([
 				{
@@ -211,7 +212,7 @@ router.get(
 			};
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -481,7 +482,7 @@ router.get(
 			res.stdRes.data = Object.values(userData);
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -497,7 +498,7 @@ router.post('/fifty/:cid', internalAuth, async (req: Request, res: Response) => 
 		redis.expire(`FIFTY:${cid}`, 86400);
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}

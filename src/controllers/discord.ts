@@ -1,3 +1,4 @@
+import { captureException } from '@sentry/node';
 import Discord from 'discord-oauth2';
 import { Router, type Request, type Response } from 'express';
 import { convertToReturnDetails } from '../app.js';
@@ -9,7 +10,7 @@ import { UserModel } from '../models/user.js';
 
 const router = Router();
 
-router.get('/users', internalAuth, async (req: Request, res: Response) => {
+router.get('/users', internalAuth, async (_req: Request, res: Response) => {
 	try {
 		const users = await UserModel.find({ discordInfo: { $ne: null } })
 			.select('fname lname cid discordInfo roleCodes oi rating member vis')
@@ -18,7 +19,7 @@ router.get('/users', internalAuth, async (req: Request, res: Response) => {
 		res.stdRes.data = users;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -29,7 +30,7 @@ router.get('/user', getUser, async (req: Request, res: Response) => {
 		res.stdRes.data = !!req.user?.discordInfo?.clientId;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -76,7 +77,7 @@ router.post('/info', async (req: Request, res: Response) => {
 				scope: 'identify',
 			})
 			.catch((err) => {
-				req.app.Sentry.captureException(err);
+				captureException(err);
 				return null;
 			});
 
@@ -123,7 +124,7 @@ router.post('/info', async (req: Request, res: Response) => {
 		});
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -134,7 +135,7 @@ router.delete('/user', getUser, async (req: Request, res: Response) => {
 		await UserModel.updateOne({ cid: req.user!.cid }, { $unset: { discord: '', discordInfo: '' } });
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}

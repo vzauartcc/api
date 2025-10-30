@@ -6,3 +6,16 @@ export const vatusaApi = axios.create({
 		apikey: process.env['VATUSA_API_KEY'],
 	},
 });
+
+export interface IVisitingStatus {
+	visiting: boolean;
+	recentlyRostered: boolean;
+	hasRating: boolean;
+	ratingConsolidation: boolean;
+	needsBasic: boolean;
+	promo: boolean;
+	visitingDays: number;
+	hasHome: boolean;
+	ratingHours: number;
+	promoDays: number;
+}

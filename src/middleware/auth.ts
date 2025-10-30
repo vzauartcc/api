@@ -1,10 +1,9 @@
+import { captureMessage } from '@sentry/node';
 import type { NextFunction, Request, Response } from 'express';
 
 export function hasRole(roles: string[]) {
 	return function (req: Request, res: Response, next: NextFunction) {
 		if (!req.user) {
-			req.app.Sentry.captureMessage('Attempted access to an auth route without being logged in.');
-
 			res.stdRes.ret_det = {
 				code: 401,
 				message: 'Not authorized.',
@@ -17,7 +16,7 @@ export function hasRole(roles: string[]) {
 
 		const hasPermission = roles.some((r) => roleCodes.includes(r));
 		if (!hasPermission) {
-			req.app.Sentry.captureMessage(
+			captureMessage(
 				`${req.user.cid} attempted to access an auth route without having necessary role.`,
 			);
 			res.stdRes.ret_det = {

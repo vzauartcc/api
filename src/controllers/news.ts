@@ -1,3 +1,4 @@
+import { captureException } from '@sentry/node';
 import { Router, type Request, type Response } from 'express';
 import { convertToReturnDetails } from '../app.js';
 import { hasRole } from '../middleware/auth.js';
@@ -66,7 +67,7 @@ router.post(
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -83,7 +84,7 @@ router.get('/:slug', async (req, res) => {
 		res.stdRes.data = newsItem;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -124,7 +125,7 @@ router.put(
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -161,7 +162,7 @@ router.delete(
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
