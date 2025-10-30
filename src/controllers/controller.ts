@@ -563,6 +563,55 @@ router.get('/stats/:cid', async (req: Request, res: Response) => {
 	return res.json(res.stdRes);
 });
 
+router.post('/visit', getUser, async (req: Request, res: Response) => {
+	try {
+		if (!req.user) {
+			throw {
+				code: 401,
+				message: 'Unable to verify user',
+			};
+		}
+
+		const userData = {
+			cid: req.user.cid,
+			fname: req.user.fname,
+			lname: req.user.lname,
+			rating: req.user.ratingLong,
+			email: req.body.email,
+			home: req.body.facility,
+			reason: req.body.reason,
+		};
+
+		await VisitApplicationModel.create(userData);
+
+		sendMail({
+			to: req.body.email,
+			subject: `Visiting Application Received | Chicago ARTCC`,
+			template: 'visitReceived',
+			context: {
+				name: `${req.user.fname} ${req.user.lname}`,
+			},
+		});
+		sendMail({
+			to: 'atm@zauartcc.org, datm@zauartcc.org',
+			from: {
+				name: 'Chicago ARTCC',
+				address: 'no-reply@zauartcc.org',
+			},
+			subject: `New Visiting Application: ${req.user.fname} ${req.user.lname} | Chicago ARTCC`,
+			template: 'staffNewVisit',
+			context: {
+				user: userData,
+			},
+		});
+	} catch (e) {
+		res.stdRes.ret_det = convertToReturnDetails(e);
+		req.app.Sentry.captureException(e);
+	}
+
+	return res.json(res.stdRes);
+});
+
 router.get('/visit/status', getUser, async (req: Request, res: Response) => {
 	try {
 		const count = await VisitApplicationModel.countDocuments({
