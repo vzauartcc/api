@@ -4,7 +4,7 @@ import { DateTime } from 'luxon';
 import { convertToReturnDetails } from '../app.js';
 import { sendMail } from '../helpers/mailer.js';
 import { uploadToS3 } from '../helpers/s3.js';
-import { vatusaApi } from '../helpers/vatusa.js';
+import { vatusaApi, type IVisitingStatus } from '../helpers/vatusa.js';
 import { hasRole, isManagement, isStaff } from '../middleware/auth.js';
 import internalAuth from '../middleware/internalAuth.js';
 import getUser from '../middleware/user.js';
@@ -204,12 +204,40 @@ router.get('/oi', async (req: Request, res: Response) => {
 router.get('/visit', getUser, isManagement, async (req: Request, res: Response) => {
 	try {
 		const applications = await VisitApplicationModel.find({
-			deletedAt: null,
-			acceptedAt: null,
+			deleted: false,
 		})
 			.lean()
 			.exec();
-		res.stdRes.data = applications;
+
+		let retval = [];
+		for (const app of applications) {
+			try {
+				const { data: vatusaData } = await vatusaApi.get(`/user/${app.cid}/transfer/checklist`);
+
+				retval.push({
+					application: app,
+					statusChecks: {
+						hasHome: vatusaData.data.hasHome,
+						hasRating: vatusaData.data.hasRating,
+						visiting: vatusaData.data.visiting,
+						recentlyRostered: vatusaData.data['60days'],
+						ratingConsolidation: vatusaData.data['50hrs'],
+						needsBasic: vatusaData.data.needbasic,
+						promo: vatusaData.data.promo,
+						visitingDays: vatusaData.data.visitingDays,
+						promoDays: vatusaData.data.promoDays,
+						ratingHours: vatusaData.data.ratingHours,
+					},
+				});
+			} catch (_e) {
+				retval.push({
+					application: app,
+					statusChecks: null,
+				});
+			}
+		}
+
+		res.stdRes.data = retval;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
 		req.app.Sentry.captureException(e);
@@ -538,10 +566,27 @@ router.get('/stats/:cid', async (req: Request, res: Response) => {
 router.get('/visit/status', getUser, async (req: Request, res: Response) => {
 	try {
 		const count = await VisitApplicationModel.countDocuments({
-			cid: req.user?.cid,
+			cid: req.user!.cid,
 			deleted: false,
 		}).exec();
-		res.stdRes.data = count;
+
+		const { data: vatusaData } = await vatusaApi.get(`/user/${req.user!.cid}/transfer/checklist`);
+
+		res.stdRes.data = {
+			count,
+			status: {
+				hasHome: vatusaData.data.hasHome,
+				hasRating: vatusaData.data.hasRating,
+				visiting: vatusaData.data.visiting,
+				recentlyRostered: vatusaData.data['60days'],
+				ratingConsolidation: vatusaData.data['50hrs'],
+				needsBasic: vatusaData.data.needbasic,
+				promo: vatusaData.data.promo,
+				visitingDays: vatusaData.data.visitingDays,
+				promoDays: vatusaData.data.promoDays,
+				ratingHours: vatusaData.data.ratingHours,
+			} as IVisitingStatus,
+		};
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
 		req.app.Sentry.captureException(e);
