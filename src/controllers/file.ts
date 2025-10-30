@@ -2,11 +2,12 @@ import { Router, type Request, type Response } from 'express';
 import fs from 'fs/promises';
 import multer from 'multer';
 import { convertToReturnDetails } from '../app.js';
+import { deleteFromS3, uploadToS3 } from '../helpers/s3.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
 import { DocumentModel } from '../models/document.js';
+import { DossierModel } from '../models/dossier.js';
 import { DownloadModel } from '../models/download.js';
-import { deleteFromS3, uploadToS3 } from '../s3.js';
 
 const router = Router();
 
@@ -88,7 +89,7 @@ router.post(
 				author: req.body.author,
 			});
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: -1,
 				action: `%b created the file *${req.body.name}*.`,
@@ -146,7 +147,7 @@ router.put(
 			}
 
 			// ✅ Log the update in dossier
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: -1,
 				action: `%b updated the file *${req.body.name}*.`,
@@ -181,7 +182,7 @@ router.delete(
 			await DownloadModel.findByIdAndDelete(req.params['id']).exec();
 
 			// ✅ Log deletion in dossier
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: -1,
 				action: `%b deleted the file *${download.name}*.`,
@@ -295,7 +296,7 @@ router.post(
 				});
 			}
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: -1,
 				action: `%b created the document *${req.body.name}*.`,
@@ -384,7 +385,7 @@ router.put(
 			}
 
 			// ✅ Log update in dossier
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: -1,
 				action: `%b updated the document *${name}*.`,
@@ -419,7 +420,7 @@ router.delete(
 			await DocumentModel.findByIdAndDelete(req.params['id']).exec();
 
 			// ✅ Log deletion in dossier
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: -1,
 				action: `%b deleted the document *${doc.name}*.`,

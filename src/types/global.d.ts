@@ -1,4 +1,3 @@
-import * as Dossier from 'dossier';
 import { Redis } from 'ioredis';
 import type { IUser } from 'models/user.ts';
 import type { OauthRequest } from 'types/CustomRequest.ts';
@@ -23,8 +22,6 @@ declare global {
 			// customConfig: Record<string, any>;
 
 			Sentry: SentryClient;
-
-			dossier: Dossier;
 		}
 
 		export interface Response {

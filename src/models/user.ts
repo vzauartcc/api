@@ -2,7 +2,7 @@ import { model, Schema } from 'mongoose';
 import type { SoftDeleteDocument, SoftDeleteModel } from 'mongoose-delete';
 import MongooseDelete from 'mongoose-delete';
 import mongooseLeanVirtuals from 'mongoose-lean-virtuals';
-import zau from '../zau.js';
+import zau from '../helpers/zau.js';
 import type { IAbsence } from './absence.js';
 import * as Certification from './certification.js';
 import type { IRole } from './role.js';

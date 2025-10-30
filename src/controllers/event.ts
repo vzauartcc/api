@@ -3,15 +3,16 @@ import { fileTypeFromFile } from 'file-type';
 import fs from 'fs/promises';
 import multer from 'multer';
 import { convertToReturnDetails } from '../app.js';
-import { sendMail } from '../mailer.js';
+import { sendMail } from '../helpers/mailer.js';
+import { deleteFromS3, uploadToS3 } from '../helpers/s3.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
+import { DossierModel } from '../models/dossier.js';
 import EventModel from '../models/event.js';
 import type { IEventPosition, IEventPositionData } from '../models/eventPosition.js';
 import type { IEventSignup } from '../models/eventSignup.js';
 import { StaffingRequestModel } from '../models/staffingRequest.js';
 import { UserModel, type IUser } from '../models/user.js';
-import { deleteFromS3, uploadToS3 } from '../s3.js';
 
 const router = Router();
 
@@ -218,7 +219,7 @@ router.put('/:slug/signup', getUser, async (req: Request, res: Response) => {
 			};
 		}
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: req.user!.cid,
 			affected: -1,
 			action: `%b signed up for the event *${event.name}*.`,
@@ -251,7 +252,7 @@ router.delete('/:slug/signup', getUser, async (req: Request, res: Response) => {
 			};
 		}
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: req.user!.cid,
 			affected: -1,
 			action: `%b deleted their signup for the event *${event.name}*.`,
@@ -301,7 +302,7 @@ router.delete(
 				}
 			}
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: req.params['cid'],
 				action: `%b manually deleted the event signup for %a for the event *${signup.name}*.`,
@@ -361,7 +362,7 @@ router.put(
 				},
 			).exec();
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: req.params['cid'],
 				action: `%b manually signed up %a for the event *${event.name}*.`,
@@ -585,7 +586,7 @@ router.post(
 				submitted: false,
 			});
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: -1,
 				action: `%b created the event *${req.body.name}*.`,
@@ -721,7 +722,7 @@ router.put(
 
 			await eventData.save();
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: -1,
 				action: `%b updated the event *${eventData.name}*.`,
@@ -754,7 +755,7 @@ router.delete(
 
 			await deleteEvent.delete();
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: -1,
 				action: `%b deleted the event *${deleteEvent.name}*.`,
@@ -776,7 +777,7 @@ router.delete(
 // 			}
 // 		});
 
-// 		await req.app.dossier.create({
+// 		await DossierModel.create({
 // 			by: req.user!.cid,
 // 			affected: -1,
 // 			action: `%b updated the positions assignments for the event *${event.name}*.`
@@ -828,13 +829,13 @@ router.put(
 			}
 
 			if (cid) {
-				await req.app.dossier.create({
+				await DossierModel.create({
 					by: req.user!.cid,
 					affected: cid,
 					action: `%b assigned %a to *${assignedPosition.pos}* for *${eventData.name}*.`,
 				});
 			} else {
-				await req.app.dossier.create({
+				await DossierModel.create({
 					by: req.user!.cid,
 					affected: -1,
 					action: `%b unassigned *${assignedPosition.pos}* for *${eventData.name}*.`,
@@ -893,7 +894,7 @@ router.put(
 				}
 			});
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: -1,
 				action: `%b notified controllers of positions for the event *${eventData.name}*.`,
@@ -1077,7 +1078,7 @@ router.put(
 					},
 				});
 
-				await req.app.dossier.create({
+				await DossierModel.create({
 					by: req.user!.cid,
 					affected: -1,
 					action: `%b approved a staffing request for ${req.body.vaName}.`,

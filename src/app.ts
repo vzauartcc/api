@@ -1,5 +1,4 @@
 import * as Sentry from '@sentry/node';
-import axios from 'axios';
 import cookie from 'cookie-parser';
 import cors from 'cors';
 import { Cron } from 'croner';
@@ -20,45 +19,13 @@ import statsRouter from './controllers/stats.js';
 import trainingRouter from './controllers/training.js';
 import userRouter from './controllers/user.js';
 import vatusaRouter from './controllers/vatusa.js';
-import { DossierModel } from './models/dossier.js';
-import { setupS3 } from './s3.js';
+import { setupS3 } from './helpers/s3.js';
 import { soloExpiringNotifications, syncVatusaSoloEndorsements } from './tasks/solo.js';
 import { syncVatusaTrainingRecords } from './tasks/trainingRecords.js';
 import type { ReturnDetails } from './types/StandardResponse.js';
 
 console.log(`Starting application. . . .`);
 const app = express();
-
-console.log('Hooking timing middleware. . . .');
-app.use((req: Request, res: Response, next: NextFunction) => {
-	if (
-		req.originalUrl.includes('favicon') ||
-		req.originalUrl.includes('/online') ||
-		req.originalUrl.includes('/ids/') ||
-		req.originalUrl.includes('/controller/stats')
-	)
-		return next();
-
-	const start = process.hrtime.bigint();
-
-	const logRequestDuration = () => {
-		const durationNs = process.hrtime.bigint() - start;
-
-		const durationMs = Number(durationNs) / 1_000_000;
-
-		console.log(
-			`[Timer] [${new Date().toUTCString()}] ${req.method} ${req.originalUrl} - Status ${res.statusCode} ${req.user ? `- ${req.user.cid} ` : ''}- ${durationMs.toFixed(3)}ms`,
-		);
-
-		res.removeListener('finish', logRequestDuration);
-		res.removeListener('close', logRequestDuration);
-	};
-
-	res.on('finish', logRequestDuration);
-	res.on('close', logRequestDuration);
-
-	next();
-});
 
 app.use((_req: Request, res: Response, next: NextFunction) => {
 	res.stdRes = {
@@ -131,8 +98,6 @@ const MONGO_URI = process.env['MONGO_URI'];
 if (!MONGO_URI) {
 	throw new Error('MONGO_URI is not est in environment variables.');
 }
-
-app.dossier = DossierModel;
 
 console.log('Connecting to MongoDB. . . .');
 // Connect to MongoDB
@@ -233,10 +198,3 @@ export function convertToReturnDetails(e: unknown): ReturnDetails {
 		};
 	}
 }
-
-export const vatusaApi = axios.create({
-	baseURL: 'https://api.vatusa.net/v2',
-	params: {
-		apikey: process.env['VATUSA_API_KEY'],
-	},
-});

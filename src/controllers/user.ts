@@ -3,15 +3,16 @@ import { randomUUID } from 'crypto';
 import { Router, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { convertToReturnDetails } from '../app.js';
+import { uploadToS3 } from '../helpers/s3.js';
+import zau from '../helpers/zau.js';
 import internalAuth from '../middleware/internalAuth.js';
 import getUser, { deleteAuthCookie, type UserPayload } from '../middleware/user.js';
 import oAuth from '../middleware/vatsim.js';
 import { ControllerHoursModel } from '../models/controllerHours.js';
+import { DossierModel } from '../models/dossier.js';
 import { NotificationModel } from '../models/notification.js';
 import { TrainingSessionModel } from '../models/trainingSession.js';
 import { UserModel } from '../models/user.js';
-import { uploadToS3 } from '../s3.js';
-import zau from '../zau.js';
 
 const router = Router();
 
@@ -65,7 +66,7 @@ router.post('/idsToken', getUser, async (req: Request, res: Response) => {
 
 		await UserModel.findOneAndUpdate({ cid: req.user!.cid }, { idsToken }).exec();
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: req.user!.cid,
 			affected: -1,
 			action: `%b generated a new IDS Token.`,
@@ -331,7 +332,7 @@ router.put('/profile', getUser, async (req: Request, res: Response) => {
 			},
 		).exec();
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: req.user!.cid,
 			affected: -1,
 			action: `%b updated their profile.`,

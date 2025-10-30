@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { convertToReturnDetails } from '../app.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
+import { DossierModel } from '../models/dossier.js';
 import { NewsModel } from '../models/news.js';
 
 const router = Router();
@@ -58,7 +59,7 @@ router.post(
 				};
 			}
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: -1,
 				action: `%b created the news item *${req.body.title}*.`,
@@ -116,7 +117,7 @@ router.put(
 			}
 			newsItem.content = content;
 			await newsItem.save();
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: -1,
 				action: `%b updated the news item *${newsItem.title}*.`,
@@ -153,7 +154,7 @@ router.delete(
 				};
 			}
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: -1,
 				action: `%b deleted the news item *${newsItem.title}*.`,

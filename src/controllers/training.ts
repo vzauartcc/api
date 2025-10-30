@@ -1,17 +1,19 @@
 import { Router, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
-import { convertToReturnDetails, vatusaApi } from '../app.js';
-import discord from '../discord.js';
-import { sendMail } from '../mailer.js';
+import { convertToReturnDetails } from '../app.js';
+import discord from '../helpers/discord.js';
+import { sendMail } from '../helpers/mailer.js';
+import { vatusaApi } from '../helpers/vatusa.js';
+import zau from '../helpers/zau.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
+import { DossierModel } from '../models/dossier.js';
 import { NotificationModel } from '../models/notification.js';
 import { SoloEndorsementModel } from '../models/soloEndorsement.js';
 import { TrainingRequestMilestoneModel } from '../models/trainingMilestone.js';
 import { TrainingRequestModel } from '../models/trainingRequest.js';
 import { TrainingSessionModel } from '../models/trainingSession.js';
 import { UserModel } from '../models/user.js';
-import zau from '../zau.js';
 
 const router = Router();
 const fifteen = 15 * 60 * 1000;
@@ -1026,7 +1028,7 @@ router.post(
 				content: `You have been issued a solo endorsement for <b>${req.body.position}</b> by <b>${req.user!.fname} ${req.user!.lname}</b>. It will expire on ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}`,
 			});
 
-			req.app.dossier.create({
+			DossierModel.create({
 				by: req.user!.cid,
 				affected: req.body.student,
 				action: `%b issued a solo endorsement for %a to work ${req.body.position} until ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}`,
@@ -1096,7 +1098,7 @@ router.delete(
 				}
 			}
 
-			req.app.dossier.create({
+			DossierModel.create({
 				by: req.user!.cid,
 				affected: req.body.student,
 				action: `%b deleted a solo endorsement for %a to work ${req.body.position} until ${DateTime.fromJSDate(solo.expires).toUTC().toFormat(zau.DATE_FORMAT)}`,

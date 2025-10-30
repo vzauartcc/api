@@ -4,7 +4,7 @@
 
 import { Document, model, Schema } from 'mongoose';
 import mongooseLeanVirtuals from 'mongoose-lean-virtuals';
-import zau from '../zau.js';
+import zau from '../helpers/zau.js';
 
 interface IAtcOnline extends Document {
 	cid: number;
