@@ -771,18 +771,28 @@ router.put('/:cid/member', internalAuth, async (req: Request, res: Response) => 
 			};
 		}
 
-		const oi = await UserModel.find({ deletedAt: null, member: true }).select('oi').lean().exec();
+		let assignedOi: string | null = null;
+		if (req.body.member === true) {
+			const oi = await UserModel.find({ deletedAt: null, member: true }).select('oi').lean().exec();
+			assignedOi = generateOperatingInitials(
+				user.fname,
+				user.lname,
+				oi.map((oi) => oi.oi || '').filter((oi) => oi !== ''),
+			);
 
+			user.joinDate = req.body.joinDate || new Date();
+			user.removalDate = null;
+		} else {
+			user.history.push({
+				start: user.joinDate!,
+				end: new Date(),
+				reason: `Removed from roster by an external service.`,
+			});
+			user.joinDate = null;
+			user.removalDate = new Date();
+		}
 		user.member = req.body.member;
-		user.oi = req.body.member
-			? generateOperatingInitials(
-					user.fname,
-					user.lname,
-					oi.map((oi) => oi.oi || '').filter((oi) => oi !== ''),
-				)
-			: null;
-		user.joinDate = req.body.member ? new Date() : null;
-		user.removalDate = null;
+		user.oi = assignedOi;
 
 		await user.save();
 		const ratings = [
@@ -842,7 +852,6 @@ router.put('/:cid/visit', internalAuth, async (req: Request, res: Response) => {
 		}
 
 		user.vis = req.body.vis;
-		user.joinDate = new Date();
 
 		await user.save();
 
@@ -988,13 +997,7 @@ router.delete('/:cid', getUser, hasRole(['atm', 'datm']), async (req: Request, r
 			};
 		}
 
-		const user = await UserModel.findOneAndUpdate(
-			{ cid: req.params['cid'] },
-			{
-				member: false,
-				removalDate: new Date().toISOString(),
-			},
-		).exec();
+		const user = await UserModel.findOne({ cid: req.params['cid'] });
 
 		if (!user) {
 			throw {
@@ -1002,6 +1005,17 @@ router.delete('/:cid', getUser, hasRole(['atm', 'datm']), async (req: Request, r
 				message: 'User not found.',
 			};
 		}
+
+		user.member = false;
+		user.removalDate = new Date();
+		user.history.push({
+			start: user.joinDate!,
+			end: new Date(),
+			reason: req.body.reason,
+		});
+		user.joinDate = null;
+
+		await user.save();
 
 		if (user.vis) {
 			await vatusaApi.delete(`/facility/ZAU/roster/manageVisitor/${req.params['cid']}`, {
