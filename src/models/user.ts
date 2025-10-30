@@ -13,6 +13,12 @@ export interface ICertificationDate {
 	gainedDate: Date;
 }
 
+export interface IUserHistory {
+	start: Date;
+	end: Date;
+	reason: string;
+}
+
 export interface IUser extends SoftDeleteDocument, ITimestamps {
 	cid: number;
 	fname: string;
@@ -42,6 +48,7 @@ export interface IUser extends SoftDeleteDocument, ITimestamps {
 	certificationDate: ICertificationDate[];
 	roleCodes: string[];
 	trainingMilestones: [];
+	history: IUserHistory[];
 
 	// Virtual Properties
 	isMem: boolean;
@@ -64,6 +71,17 @@ const CertificationDateSchema = new Schema<ICertificationDate>(
 		gainedDate: { type: Date, required: true },
 	},
 	{ _id: false },
+);
+
+const UserHistorySchema = new Schema<IUserHistory>(
+	{
+		start: { type: Date, required: true },
+		end: { type: Date, required: true },
+		reason: { type: String, required: true },
+	},
+	{
+		_id: false,
+	},
 );
 
 const UserSchema = new Schema<IUser>(
@@ -105,6 +123,7 @@ const UserSchema = new Schema<IUser>(
 			required: true,
 			default: [],
 		},
+		history: { type: [UserHistorySchema], default: [] },
 	},
 	{
 		timestamps: true,
@@ -116,6 +135,14 @@ UserSchema.plugin(MongooseDelete, {
 });
 
 UserSchema.plugin(mongooseLeanVirtuals);
+
+UserSchema.virtual('name').get(function (this: IUser) {
+	if (this.prefName) {
+		return `${this.fname} ${this.cid}`;
+	}
+
+	return `${this.fname} ${this.lname}`;
+});
 
 UserSchema.virtual('isMem').get(function (this: IUser) {
 	return this.member;
