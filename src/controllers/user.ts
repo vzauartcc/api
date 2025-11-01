@@ -1,3 +1,4 @@
+import { captureException } from '@sentry/node';
 import axios from 'axios';
 import { randomUUID } from 'crypto';
 import { Router, type Request, type Response } from 'express';
@@ -46,7 +47,6 @@ router.get('/', async (req: Request, res: Response) => {
 	} catch (e) {
 		deleteAuthCookie(res);
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		// req.app.Sentry.captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -75,7 +75,7 @@ router.post('/idsToken', getUser, async (req: Request, res: Response) => {
 		res.stdRes.data = idsToken;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -182,7 +182,7 @@ router.post('/login', oAuth, async (req: Request, res: Response) => {
 		}); // Expires in 30 days
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 		res.status(500);
 	}
 
@@ -201,7 +201,7 @@ router.get('/logout', async (req: Request, res: Response) => {
 		deleteAuthCookie(res);
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -232,7 +232,7 @@ router.get('/sessions', getUser, async (req: Request, res: Response) => {
 		};
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -269,7 +269,7 @@ router.get('/notifications', getUser, async (req: Request, res: Response) => {
 		};
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -285,7 +285,7 @@ router.put('/notifications/read/all', getUser, async (req: Request, res: Respons
 		).exec();
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -304,7 +304,7 @@ router.put('/notifications/read/:id', async (req: Request, res: Response) => {
 		}).exec();
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -315,7 +315,7 @@ router.delete('/notifications', getUser, async (req: Request, res: Response) => 
 		await NotificationModel.deleteMany({ recipient: req.user!.cid }).exec();
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -339,7 +339,7 @@ router.put('/profile', getUser, async (req: Request, res: Response) => {
 		});
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -362,7 +362,7 @@ router.patch('/:cid', internalAuth, async (req: Request, res: Response) => {
 		);
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);

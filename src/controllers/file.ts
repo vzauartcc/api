@@ -1,3 +1,4 @@
+import { captureException } from '@sentry/node';
 import { Router, type Request, type Response } from 'express';
 import fs from 'fs/promises';
 import multer from 'multer';
@@ -23,7 +24,7 @@ const upload = multer({
 });
 
 // Downloads
-router.get('/downloads', async (req: Request, res: Response) => {
+router.get('/downloads', async (_req: Request, res: Response) => {
 	try {
 		const downloads = await DownloadModel.find({ deletedAt: null })
 			.sort({ category: 'asc', name: 'asc' })
@@ -32,7 +33,7 @@ router.get('/downloads', async (req: Request, res: Response) => {
 		res.stdRes.data = downloads;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -44,7 +45,7 @@ router.get('/downloads/:id', async (req: Request, res: Response) => {
 		res.stdRes.data = download;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -96,7 +97,7 @@ router.post(
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -154,7 +155,7 @@ router.put(
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -189,7 +190,7 @@ router.delete(
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -197,7 +198,7 @@ router.delete(
 );
 
 // Documents
-router.get('/documents', async (req: Request, res: Response) => {
+router.get('/documents', async (_req: Request, res: Response) => {
 	try {
 		const documents = await DocumentModel.find({ deletedAt: null })
 			.select('-content')
@@ -208,7 +209,7 @@ router.get('/documents', async (req: Request, res: Response) => {
 		res.stdRes.data = documents;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -222,7 +223,7 @@ router.get('/documents/:slug', async (req: Request, res: Response) => {
 		res.stdRes.data = document;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -303,7 +304,7 @@ router.post(
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -392,7 +393,7 @@ router.put(
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -427,7 +428,7 @@ router.delete(
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}

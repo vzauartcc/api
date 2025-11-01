@@ -1,3 +1,4 @@
+import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import { convertToReturnDetails } from '../app.js';
@@ -299,7 +300,7 @@ router.get(
 	'/exams',
 	getUser,
 	hasRole(['atm', 'datm', 'ta']),
-	async (req: Request, res: Response) => {
+	async (_req: Request, res: Response) => {
 		try {
 			// Fetch all exams, populate createdBy, and exclude questions
 			const exams = (await ExamModel.find()
@@ -321,7 +322,7 @@ router.get(
 			res.stdRes.data = examsWithQuestionCountAndCreator;
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -343,7 +344,7 @@ router.get(
 			res.stdRes.data = exam;
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -362,7 +363,7 @@ router.get('/exams/:id/results', getUser, async (req: Request, res: Response) =>
 		res.stdRes.data = examAttempt;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}

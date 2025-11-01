@@ -1,3 +1,4 @@
+import { captureException } from '@sentry/node';
 import { Router, type Request, type Response } from 'express';
 import { fileTypeFromFile } from 'file-type';
 import fs from 'fs/promises';
@@ -27,7 +28,7 @@ const upload = multer({
 	}),
 });
 
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', async (_req: Request, res: Response) => {
 	try {
 		const events = await EventModel.find({
 			eventEnd: {
@@ -42,7 +43,7 @@ router.get('/', async (req: Request, res: Response) => {
 		res.stdRes.data = events;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -77,7 +78,7 @@ router.get('/archive', async (req: Request, res: Response) => {
 		};
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -106,7 +107,7 @@ router.get('/staffingRequest', async (req: Request, res: Response) => {
 		};
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -142,7 +143,7 @@ router.get('/:slug', async (req: Request, res: Response) => {
 		res.stdRes.data = event;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -166,7 +167,7 @@ router.get('/:slug/positions', async (req: Request, res: Response) => {
 		res.stdRes.data = event;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -226,7 +227,7 @@ router.put('/:slug/signup', getUser, async (req: Request, res: Response) => {
 		});
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -259,7 +260,7 @@ router.delete('/:slug/signup', getUser, async (req: Request, res: Response) => {
 		});
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -309,7 +310,7 @@ router.delete(
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -374,7 +375,7 @@ router.put(
 			};
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -524,7 +525,7 @@ router.post(
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
 			res.json(res.stdRes);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		}
 	},
 );
@@ -593,7 +594,7 @@ router.post(
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -729,7 +730,7 @@ router.put(
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -762,7 +763,7 @@ router.delete(
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -784,7 +785,7 @@ router.delete(
 // 		});
 // 	} catch (e) {
 // 		res.stdRes.ret_det = convertToReturnDetails(e);
-// 		req.app.Sentry.captureException(e);
+// 		captureException(e);
 // 	} finally {
 // 		return res.json(res.stdRes);
 // }
@@ -845,7 +846,7 @@ router.put(
 			res.stdRes.data = assignedPosition;
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -901,7 +902,7 @@ router.put(
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -924,7 +925,7 @@ router.put(
 			).exec();
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -1003,7 +1004,7 @@ router.post('/staffingRequest', async (req: Request, res: Response) => {
 		// Send a response to the client
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}

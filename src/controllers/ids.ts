@@ -1,3 +1,4 @@
+import { captureException } from '@sentry/node';
 import axios from 'axios';
 import { Router, type Request, type Response } from 'express';
 import { Redis } from 'ioredis';
@@ -33,7 +34,7 @@ router.post('/checktoken', async (req: Request, res: Response) => {
 		}
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
