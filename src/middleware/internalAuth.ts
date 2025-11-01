@@ -1,3 +1,4 @@
+import { captureMessage } from '@sentry/node';
 import type { NextFunction, Request, Response } from 'express';
 
 export default function (req: Request, res: Response, next: NextFunction) {
@@ -13,7 +14,7 @@ export default function (req: Request, res: Response, next: NextFunction) {
 		!req.headers.authorization ||
 		req.headers.authorization !== `Bearer ${process.env['MICRO_ACCESS_KEY']}`
 	) {
-		req.app.Sentry.captureMessage('Attempted access to an internal protected route');
+		captureMessage('Attempted access to an internal protected route');
 		res.stdRes.ret_det = {
 			code: 400,
 			message: 'Not authorized.',

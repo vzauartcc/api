@@ -1,18 +1,23 @@
+import { captureException } from '@sentry/node';
 import axios from 'axios';
 import { randomUUID } from 'crypto';
 import { Router, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { convertToReturnDetails, uploadToS3 } from '../app.js';
+import { convertToReturnDetails } from '../app.js';
+import { uploadToS3 } from '../helpers/s3.js';
+import zau from '../helpers/zau.js';
+import internalAuth from '../middleware/internalAuth.js';
 import getUser, { deleteAuthCookie, type UserPayload } from '../middleware/user.js';
 import oAuth from '../middleware/vatsim.js';
 import { ControllerHoursModel } from '../models/controllerHours.js';
+import { DossierModel } from '../models/dossier.js';
 import { NotificationModel } from '../models/notification.js';
 import { TrainingSessionModel } from '../models/trainingSession.js';
 import { UserModel } from '../models/user.js';
-import zau from '../zau.js';
 
 const router = Router();
 
+// Logged in check
 router.get('/', async (req: Request, res: Response) => {
 	try {
 		if (!req.cookies['token']) {
@@ -42,7 +47,6 @@ router.get('/', async (req: Request, res: Response) => {
 	} catch (e) {
 		deleteAuthCookie(res);
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		// req.app.Sentry.captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -62,7 +66,7 @@ router.post('/idsToken', getUser, async (req: Request, res: Response) => {
 
 		await UserModel.findOneAndUpdate({ cid: req.user!.cid }, { idsToken }).exec();
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: req.user!.cid,
 			affected: -1,
 			action: `%b generated a new IDS Token.`,
@@ -71,12 +75,13 @@ router.post('/idsToken', getUser, async (req: Request, res: Response) => {
 		res.stdRes.data = idsToken;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
 });
 
+//#region Login/Logout
 // Endpoint to preform user login, uses oAuth middleware to retrieve an access token
 router.post('/login', oAuth, async (req: Request, res: Response) => {
 	try {
@@ -138,11 +143,13 @@ router.post('/login', oAuth, async (req: Request, res: Response) => {
 				vis: false,
 			});
 		} else {
-			if (!user.email) {
+			if (!user.email || user.email !== userData.email) {
 				user.email = userData.email;
 			}
-			if (!(user.prefName ?? true)) {
+			if (!user.fname || user.lname !== userData.firstName) {
 				user.fname = userData.firstName;
+			}
+			if (!user.lname || user.lname !== userData.lastName) {
 				user.lname = userData.lastName;
 			}
 			user.rating = userData.ratingId;
@@ -175,7 +182,7 @@ router.post('/login', oAuth, async (req: Request, res: Response) => {
 		}); // Expires in 30 days
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 		res.status(500);
 	}
 
@@ -194,11 +201,12 @@ router.get('/logout', async (req: Request, res: Response) => {
 		deleteAuthCookie(res);
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
 });
+//#endregion
 
 router.get('/sessions', getUser, async (req: Request, res: Response) => {
 	try {
@@ -224,7 +232,7 @@ router.get('/sessions', getUser, async (req: Request, res: Response) => {
 		};
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -261,7 +269,7 @@ router.get('/notifications', getUser, async (req: Request, res: Response) => {
 		};
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -277,7 +285,7 @@ router.put('/notifications/read/all', getUser, async (req: Request, res: Respons
 		).exec();
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -296,7 +304,7 @@ router.put('/notifications/read/:id', async (req: Request, res: Response) => {
 		}).exec();
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -307,7 +315,7 @@ router.delete('/notifications', getUser, async (req: Request, res: Response) => 
 		await NotificationModel.deleteMany({ recipient: req.user!.cid }).exec();
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -324,14 +332,37 @@ router.put('/profile', getUser, async (req: Request, res: Response) => {
 			},
 		).exec();
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: req.user!.cid,
 			affected: -1,
 			action: `%b updated their profile.`,
 		});
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
+	}
+
+	return res.json(res.stdRes);
+});
+
+router.patch('/:cid', internalAuth, async (req: Request, res: Response) => {
+	try {
+		if (!req.body || !req.params['cid'] || req.params['cid'] === 'undefined') {
+			throw {
+				code: 400,
+				message: 'No user data provided',
+			};
+		}
+
+		await UserModel.findOneAndUpdate(
+			{ cid: req.params['cid'] },
+			{
+				...req.body,
+			},
+		);
+	} catch (e) {
+		res.stdRes.ret_det = convertToReturnDetails(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);

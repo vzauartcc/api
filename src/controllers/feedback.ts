@@ -1,7 +1,9 @@
+import { captureException } from '@sentry/node';
 import { Router, type Request, type Response } from 'express';
 import { convertToReturnDetails } from '../app.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
+import { DossierModel } from '../models/dossier.js';
 import { FeedbackModel } from '../models/feedback.js';
 import { NotificationModel } from '../models/notification.js';
 import { UserModel } from '../models/user.js';
@@ -36,7 +38,7 @@ router.get(
 			};
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -81,20 +83,20 @@ router.post('/', async (req: Request, res: Response) => {
 			approved: false,
 		});
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: req.body.cid,
 			affected: req.body.controller,
 			action: `%b submitted feedback about %a.`,
 		});
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
 });
 
-router.get('/controllers', async (req: Request, res: Response) => {
+router.get('/controllers', async (_req: Request, res: Response) => {
 	// Controller list on feedback page
 	try {
 		const controllers = await UserModel.find({ deletedAt: null, member: true })
@@ -105,7 +107,7 @@ router.get('/controllers', async (req: Request, res: Response) => {
 		res.stdRes.data = controllers;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -115,7 +117,7 @@ router.get(
 	'/unapproved',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'wm']),
-	async (req: Request, res: Response) => {
+	async (_req: Request, res: Response) => {
 		// Get all unapproved feedback
 		try {
 			const feedback = await FeedbackModel.find({ deletedAt: null, approved: false })
@@ -126,7 +128,7 @@ router.get(
 			res.stdRes.data = feedback;
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -164,14 +166,14 @@ router.put(
 				link: '/dash/feedback',
 			});
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: approved.controllerCid,
 				action: `%b approved feedback for %a.`,
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -195,14 +197,14 @@ router.put(
 
 			await feedback.delete();
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: feedback.controllerCid,
 				action: `%b rejected feedback for %a.`,
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		}
 
 		return res.json(res.stdRes);
@@ -247,7 +249,7 @@ router.get('/own', getUser, async (req: Request, res: Response) => {
 		};
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);

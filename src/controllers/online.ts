@@ -1,3 +1,4 @@
+import { captureException } from '@sentry/node';
 import { Router, type Request, type Response } from 'express';
 import { convertToReturnDetails } from '../app.js';
 import { AtcOnlineModel } from '../models/atcOnline.js';
@@ -51,7 +52,7 @@ const positions = new Map([
 	['CTR', 'Center'],
 ]);
 
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', async (_req: Request, res: Response) => {
 	try {
 		const pilots = await PilotOnlineModel.find().lean().exec();
 		const atc = await AtcOnlineModel.find().lean({ virtuals: true }).exec();
@@ -62,13 +63,13 @@ router.get('/', async (req: Request, res: Response) => {
 		};
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
 });
 
-router.get('/top', async (req: Request, res: Response) => {
+router.get('/top', async (_req: Request, res: Response) => {
 	try {
 		const d = new Date();
 		const thisMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
@@ -131,7 +132,7 @@ router.get('/top', async (req: Request, res: Response) => {
 			.slice(0, 5);
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}

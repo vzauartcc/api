@@ -14,7 +14,7 @@
 	"scripts": {
 		"lint": "eslint . --fix",
 		"format": "prettier --write .",
-		"start:ryan": "doppler run -p api -c dev_ryan -- npx tsx src/app.ts",
+		"start:ryan": "doppler run -p api -c dev_ryan -- npx tsx --import ./src/instrument.ts src/app.ts",
 		"build": "tsc && cp -R src/email dist/email"
 	},
 	"license": "CC-BY-NC-SA-4.0",

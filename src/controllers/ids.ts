@@ -1,11 +1,12 @@
+import { captureException } from '@sentry/node';
 import axios from 'axios';
 import { Router, type Request, type Response } from 'express';
 import { Redis } from 'ioredis';
 import { convertToReturnDetails } from '../app.js';
+import zau from '../helpers/zau.js';
 import { ConfigModel } from '../models/config.js';
 import { PirepModel } from '../models/pirep.js';
 import { UserModel } from '../models/user.js';
-import zau from '../zau.js';
 
 const router = Router();
 
@@ -33,7 +34,7 @@ router.post('/checktoken', async (req: Request, res: Response) => {
 		}
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}

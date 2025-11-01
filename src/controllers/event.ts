@@ -1,15 +1,18 @@
+import { captureException } from '@sentry/node';
 import { Router, type Request, type Response } from 'express';
 import { fileTypeFromFile } from 'file-type';
 import fs from 'fs/promises';
 import multer from 'multer';
-import { convertToReturnDetails, deleteFromS3, uploadToS3 } from '../app.js';
-import { sendMail } from '../mailer.js';
+import { convertToReturnDetails } from '../app.js';
+import { sendMail } from '../helpers/mailer.js';
+import { deleteFromS3, uploadToS3 } from '../helpers/s3.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
+import { DossierModel } from '../models/dossier.js';
 import EventModel from '../models/event.js';
 import type { IEventPosition, IEventPositionData } from '../models/eventPosition.js';
 import type { IEventSignup } from '../models/eventSignup.js';
-import { StaffingRequestModel, type IStaffingRequest } from '../models/staffingRequest.js';
+import { StaffingRequestModel } from '../models/staffingRequest.js';
 import { UserModel, type IUser } from '../models/user.js';
 
 const router = Router();
@@ -25,7 +28,7 @@ const upload = multer({
 	}),
 });
 
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', async (_req: Request, res: Response) => {
 	try {
 		const events = await EventModel.find({
 			eventEnd: {
@@ -40,7 +43,7 @@ router.get('/', async (req: Request, res: Response) => {
 		res.stdRes.data = events;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -75,7 +78,7 @@ router.get('/archive', async (req: Request, res: Response) => {
 		};
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -87,7 +90,7 @@ router.get('/staffingRequest', async (req: Request, res: Response) => {
 		const limit = +(req.query['limit'] as string) || 10;
 
 		const count = await StaffingRequestModel.countDocuments({ deleted: false }).exec();
-		let requests: IStaffingRequest[] = [];
+		let requests: any[] = [];
 
 		if (count > 0) {
 			requests = await StaffingRequestModel.find({ deleted: false })
@@ -104,7 +107,7 @@ router.get('/staffingRequest', async (req: Request, res: Response) => {
 		};
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -140,7 +143,7 @@ router.get('/:slug', async (req: Request, res: Response) => {
 		res.stdRes.data = event;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -164,7 +167,7 @@ router.get('/:slug/positions', async (req: Request, res: Response) => {
 		res.stdRes.data = event;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -217,14 +220,14 @@ router.put('/:slug/signup', getUser, async (req: Request, res: Response) => {
 			};
 		}
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: req.user!.cid,
 			affected: -1,
 			action: `%b signed up for the event *${event.name}*.`,
 		});
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -250,14 +253,14 @@ router.delete('/:slug/signup', getUser, async (req: Request, res: Response) => {
 			};
 		}
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: req.user!.cid,
 			affected: -1,
 			action: `%b deleted their signup for the event *${event.name}*.`,
 		});
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -300,14 +303,14 @@ router.delete(
 				}
 			}
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: req.params['cid'],
 				action: `%b manually deleted the event signup for %a for the event *${signup.name}*.`,
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -360,7 +363,7 @@ router.put(
 				},
 			).exec();
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: req.params['cid'],
 				action: `%b manually signed up %a for the event *${event.name}*.`,
@@ -372,7 +375,7 @@ router.put(
 			};
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -522,7 +525,7 @@ router.post(
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
 			res.json(res.stdRes);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		}
 	},
 );
@@ -584,14 +587,14 @@ router.post(
 				submitted: false,
 			});
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: -1,
 				action: `%b created the event *${req.body.name}*.`,
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -720,14 +723,14 @@ router.put(
 
 			await eventData.save();
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: -1,
 				action: `%b updated the event *${eventData.name}*.`,
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -753,14 +756,14 @@ router.delete(
 
 			await deleteEvent.delete();
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: -1,
 				action: `%b deleted the event *${deleteEvent.name}*.`,
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -775,14 +778,14 @@ router.delete(
 // 			}
 // 		});
 
-// 		await req.app.dossier.create({
+// 		await DossierModel.create({
 // 			by: req.user!.cid,
 // 			affected: -1,
 // 			action: `%b updated the positions assignments for the event *${event.name}*.`
 // 		});
 // 	} catch (e) {
 // 		res.stdRes.ret_det = convertToReturnDetails(e);
-// 		req.app.Sentry.captureException(e);
+// 		captureException(e);
 // 	} finally {
 // 		return res.json(res.stdRes);
 // }
@@ -827,13 +830,13 @@ router.put(
 			}
 
 			if (cid) {
-				await req.app.dossier.create({
+				await DossierModel.create({
 					by: req.user!.cid,
 					affected: cid,
 					action: `%b assigned %a to *${assignedPosition.pos}* for *${eventData.name}*.`,
 				});
 			} else {
-				await req.app.dossier.create({
+				await DossierModel.create({
 					by: req.user!.cid,
 					affected: -1,
 					action: `%b unassigned *${assignedPosition.pos}* for *${eventData.name}*.`,
@@ -843,7 +846,7 @@ router.put(
 			res.stdRes.data = assignedPosition;
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -892,14 +895,14 @@ router.put(
 				}
 			});
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: -1,
 				action: `%b notified controllers of positions for the event *${eventData.name}*.`,
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -922,7 +925,7 @@ router.put(
 			).exec();
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -1001,7 +1004,7 @@ router.post('/staffingRequest', async (req: Request, res: Response) => {
 		// Send a response to the client
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -1076,7 +1079,7 @@ router.put(
 					},
 				});
 
-				await req.app.dossier.create({
+				await DossierModel.create({
 					by: req.user!.cid,
 					affected: -1,
 					action: `%b approved a staffing request for ${req.body.vaName}.`,

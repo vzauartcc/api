@@ -1,10 +1,13 @@
+import { captureException } from '@sentry/node';
 import { Router, type Request, type Response } from 'express';
 import fs from 'fs/promises';
 import multer from 'multer';
-import { convertToReturnDetails, deleteFromS3, uploadToS3 } from '../app.js';
+import { convertToReturnDetails } from '../app.js';
+import { deleteFromS3, uploadToS3 } from '../helpers/s3.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
 import { DocumentModel } from '../models/document.js';
+import { DossierModel } from '../models/dossier.js';
 import { DownloadModel } from '../models/download.js';
 
 const router = Router();
@@ -21,7 +24,7 @@ const upload = multer({
 });
 
 // Downloads
-router.get('/downloads', async (req: Request, res: Response) => {
+router.get('/downloads', async (_req: Request, res: Response) => {
 	try {
 		const downloads = await DownloadModel.find({ deletedAt: null })
 			.sort({ category: 'asc', name: 'asc' })
@@ -30,7 +33,7 @@ router.get('/downloads', async (req: Request, res: Response) => {
 		res.stdRes.data = downloads;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -42,7 +45,7 @@ router.get('/downloads/:id', async (req: Request, res: Response) => {
 		res.stdRes.data = download;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -87,14 +90,14 @@ router.post(
 				author: req.body.author,
 			});
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: -1,
 				action: `%b created the file *${req.body.name}*.`,
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -145,14 +148,14 @@ router.put(
 			}
 
 			// ✅ Log the update in dossier
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: -1,
 				action: `%b updated the file *${req.body.name}*.`,
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -180,14 +183,14 @@ router.delete(
 			await DownloadModel.findByIdAndDelete(req.params['id']).exec();
 
 			// ✅ Log deletion in dossier
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: -1,
 				action: `%b deleted the file *${download.name}*.`,
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -195,7 +198,7 @@ router.delete(
 );
 
 // Documents
-router.get('/documents', async (req: Request, res: Response) => {
+router.get('/documents', async (_req: Request, res: Response) => {
 	try {
 		const documents = await DocumentModel.find({ deletedAt: null })
 			.select('-content')
@@ -206,7 +209,7 @@ router.get('/documents', async (req: Request, res: Response) => {
 		res.stdRes.data = documents;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -220,7 +223,7 @@ router.get('/documents/:slug', async (req: Request, res: Response) => {
 		res.stdRes.data = document;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -294,14 +297,14 @@ router.post(
 				});
 			}
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: -1,
 				action: `%b created the document *${req.body.name}*.`,
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -383,14 +386,14 @@ router.put(
 			}
 
 			// ✅ Log update in dossier
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: -1,
 				action: `%b updated the document *${name}*.`,
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -418,14 +421,14 @@ router.delete(
 			await DocumentModel.findByIdAndDelete(req.params['id']).exec();
 
 			// ✅ Log deletion in dossier
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: -1,
 				action: `%b deleted the document *${doc.name}*.`,
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}

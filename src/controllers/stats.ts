@@ -1,8 +1,10 @@
+import { captureException } from '@sentry/node';
 import axios from 'axios';
 import { Router, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
 import type { FlattenMaps } from 'mongoose';
 import { convertToReturnDetails } from '../app.js';
+import zau from '../helpers/zau.js';
 import { hasRole } from '../middleware/auth.js';
 import internalAuth from '../middleware/internalAuth.js';
 import getUser from '../middleware/user.js';
@@ -11,7 +13,6 @@ import { FeedbackModel } from '../models/feedback.js';
 import { TrainingRequestModel } from '../models/trainingRequest.js';
 import { TrainingSessionModel } from '../models/trainingSession.js';
 import { UserModel, type IUser } from '../models/user.js';
-import zau from '../zau.js';
 
 const router = Router();
 
@@ -52,7 +53,7 @@ router.get(
 	'/admin',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'fe', 'ec', 'wm']),
-	async (req: Request, res: Response) => {
+	async (_req: Request, res: Response) => {
 		try {
 			const d = new Date();
 			const thisMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
@@ -146,7 +147,7 @@ router.get(
 			};
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -157,7 +158,7 @@ router.get(
 	'/ins',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
-	async (req: Request, res: Response) => {
+	async (_req: Request, res: Response) => {
 		try {
 			let lastTraining = await TrainingSessionModel.aggregate([
 				{
@@ -211,7 +212,7 @@ router.get(
 			};
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -405,7 +406,7 @@ router.get(
 				const totalSessions = trainingSessionsMap[user.cid] || 0;
 				const obsTime = user.rating === 1 ? obsMap[user.cid] || 0 : 0;
 
-				const exempt = isExempt(user, startofPeriod);
+				const exempt = isExempt(user as unknown as IUser, startofPeriod);
 				const protectedStatus =
 					user.isStaff ||
 					[1202744].includes(user.cid) ||
@@ -481,7 +482,7 @@ router.get(
 			res.stdRes.data = Object.values(userData);
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		} finally {
 			return res.json(res.stdRes);
 		}
@@ -497,7 +498,7 @@ router.post('/fifty/:cid', internalAuth, async (req: Request, res: Response) => 
 		redis.expire(`FIFTY:${cid}`, 86400);
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}

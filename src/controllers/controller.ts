@@ -1,23 +1,27 @@
+import { captureException, captureMessage } from '@sentry/node';
 import axios from 'axios';
 import { Router, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
-import { convertToReturnDetails, uploadToS3, vatusaApi } from '../app.js';
-import { sendMail } from '../mailer.js';
+import { convertToReturnDetails } from '../app.js';
+import { sendMail } from '../helpers/mailer.js';
+import { uploadToS3 } from '../helpers/s3.js';
+import { vatusaApi, type IVisitingStatus } from '../helpers/vatusa.js';
 import { hasRole, isManagement, isStaff } from '../middleware/auth.js';
 import internalAuth from '../middleware/internalAuth.js';
 import getUser from '../middleware/user.js';
 import { AbsenceModel } from '../models/absence.js';
 import { ControllerHoursModel } from '../models/controllerHours.js';
+import { DossierModel } from '../models/dossier.js';
 import { NotificationModel } from '../models/notification.js';
 import { RoleModel } from '../models/role.js';
-import { UserModel, type IUser } from '../models/user.js';
+import { UserModel } from '../models/user.js';
 import { VisitApplicationModel } from '../models/visitApplication.js';
 
 const router = Router();
 
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', async (_req: Request, res: Response) => {
 	try {
-		const allUsers: IUser[] = await UserModel.find({})
+		const allUsers = await UserModel.find({})
 			.select('-email -idsToken -discordInfo -certificationDate -broadcast')
 			.sort({
 				lname: 'asc',
@@ -64,7 +68,7 @@ router.get('/', async (req: Request, res: Response) => {
 		res.stdRes.data = { home, visiting, removed };
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
@@ -87,7 +91,7 @@ interface IStaffDirectory {
 	[key: string]: IRoleGroup;
 }
 
-router.get('/staff', async (req: Request, res: Response) => {
+router.get('/staff', async (_req: Request, res: Response) => {
 	try {
 		const users = await UserModel.find()
 			.select('fname lname cid roleCodes')
@@ -160,25 +164,25 @@ router.get('/staff', async (req: Request, res: Response) => {
 		res.stdRes.data = staff;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		return res.json(res.stdRes);
 	}
 });
 
-router.get('/role', async (req: Request, res: Response) => {
+router.get('/role', async (_req: Request, res: Response) => {
 	try {
 		const roles = await RoleModel.find().lean().exec();
 		res.stdRes.data = roles;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
 });
 
-router.get('/oi', async (req: Request, res: Response) => {
+router.get('/oi', async (_req: Request, res: Response) => {
 	try {
 		const oi = await UserModel.find({ deletedAt: null, member: true }).select('oi').lean().exec();
 
@@ -192,30 +196,58 @@ router.get('/oi', async (req: Request, res: Response) => {
 		res.stdRes.data = oi.map((oi) => oi.oi);
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
 });
 
-router.get('/visit', getUser, isManagement, async (req: Request, res: Response) => {
+router.get('/visit', getUser, isManagement, async (_req: Request, res: Response) => {
 	try {
 		const applications = await VisitApplicationModel.find({
-			deletedAt: null,
-			acceptedAt: null,
+			deleted: false,
 		})
 			.lean()
 			.exec();
-		res.stdRes.data = applications;
+
+		let retval = [];
+		for (const app of applications) {
+			try {
+				const { data: vatusaData } = await vatusaApi.get(`/user/${app.cid}/transfer/checklist`);
+
+				retval.push({
+					application: app,
+					statusChecks: {
+						hasHome: vatusaData.data.hasHome,
+						hasRating: vatusaData.data.hasRating,
+						visiting: vatusaData.data.visiting,
+						recentlyRostered: vatusaData.data['60days'],
+						ratingConsolidation: vatusaData.data['50hrs'],
+						needsBasic: vatusaData.data.needbasic,
+						promo: vatusaData.data.promo,
+						visitingDays: vatusaData.data.visitingDays,
+						promoDays: vatusaData.data.promoDays,
+						ratingHours: vatusaData.data.ratingHours,
+					},
+				});
+			} catch (_e) {
+				retval.push({
+					application: app,
+					statusChecks: null,
+				});
+			}
+		}
+
+		res.stdRes.data = retval;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
 });
 
-router.get('/absence', getUser, isManagement, async (req: Request, res: Response) => {
+router.get('/absence', getUser, isManagement, async (_req: Request, res: Response) => {
 	try {
 		const absences = await AbsenceModel.find({
 			expirationDate: {
@@ -233,7 +265,7 @@ router.get('/absence', getUser, isManagement, async (req: Request, res: Response
 		res.stdRes.data = absences;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -276,14 +308,14 @@ router.post('/absence', getUser, isManagement, async (req: Request, res: Respons
 			})}</b>.`,
 		});
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: req.user!.cid,
 			affected: req.body.controller,
 			action: `%b added a leave of absence for %a: ${req.body.reason}`,
 		});
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -308,14 +340,14 @@ router.delete('/absence/:id', getUser, isManagement, async (req: Request, res: R
 
 		await absence.delete();
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: req.user!.cid,
 			affected: absence.controller,
 			action: `%b deleted the leave of absence for %a.`,
 		});
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -324,11 +356,10 @@ router.delete('/absence/:id', getUser, isManagement, async (req: Request, res: R
 router.get('/log', getUser, isStaff, async (req: Request, res: Response) => {
 	const page = +(req.query['page'] as string) || 1;
 	const limit = +(req.query['limit'] as string) || 20;
-	const amount = await req.app.dossier.countDocuments();
+	const amount = await DossierModel.countDocuments();
 
 	try {
-		const dossier = await req.app.dossier
-			.find()
+		const dossier = await DossierModel.find()
 			.sort({
 				createdAt: 'desc',
 			})
@@ -344,7 +375,7 @@ router.get('/log', getUser, isStaff, async (req: Request, res: Response) => {
 		};
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	} finally {
 		res.json(res.stdRes);
 	}
@@ -398,7 +429,7 @@ router.get('/:cid', getUser, async (req: Request, res: Response) => {
 		}
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -427,7 +458,7 @@ router.put('/:cid/rating', internalAuth, async (req: Request, res: Response) => 
 
 			await user.save();
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: -1,
 				affected: req.params['cid'],
 				action: `%a was set as Rating ${req.body.rating} by an external service.`,
@@ -435,7 +466,7 @@ router.put('/:cid/rating', internalAuth, async (req: Request, res: Response) => 
 		}
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -527,7 +558,56 @@ router.get('/stats/:cid', async (req: Request, res: Response) => {
 		res.stdRes.data = hours;
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
+	}
+
+	return res.json(res.stdRes);
+});
+
+router.post('/visit', getUser, async (req: Request, res: Response) => {
+	try {
+		if (!req.user) {
+			throw {
+				code: 401,
+				message: 'Unable to verify user',
+			};
+		}
+
+		const userData = {
+			cid: req.user.cid,
+			fname: req.user.fname,
+			lname: req.user.lname,
+			rating: req.user.ratingLong,
+			email: req.body.email,
+			home: req.body.facility,
+			reason: req.body.reason,
+		};
+
+		await VisitApplicationModel.create(userData);
+
+		sendMail({
+			to: req.body.email,
+			subject: `Visiting Application Received | Chicago ARTCC`,
+			template: 'visitReceived',
+			context: {
+				name: `${req.user.fname} ${req.user.lname}`,
+			},
+		});
+		sendMail({
+			to: 'atm@zauartcc.org, datm@zauartcc.org',
+			from: {
+				name: 'Chicago ARTCC',
+				address: 'no-reply@zauartcc.org',
+			},
+			subject: `New Visiting Application: ${req.user.fname} ${req.user.lname} | Chicago ARTCC`,
+			template: 'staffNewVisit',
+			context: {
+				user: userData,
+			},
+		});
+	} catch (e) {
+		res.stdRes.ret_det = convertToReturnDetails(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -536,13 +616,30 @@ router.get('/stats/:cid', async (req: Request, res: Response) => {
 router.get('/visit/status', getUser, async (req: Request, res: Response) => {
 	try {
 		const count = await VisitApplicationModel.countDocuments({
-			cid: req.user?.cid,
+			cid: req.user!.cid,
 			deleted: false,
 		}).exec();
-		res.stdRes.data = count;
+
+		const { data: vatusaData } = await vatusaApi.get(`/user/${req.user!.cid}/transfer/checklist`);
+
+		res.stdRes.data = {
+			count,
+			status: {
+				hasHome: vatusaData.data.hasHome,
+				hasRating: vatusaData.data.hasRating,
+				visiting: vatusaData.data.visiting,
+				recentlyRostered: vatusaData.data['60days'],
+				ratingConsolidation: vatusaData.data['50hrs'],
+				needsBasic: vatusaData.data.needbasic,
+				promo: vatusaData.data.promo,
+				visitingDays: vatusaData.data.visitingDays,
+				promoDays: vatusaData.data.promoDays,
+				ratingHours: vatusaData.data.ratingHours,
+			} as IVisitingStatus,
+		};
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -583,7 +680,7 @@ router.put('/visit/:cid', getUser, hasRole(['atm', 'datm']), async (req, res) =>
 		);
 
 		if (userOi === '') {
-			req.app.Sentry.captureMessage(`Unable to generate OIs for ${req.params['cid']}`);
+			captureMessage(`Unable to generate OIs for ${req.params['cid']}`);
 		}
 
 		user.member = true;
@@ -616,14 +713,14 @@ router.put('/visit/:cid', getUser, hasRole(['atm', 'datm']), async (req, res) =>
 			},
 		});
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: req.user!.cid,
 			affected: user.cid,
 			action: `%b approved the visiting application for %a.`,
 		});
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -663,14 +760,14 @@ router.delete(
 				},
 			});
 
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: user.cid,
 				action: `%b rejected the visiting application for %a: ${req.body.reason}`,
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		}
 
 		return res.json(res.stdRes);
@@ -747,14 +844,14 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response) => {
 			},
 		});
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: -1,
 			affected: req.body.cid,
 			action: `%a was created by an external service.`,
 		});
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -771,18 +868,28 @@ router.put('/:cid/member', internalAuth, async (req: Request, res: Response) => 
 			};
 		}
 
-		const oi = await UserModel.find({ deletedAt: null, member: true }).select('oi').lean().exec();
+		let assignedOi: string | null = null;
+		if (req.body.member === true) {
+			const oi = await UserModel.find({ deletedAt: null, member: true }).select('oi').lean().exec();
+			assignedOi = generateOperatingInitials(
+				user.fname,
+				user.lname,
+				oi.map((oi) => oi.oi || '').filter((oi) => oi !== ''),
+			);
 
+			user.joinDate = req.body.joinDate || new Date();
+			user.removalDate = null;
+		} else {
+			user.history.push({
+				start: user.joinDate!,
+				end: new Date(),
+				reason: `Removed from roster by an external service.`,
+			});
+			user.joinDate = null;
+			user.removalDate = new Date();
+		}
 		user.member = req.body.member;
-		user.oi = req.body.member
-			? generateOperatingInitials(
-					user.fname,
-					user.lname,
-					oi.map((oi) => oi.oi || '').filter((oi) => oi !== ''),
-				)
-			: null;
-		user.joinDate = req.body.member ? new Date() : null;
-		user.removalDate = null;
+		user.oi = assignedOi;
 
 		await user.save();
 		const ratings = [
@@ -817,14 +924,14 @@ router.put('/:cid/member', internalAuth, async (req: Request, res: Response) => 
 			});
 		}
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: -1,
 			affected: req.params['cid'],
 			action: `%a was ${req.body.member ? 'added to' : 'removed from'} the roster by an external service.`,
 		});
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -842,18 +949,17 @@ router.put('/:cid/visit', internalAuth, async (req: Request, res: Response) => {
 		}
 
 		user.vis = req.body.vis;
-		user.joinDate = new Date();
 
 		await user.save();
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: -1,
 			affected: req.params['cid'],
 			action: `%a was set as a ${req.body.vis ? 'visiting controller' : 'home controller'} by an external service.`,
 		});
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);
@@ -942,14 +1048,14 @@ router.put(
 			).exec();
 
 			// Log the update in the user's dossier
-			await req.app.dossier.create({
+			await DossierModel.create({
 				by: req.user!.cid,
 				affected: req.params['cid'],
 				action: `%a was updated by %b.`,
 			});
 		} catch (e) {
 			res.stdRes.ret_det = convertToReturnDetails(e);
-			req.app.Sentry.captureException(e);
+			captureException(e);
 		}
 
 		return res.json(res.stdRes);
@@ -988,13 +1094,7 @@ router.delete('/:cid', getUser, hasRole(['atm', 'datm']), async (req: Request, r
 			};
 		}
 
-		const user = await UserModel.findOneAndUpdate(
-			{ cid: req.params['cid'] },
-			{
-				member: false,
-				removalDate: new Date().toISOString(),
-			},
-		).exec();
+		const user = await UserModel.findOne({ cid: req.params['cid'] });
 
 		if (!user) {
 			throw {
@@ -1002,6 +1102,17 @@ router.delete('/:cid', getUser, hasRole(['atm', 'datm']), async (req: Request, r
 				message: 'User not found.',
 			};
 		}
+
+		user.member = false;
+		user.removalDate = new Date();
+		user.history.push({
+			start: user.joinDate!,
+			end: new Date(),
+			reason: req.body.reason,
+		});
+		user.joinDate = null;
+
+		await user.save();
 
 		if (user.vis) {
 			await vatusaApi.delete(`/facility/ZAU/roster/manageVisitor/${req.params['cid']}`, {
@@ -1019,14 +1130,14 @@ router.delete('/:cid', getUser, hasRole(['atm', 'datm']), async (req: Request, r
 			});
 		}
 
-		await req.app.dossier.create({
+		await DossierModel.create({
 			by: req.user!.cid,
 			affected: req.params['cid'],
 			action: `%a was removed from the roster by %b: ${req.body.reason}`,
 		});
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
-		req.app.Sentry.captureException(e);
+		captureException(e);
 	}
 
 	return res.json(res.stdRes);

@@ -1,5 +1,5 @@
 import { stringSimilarity } from 'string-similarity-js';
-import { vatusaApi } from '../app.js';
+import { vatusaApi } from '../helpers/vatusa.js';
 import { TrainingSessionModel } from '../models/trainingSession.js';
 
 interface IVatusaResponse {
