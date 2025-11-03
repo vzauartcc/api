@@ -1,7 +1,6 @@
 import { captureException } from '@sentry/node';
-import { Router, type Request, type Response } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
-import { convertToReturnDetails } from '../app.js';
 import discord from '../helpers/discord.js';
 import { sendMail } from '../helpers/mailer.js';
 import { vatusaApi } from '../helpers/vatusa.js';
@@ -15,40 +14,44 @@ import { TrainingRequestMilestoneModel } from '../models/trainingMilestone.js';
 import { TrainingRequestModel } from '../models/trainingRequest.js';
 import { TrainingSessionModel } from '../models/trainingSession.js';
 import { UserModel } from '../models/user.js';
+import status from '../types/status.js';
 
 const router = Router();
 const fifteen = 15 * 60 * 1000;
 
 //#region Training Requests
-router.get('/request/upcoming', getUser, async (req: Request, res: Response) => {
-	try {
-		const upcoming = await TrainingRequestModel.find({
-			studentCid: req.user!.cid,
-			deleted: false,
-			startTime: {
-				$gt: new Date(new Date().toUTCString()), // request is in the future
-			},
-		})
-			.populate('instructor', 'fname lname cid')
-			.populate('milestone', 'code name')
-			.sort({ startTime: 'asc' })
-			.lean()
-			.exec();
+router.get(
+	'/request/upcoming',
+	getUser,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const upcoming = await TrainingRequestModel.find({
+				studentCid: req.user!.cid,
+				deleted: false,
+				startTime: {
+					$gt: new Date(new Date().toUTCString()), // request is in the future
+				},
+			})
+				.populate('instructor', 'fname lname cid')
+				.populate('milestone', 'code name')
+				.sort({ startTime: 'asc' })
+				.lean()
+				.exec();
 
-		res.stdRes.data = upcoming;
-	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
-	}
-});
+			return res.status(status.OK).json(upcoming);
+		} catch (e) {
+			captureException(e);
 
-router.post('/request/new', getUser, async (req: Request, res: Response) => {
+			return next(e);
+		}
+	},
+);
+
+router.post('/request/new', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.body.never || req.body.never) {
 			throw {
-				code: 400,
+				code: status.BAD_REQUEST,
 				message: 'Temporarily disabled.',
 			};
 		}
@@ -60,21 +63,21 @@ router.post('/request/new', getUser, async (req: Request, res: Response) => {
 			req.body.remarks.length > 500
 		) {
 			throw {
-				code: 400,
+				code: status.BAD_REQUEST,
 				message: 'You must fill out all required forms',
 			};
 		}
 
 		if (new Date(req.body.startTime) < new Date() || new Date(req.body.endTime) < new Date()) {
 			throw {
-				code: 400,
+				code: status.BAD_REQUEST,
 				message: 'Dates must be in the future',
 			};
 		}
 
 		if (new Date(req.body.startTime) > new Date(req.body.endTime)) {
 			throw {
-				code: 400,
+				code: status.BAD_REQUEST,
 				message: 'End time must be greater than start time',
 			};
 		}
@@ -84,7 +87,7 @@ router.post('/request/new', getUser, async (req: Request, res: Response) => {
 			60
 		) {
 			throw {
-				code: 400,
+				code: status.BAD_REQUEST,
 				message: 'Requests must be longer than 60 minutes',
 			};
 		}
@@ -94,7 +97,7 @@ router.post('/request/new', getUser, async (req: Request, res: Response) => {
 			960
 		) {
 			throw {
-				code: 400,
+				code: status.BAD_REQUEST,
 				message: 'Requests must be shorter than 16 hours',
 			};
 		}
@@ -103,7 +106,7 @@ router.post('/request/new', getUser, async (req: Request, res: Response) => {
 
 		if (parseInt(totalRequests!, 10) > 5) {
 			throw {
-				code: 429,
+				code: status.TOO_MANY_REQUESTS,
 				message: `You have requested too many sessions in the last 4 hours.`,
 			};
 		}
@@ -131,8 +134,8 @@ router.post('/request/new', getUser, async (req: Request, res: Response) => {
 
 		if (!student || !milestone) {
 			throw {
-				code: 400,
-				message: 'Bad Request.',
+				code: status.NOT_FOUND,
+				message: 'Student or milestone',
 			};
 		}
 
@@ -163,35 +166,33 @@ router.post('/request/new', getUser, async (req: Request, res: Response) => {
 				milestone: milestone.code.toUpperCase() + ' - ' + milestone.name,
 			},
 		});
+
+		return res.status(status.CREATED);
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 
-router.get('/milestones', getUser, async (req: Request, res: Response) => {
+router.get('/milestones', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const user = await UserModel.findOne({ cid: req.user!.cid })
 			.select('trainingMilestones rating')
 			.populate('trainingMilestones', 'code name rating')
 			.lean()
 			.exec();
+
 		const milestones = await TrainingRequestMilestoneModel.find()
 			.sort({ rating: 'asc', code: 'asc' })
 			.lean()
 			.exec();
 
-		res.stdRes.data = {
-			user,
-			milestones,
-		};
+		return res.status(status.OK).json({ user, milestones });
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 
@@ -199,7 +200,7 @@ router.get(
 	'/request/open',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const days = +(req.query['period'] as string) || 21; // days from start of CURRENT week
 			const d = new Date(Date.now()),
@@ -219,12 +220,11 @@ router.get(
 				.lean()
 				.exec();
 
-			res.stdRes.data = requests;
+			return res.status(status.OK).json(requests);
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
@@ -233,11 +233,11 @@ router.post(
 	'/request/take/:id',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (new Date(req.body.startTime) >= new Date(req.body.endTime)) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'End time must be greater than start time',
 				};
 			}
@@ -252,8 +252,8 @@ router.post(
 
 			if (!request) {
 				throw {
-					code: 400,
-					message: 'Bad Request.',
+					code: status.NOT_FOUND,
+					message: 'Request not found',
 				};
 			}
 
@@ -277,8 +277,8 @@ router.post(
 
 			if (!student || !instructor) {
 				throw {
-					code: 500,
-					messgae: 'Internal Server Error',
+					code: status.NOT_FOUND,
+					messgae: 'Student or Instructor not found',
 				};
 			}
 
@@ -310,21 +310,25 @@ router.post(
 					}),
 				},
 			});
+
+			return res.status(status.OK);
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
 
-router.delete('/request/:id', getUser, async (req: Request, res: Response) => {
+router.delete('/request/:id', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const request = await TrainingRequestModel.findById(req.params['id']).exec();
 
 		if (!request) {
-			return res.status(404).json({ error: 'Training request not found' });
+			throw {
+				code: status.NOT_FOUND,
+				message: 'Request not found',
+			};
 		}
 
 		const isSelf = req.user!.cid === request.studentCid;
@@ -350,11 +354,12 @@ router.delete('/request/:id', getUser, async (req: Request, res: Response) => {
 				content: `Your training request has been deleted by ${req.user!.fname + ' ' + req.user!.lname}.`,
 			});
 		}
+
+		return res.status(status.NO_CONTENT);
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 
@@ -362,7 +367,7 @@ router.get(
 	'/request/:date',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const paramDate = req.params['date'] as string;
 			const d = new Date(
@@ -384,12 +389,11 @@ router.get(
 				.lean()
 				.exec();
 
-			res.stdRes.data = requests;
+			return res.status(status.OK).json(requests);
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
@@ -400,7 +404,7 @@ router.get(
 	'/session/open',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const sessions = await TrainingSessionModel.find({
 				instructorCid: req.user!.cid,
@@ -412,12 +416,11 @@ router.get(
 				.lean()
 				.exec();
 
-			res.stdRes.data = sessions;
+			return res.status(status.OK).json(sessions);
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
@@ -426,12 +429,12 @@ router.delete(
 	'/session/:id',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['id'] || req.params['id'] === 'undefined') {
 				throw {
-					code: 400,
-					message: 'Id required.',
+					code: status.BAD_REQUEST,
+					message: 'Session id required',
 				};
 			}
 
@@ -439,60 +442,66 @@ router.delete(
 
 			if (!session) {
 				throw {
-					code: 400,
-					message: 'Training session not found.',
+					code: status.NOT_FOUND,
+					message: 'Session not found',
 				};
 			}
 
 			if (session.instructorCid !== req.user!.cid) {
 				throw {
-					code: 403,
-					message: 'Bad request',
+					code: status.FORBIDDEN,
+					message: 'Not your session',
 				};
 			}
 
 			await session.delete();
+
+			return res.status(status.NO_CONTENT);
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
 
 //#region Fetching Sessions
-router.get('/session/:id', getUser, async (req: Request, res: Response) => {
+router.get('/session/:id', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const isIns = ['ta', 'ins', 'mtr', 'ia', 'atm', 'datm'].some((r) =>
 			req.user!.roleCodes.includes(r),
 		);
 
+		let session = null;
 		if (isIns) {
-			const session = await TrainingSessionModel.findById(req.params['id'])
+			session = await TrainingSessionModel.findById(req.params['id'])
 				.populate('student', 'fname lname cid vis')
 				.populate('instructor', 'fname lname cid')
 				.populate('milestone', 'name code')
 				.lean()
 				.exec();
-
-			res.stdRes.data = session;
 		} else {
-			const session = await TrainingSessionModel.findById(req.params['id'])
+			session = await TrainingSessionModel.findById(req.params['id'])
 				.select('-insNotes')
 				.populate('student', 'fname lname cid vis')
 				.populate('instructor', 'fname lname cid')
 				.populate('milestone', 'name code')
 				.lean()
 				.exec();
-
-			res.stdRes.data = session;
 		}
+
+		if (!session) {
+			throw {
+				code: status.NOT_FOUND,
+				message: 'Session not found',
+			};
+		}
+
+		return res.status(status.OK).json(session);
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 
@@ -500,7 +509,7 @@ router.get(
 	'/sessions',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const page = +(req.query['page'] as string) || 1;
 			const limit = +(req.query['limit'] as string) || 20;
@@ -524,20 +533,16 @@ router.get(
 				.lean()
 				.exec();
 
-			res.stdRes.data = {
-				count: amount,
-				sessions: sessions,
-			};
+			return res.status(status.OK).json({ count: amount, sessions });
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
 
-router.get('/sessions/past', getUser, async (req: Request, res: Response) => {
+router.get('/sessions/past', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const page = +(req.query['page'] as string) || 1;
 		const limit = +(req.query['limit'] as string) || 20;
@@ -563,15 +568,11 @@ router.get('/sessions/past', getUser, async (req: Request, res: Response) => {
 			.lean()
 			.exec();
 
-		res.stdRes.data = {
-			count: amount,
-			sessions: sessions,
-		};
+		return res.status(status.OK).json({ count: amount, sessions });
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 
@@ -579,15 +580,15 @@ router.get(
 	'/sessions/:cid',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const controller = await UserModel.findOne({ cid: req.params['cid'] })
-				.select('fname lname')
+				.select('fname lname cid')
 				.lean()
 				.exec();
 			if (!controller) {
 				throw {
-					code: 400,
+					code: status.NOT_FOUND,
 					message: 'User not found',
 				};
 			}
@@ -615,16 +616,15 @@ router.get(
 				.lean()
 				.exec();
 
-			res.stdRes.data = {
+			return res.status(status.OK).json({
 				count: amount,
-				sessions: sessions,
-				controller: controller,
-			};
+				sessions,
+				controller,
+			});
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
@@ -635,14 +635,24 @@ router.put(
 	'/session/save/:id',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			await TrainingSessionModel.findByIdAndUpdate(req.params['id'], req.body).exec();
+			const session = await TrainingSessionModel.findByIdAndUpdate(
+				req.params['id'],
+				req.body,
+			).exec();
+			if (!session) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Session not found',
+				};
+			}
+
+			return res.status(status.OK);
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
@@ -651,7 +661,7 @@ router.put(
 	'/session/submit/:id',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (
 				req.body.position === '' ||
@@ -664,14 +674,14 @@ router.put(
 				(req.body.insNotes && req.body.insNotes.length > 3000)
 			) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'You must fill out all required forms',
 				};
 			}
 
 			if (req.body.ots !== 0 && req.body.ots !== 3) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'Cannot update training notes for an OTS session',
 				};
 			}
@@ -683,8 +693,8 @@ router.put(
 
 			if (!session) {
 				throw {
-					code: 400,
-					message: 'Bad Request.',
+					code: status.NOT_FOUND,
+					message: 'Session not found',
 				};
 			}
 
@@ -693,14 +703,14 @@ router.put(
 
 			if (startTime.getTime() >= endTime.getTime()) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'Start Time must be before End Time',
 				};
 			}
 
 			if (startTime.getTime() > Date.now() || endTime.getTime() > Date.now()) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'Start and End Time must be before today',
 				};
 			}
@@ -756,11 +766,12 @@ router.put(
 				content: `The training notes from your session with <b>${instructor!.fname + ' ' + instructor!.lname}</b> have been submitted.`,
 				link: `/dash/training/session/${req.params['id']}`,
 			});
+
+			return res.status(status.OK);
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
@@ -771,7 +782,7 @@ router.post(
 	'/session/save',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (
 				req.body.student === null ||
@@ -788,7 +799,7 @@ router.post(
 				(req.body.insNotes && req.body.insNotes.length > 3000)
 			) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'You must fill out all required forms',
 				};
 			}
@@ -800,14 +811,14 @@ router.post(
 
 			if (end < start) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'End Time must be before Start Time',
 				};
 			}
 
 			if (start.getTime() > Date.now() || end.getTime() > Date.now()) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'Start and End Time must be before today',
 				};
 			}
@@ -834,11 +845,12 @@ router.post(
 				insNotes: req.body.insNotes,
 				submitted: false,
 			});
+
+			return res.status(status.CREATED);
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
@@ -847,7 +859,7 @@ router.post(
 	'/session/submit',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (
 				req.body.student === null ||
@@ -864,7 +876,7 @@ router.post(
 				(req.body.insNotes && req.body.insNotes.length > 3000)
 			) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'You must fill out all required forms',
 				};
 			}
@@ -876,14 +888,14 @@ router.post(
 
 			if (end < start) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'End Time must be before Start Time',
 				};
 			}
 
 			if (start.getTime() > Date.now() || end.getTime() > Date.now()) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'Start and End Time must be before today',
 				};
 			}
@@ -934,11 +946,12 @@ router.post(
 				content: `The training notes from your session with <b>${req.user!.fname + ' ' + req.user!.lname}</b> have been submitted.`,
 				link: `/dash/training/session/${doc._id}`,
 			});
+
+			return res.status(status.CREATED);
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
@@ -951,7 +964,7 @@ router.get(
 	'/solo',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
-	async (_req: Request, res: Response) => {
+	async (_req: Request, res: Response, next: NextFunction) => {
 		try {
 			const solos = await SoloEndorsementModel.find({
 				deleted: false,
@@ -963,12 +976,11 @@ router.get(
 				.lean({ virtuals: true })
 				.exec();
 
-			res.stdRes.data = solos;
+			return res.status(status.OK).json(solos);
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
@@ -977,20 +989,20 @@ router.post(
 	'/solo',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.body.student || !req.body.position || !req.body.expirationDate) {
 				throw {
-					code: 400,
-					message: 'All fields are required.',
+					code: status.BAD_REQUEST,
+					message: 'All fields are required',
 				};
 			}
 
 			const student = await UserModel.findOne({ cid: req.body.student }).exec();
 			if (!student) {
 				throw {
-					code: 400,
-					message: 'Student not found.',
+					code: status.NOT_FOUND,
+					message: 'Student not found',
 				};
 			}
 
@@ -1006,8 +1018,8 @@ router.post(
 				vatusaId = vatusaResponse.data.id || 0;
 			} catch (err) {
 				throw {
-					code: 500,
-					message: (err as any).response?.data?.data?.msg || 'VATUSA Error',
+					code: status.INTERNAL_SERVER_ERROR,
+					message: (err as any).response?.data?.data?.msg || 'Error posting to VATUSA',
 				};
 			}
 
@@ -1050,11 +1062,12 @@ router.post(
 					console.log('Error posting solo endorsement to discord', err);
 				}
 			}
+
+			return res.status(status.CREATED);
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
@@ -1063,11 +1076,11 @@ router.delete(
 	'/solo/:id',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['id'] || req.params['id'] === 'undefined') {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'Id required.',
 				};
 			}
@@ -1078,7 +1091,7 @@ router.delete(
 			}).exec();
 			if (!solo) {
 				throw {
-					code: 404,
+					code: status.NOT_FOUND,
 					message: 'Solo endorsement not found.',
 				};
 			}
@@ -1090,7 +1103,7 @@ router.delete(
 					await vatusaApi.delete(`/solo?id=${solo.vatusaId}`);
 				} catch (err) {
 					throw {
-						code: 500,
+						code: status.INTERNAL_SERVER_ERROR,
 						message: 'Error deleting from VATUSA',
 					};
 				}
@@ -1101,11 +1114,12 @@ router.delete(
 				affected: req.body.student,
 				action: `%b deleted a solo endorsement for %a to work ${req.body.position} until ${DateTime.fromJSDate(solo.expires).toUTC().toFormat(zau.DATE_FORMAT)}`,
 			});
+
+			return res.status(status.NO_CONTENT);
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
