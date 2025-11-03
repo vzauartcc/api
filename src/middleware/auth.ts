@@ -1,15 +1,11 @@
 import { captureMessage } from '@sentry/node';
 import type { NextFunction, Request, Response } from 'express';
+import status from '../types/status.js';
 
 export function hasRole(roles: string[]) {
 	return function (req: Request, res: Response, next: NextFunction) {
 		if (!req.user) {
-			res.stdRes.ret_det = {
-				code: 401,
-				message: 'Not authorized.',
-			};
-
-			return res.json(res.stdRes);
+			return res.status(status.UNAUTHORIZED);
 		}
 
 		const roleCodes = req.user.roleCodes;
@@ -19,12 +15,8 @@ export function hasRole(roles: string[]) {
 			captureMessage(
 				`${req.user.cid} attempted to access an auth route without having necessary role.`,
 			);
-			res.stdRes.ret_det = {
-				code: 403,
-				message: 'Not authorized.',
-			};
 
-			return res.json(res.stdRes);
+			return res.status(status.FORBIDDEN);
 		}
 		return next();
 	};
@@ -32,12 +24,7 @@ export function hasRole(roles: string[]) {
 
 export function isSelf(req: Request, res: Response, next: NextFunction) {
 	if (!req.user || !req.params['id'] || req.user.cid.toString() !== req.params['id']) {
-		res.stdRes.ret_det = {
-			code: 403,
-			message: 'Not authorized',
-		};
-
-		return res.json(res.stdRes);
+		return res.status(status.FORBIDDEN);
 	}
 
 	return next();
@@ -48,12 +35,7 @@ export function isInstructor(req: Request, res: Response, next: NextFunction) {
 		return next();
 	}
 
-	res.stdRes.ret_det = {
-		code: 403,
-		message: 'Not authorized.',
-	};
-
-	return res.json(res.stdRes);
+	return res.status(status.FORBIDDEN);
 }
 
 export function isStaff(req: Request, res: Response, next: NextFunction) {
@@ -61,12 +43,7 @@ export function isStaff(req: Request, res: Response, next: NextFunction) {
 		return next();
 	}
 
-	res.stdRes.ret_det = {
-		code: 403,
-		message: 'Not authorized.',
-	};
-
-	return res.json(res.stdRes);
+	return res.status(status.FORBIDDEN);
 }
 
 export function isSeniorStaff(req: Request, res: Response, next: NextFunction) {
@@ -74,12 +51,7 @@ export function isSeniorStaff(req: Request, res: Response, next: NextFunction) {
 		return next();
 	}
 
-	res.stdRes.ret_det = {
-		code: 403,
-		message: 'Not authorized.',
-	};
-
-	return res.json(res.stdRes);
+	return res.status(status.FORBIDDEN);
 }
 
 export function isManagement(req: Request, res: Response, next: NextFunction) {
@@ -87,10 +59,5 @@ export function isManagement(req: Request, res: Response, next: NextFunction) {
 		return next();
 	}
 
-	res.stdRes.ret_det = {
-		code: 403,
-		message: 'Not authorized.',
-	};
-
-	return res.json(res.stdRes);
+	return res.status(status.FORBIDDEN);
 }

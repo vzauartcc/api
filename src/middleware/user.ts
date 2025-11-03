@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import type { IUser } from '../models/user.js';
 import { UserModel } from '../models/user.js';
+import status from '../types/status.js';
 
 export interface UserPayload {
 	cid: number;
@@ -13,21 +14,11 @@ export default async function (req: Request, res: Response, next: NextFunction) 
 	const userToken = req.cookies['token'] || '';
 
 	if (!userToken || userToken === '') {
-		res.stdRes.ret_det = {
-			code: 401,
-			message: 'Not authorized.',
-		};
-
-		return res.json(res.stdRes);
+		return res.status(status.UNAUTHORIZED);
 	}
 
 	if (!process.env['JWT_SECRET']) {
-		res.stdRes.ret_det = {
-			code: 500,
-			message: 'Internal Server Error.',
-		};
-
-		return res.json(res.stdRes);
+		return res.status(status.INTERNAL_SERVER_ERROR);
 	}
 
 	try {
@@ -49,12 +40,7 @@ export default async function (req: Request, res: Response, next: NextFunction) 
 			delete req.user;
 			deleteAuthCookie(res);
 
-			res.stdRes.ret_det = {
-				code: 403,
-				message: 'Not authorized...',
-			};
-
-			return res.json(res.stdRes);
+			return res.status(status.FORBIDDEN);
 		}
 
 		req.user = user as unknown as IUser;
