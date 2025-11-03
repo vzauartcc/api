@@ -22,7 +22,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 			.lean()
 			.exec();
 
-		return res.status(status.OK).json(news);
+		return res.status(status.OK).json({ amount, news });
 	} catch (e) {
 		captureException(e);
 
