@@ -19,7 +19,7 @@ import { UserModel } from '../models/user.js';
 const router = Router();
 const fifteen = 15 * 60 * 1000;
 
-//#region Trainig Requests
+//#region Training Requests
 router.get('/request/upcoming', getUser, async (req: Request, res: Response) => {
 	try {
 		const upcoming = await TrainingRequestModel.find({
@@ -676,6 +676,18 @@ router.put(
 				};
 			}
 
+			const session = await TrainingSessionModel.findByIdAndUpdate(
+				req.params['id'],
+				req.body,
+			).exec();
+
+			if (!session) {
+				throw {
+					code: 400,
+					message: 'Bad Request.',
+				};
+			}
+
 			const startTime = new Date(req.body.startTime);
 			const endTime = new Date(req.body.endTime);
 
@@ -698,18 +710,6 @@ router.put(
 			const minutes = Math.floor(delta / 60) % 60;
 
 			const duration = `${('00' + hours).slice(-2)}:${('00' + minutes).slice(-2)}`;
-
-			const session = await TrainingSessionModel.findByIdAndUpdate(
-				req.params['id'],
-				req.body,
-			).exec();
-
-			if (!session) {
-				throw {
-					code: 400,
-					message: 'Bad Request.',
-				};
-			}
 
 			if (!session.vatusaId || session.vatusaId === 0) {
 				// Send the training record to vatusa
@@ -895,6 +895,20 @@ router.post(
 
 			const duration = `${('00' + hours).slice(-2)}:${('00' + minutes).slice(-2)}`;
 
+			const vatusaRes = await vatusaApi.post(`/user/${req.body.student}/training/record`, {
+				instructor_id: req.user!.cid,
+				session_date: DateTime.fromJSDate(start).toFormat('y-MM-dd HH:mm'),
+				position: req.body.position,
+				duration: duration,
+				movements: req.body.movements,
+				score: req.body.progress,
+				notes: req.body.studentNotes,
+				ots_status: req.body.ots,
+				location: req.body.location,
+				is_cbt: false,
+				solo_granted: false,
+			});
+
 			const doc = await TrainingSessionModel.create({
 				studentCid: req.body.student,
 				instructorCid: req.user!.cid,
@@ -910,25 +924,8 @@ router.post(
 				studentNotes: req.body.studentNotes,
 				insNotes: req.body.insNotes,
 				submitted: true,
+				vatusaId: vatusaRes.data.id,
 			});
-
-			const vatusaRes = await vatusaApi.post(`/user/${req.body.student}/training/record`, {
-				instructor_id: req.user!.cid,
-				session_date: DateTime.fromJSDate(start).toFormat('y-MM-dd HH:mm'),
-				position: req.body.position,
-				duration: duration,
-				movements: req.body.movements,
-				score: req.body.progress,
-				notes: req.body.studentNotes,
-				ots_status: req.body.ots,
-				location: req.body.location,
-				is_cbt: false,
-				solo_granted: false,
-			});
-
-			doc.vatusaId = vatusaRes.data.id;
-			doc.submitted = true;
-			await doc.save();
 
 			await NotificationModel.create({
 				recipient: doc.studentCid,

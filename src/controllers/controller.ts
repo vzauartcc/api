@@ -213,22 +213,39 @@ router.get('/visit', getUser, isManagement, async (_req: Request, res: Response)
 		let retval = [];
 		for (const app of applications) {
 			try {
-				const { data: vatusaData } = await vatusaApi.get(`/user/${app.cid}/transfer/checklist`);
+				let vatusaData = {} as IVisitingStatus;
+				if (process.env['NODE_ENV'] === 'development') {
+					vatusaData = {
+						visiting: true,
+						recentlyRostered: false,
+						hasRating: true,
+						ratingConsolidation: true,
+						needsBasic: false,
+						promo: false,
+						visitingDays: 0,
+						hasHome: true,
+						ratingHours: 0,
+						promoDays: 0,
+					};
+				} else {
+					const { data } = await vatusaApi.get(`/user/${app.cid}/transfer/checklist`);
+					vatusaData = {
+						visiting: data.data.visiting,
+						recentlyRostered: data.data['60days'],
+						hasRating: data.data.hasRating,
+						ratingConsolidation: data.data['50hrs'],
+						needsBasic: data.data.needbasic,
+						promo: data.data.promo,
+						visitingDays: data.data.visitingDays,
+						hasHome: data.data.hasHome,
+						ratingHours: data.data.ratingHours,
+						promoDays: data.data.promoDays,
+					};
+				}
 
 				retval.push({
 					application: app,
-					statusChecks: {
-						hasHome: vatusaData.data.hasHome,
-						hasRating: vatusaData.data.hasRating,
-						visiting: vatusaData.data.visiting,
-						recentlyRostered: vatusaData.data['60days'],
-						ratingConsolidation: vatusaData.data['50hrs'],
-						needsBasic: vatusaData.data.needbasic,
-						promo: vatusaData.data.promo,
-						visitingDays: vatusaData.data.visitingDays,
-						promoDays: vatusaData.data.promoDays,
-						ratingHours: vatusaData.data.ratingHours,
-					},
+					statusChecks: vatusaData,
 				});
 			} catch (_e) {
 				retval.push({
@@ -655,6 +672,8 @@ router.put('/visit/:cid', getUser, hasRole(['atm', 'datm']), async (req, res) =>
 			};
 		}
 
+		await vatusaApi.post(`/facility/ZAU/roster/manageVisitor/${req.params['cid']}`);
+
 		await application.delete();
 
 		const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
@@ -702,8 +721,6 @@ router.put('/visit/:cid', getUser, hasRole(['atm', 'datm']), async (req, res) =>
 
 		await user.save();
 
-		await vatusaApi.post(`/facility/ZAU/roster/manageVisitor/${req.params['cid']}`);
-
 		sendMail({
 			to: user.email,
 			subject: `Visiting Application Accepted | Chicago ARTCC`,
@@ -713,7 +730,7 @@ router.put('/visit/:cid', getUser, hasRole(['atm', 'datm']), async (req, res) =>
 			},
 		});
 
-		await DossierModel.create({
+		DossierModel.create({
 			by: req.user!.cid,
 			affected: user.cid,
 			action: `%b approved the visiting application for %a.`,
@@ -722,8 +739,6 @@ router.put('/visit/:cid', getUser, hasRole(['atm', 'datm']), async (req, res) =>
 		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
 	}
-
-	return res.json(res.stdRes);
 });
 
 router.delete(
@@ -1103,17 +1118,6 @@ router.delete('/:cid', getUser, hasRole(['atm', 'datm']), async (req: Request, r
 			};
 		}
 
-		user.member = false;
-		user.removalDate = new Date();
-		user.history.push({
-			start: user.joinDate!,
-			end: new Date(),
-			reason: req.body.reason,
-		});
-		user.joinDate = null;
-
-		await user.save();
-
 		if (user.vis) {
 			await vatusaApi.delete(`/facility/ZAU/roster/manageVisitor/${req.params['cid']}`, {
 				data: {
@@ -1130,10 +1134,21 @@ router.delete('/:cid', getUser, hasRole(['atm', 'datm']), async (req: Request, r
 			});
 		}
 
+		user.member = false;
+		user.removalDate = new Date();
+		user.history.push({
+			start: user.joinDate!,
+			end: new Date(),
+			reason: req.body.reason,
+		});
+		user.joinDate = null;
+
+		await user.save();
+
 		await DossierModel.create({
 			by: req.user!.cid,
 			affected: req.params['cid'],
-			action: `%a was removed from the roster by %b: ${req.body.reason}`,
+			action: `%a was removed from the roster by %b, reason: ${req.body.reason}`,
 		});
 	} catch (e) {
 		res.stdRes.ret_det = convertToReturnDetails(e);
