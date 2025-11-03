@@ -1,8 +1,7 @@
 import { captureException, captureMessage } from '@sentry/node';
 import axios from 'axios';
-import { Router, type Request, type Response } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
-import { convertToReturnDetails } from '../app.js';
 import { sendMail } from '../helpers/mailer.js';
 import { uploadToS3 } from '../helpers/s3.js';
 import { vatusaApi, type IVisitingStatus } from '../helpers/vatusa.js';
@@ -16,10 +15,11 @@ import { NotificationModel } from '../models/notification.js';
 import { RoleModel } from '../models/role.js';
 import { UserModel } from '../models/user.js';
 import { VisitApplicationModel } from '../models/visitApplication.js';
+import status from '../types/status.js';
 
 const router = Router();
 
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const allUsers = await UserModel.find({})
 			.select('-email -idsToken -discordInfo -certificationDate -broadcast')
@@ -60,17 +60,16 @@ router.get('/', async (_req: Request, res: Response) => {
 
 		if (!home || !visiting || !removed) {
 			throw {
-				code: 503,
+				code: status.INTERNAL_SERVER_ERROR,
 				message: 'Unable to retrieve controllers',
 			};
 		}
 
-		res.stdRes.data = { home, visiting, removed };
+		return res.status(status.OK).json({ home, visiting, removed });
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 
@@ -91,7 +90,7 @@ interface IStaffDirectory {
 	[key: string]: IRoleGroup;
 }
 
-router.get('/staff', async (_req: Request, res: Response) => {
+router.get('/staff', async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const users = await UserModel.find()
 			.select('fname lname cid roleCodes')
@@ -161,216 +160,234 @@ router.get('/staff', async (_req: Request, res: Response) => {
 			});
 		});
 
-		res.stdRes.data = staff;
+		return res.status(status.OK).json(staff);
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 
-router.get('/role', async (_req: Request, res: Response) => {
+router.get('/role', async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const roles = await RoleModel.find().lean().exec();
-		res.stdRes.data = roles;
-	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-	}
 
-	return res.json(res.stdRes);
+		return res.status(status.OK).json(roles);
+	} catch (e) {
+		captureException(e);
+
+		return next(e);
+	}
 });
 
-router.get('/oi', async (_req: Request, res: Response) => {
+router.get('/oi', async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const oi = await UserModel.find({ deletedAt: null, member: true }).select('oi').lean().exec();
 
 		if (!oi) {
 			throw {
-				code: 503,
+				code: status.INTERNAL_SERVER_ERROR,
 				message: 'Unable to retrieve operating initials',
 			};
 		}
 
-		res.stdRes.data = oi.map((oi) => oi.oi);
+		return res.status(status.OK).json(oi.map((o) => o.oi));
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	}
 
-	return res.json(res.stdRes);
+		return next(e);
+	}
 });
 
-router.get('/visit', getUser, isManagement, async (_req: Request, res: Response) => {
-	try {
-		const applications = await VisitApplicationModel.find({
-			deleted: false,
-		})
-			.lean()
-			.exec();
-
-		let retval = [];
-		for (const app of applications) {
-			try {
-				let vatusaData = {} as IVisitingStatus;
-				if (process.env['NODE_ENV'] === 'development') {
-					vatusaData = {
-						visiting: true,
-						recentlyRostered: false,
-						hasRating: true,
-						ratingConsolidation: true,
-						needsBasic: false,
-						promo: false,
-						visitingDays: 0,
-						hasHome: true,
-						ratingHours: 0,
-						promoDays: 0,
-					};
-				} else {
-					const { data } = await vatusaApi.get(`/user/${app.cid}/transfer/checklist`);
-					vatusaData = {
-						visiting: data.data.visiting,
-						recentlyRostered: data.data['60days'],
-						hasRating: data.data.hasRating,
-						ratingConsolidation: data.data['50hrs'],
-						needsBasic: data.data.needbasic,
-						promo: data.data.promo,
-						visitingDays: data.data.visitingDays,
-						hasHome: data.data.hasHome,
-						ratingHours: data.data.ratingHours,
-						promoDays: data.data.promoDays,
-					};
-				}
-
-				retval.push({
-					application: app,
-					statusChecks: vatusaData,
-				});
-			} catch (_e) {
-				retval.push({
-					application: app,
-					statusChecks: null,
-				});
-			}
-		}
-
-		res.stdRes.data = retval;
-	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-	}
-
-	return res.json(res.stdRes);
-});
-
-router.get('/absence', getUser, isManagement, async (_req: Request, res: Response) => {
-	try {
-		const absences = await AbsenceModel.find({
-			expirationDate: {
-				$gte: new Date(),
-			},
-			deleted: false,
-		})
-			.populate('user', 'fname lname cid')
-			.sort({
-				expirationDate: 'asc',
+router.get(
+	'/visit',
+	getUser,
+	isManagement,
+	async (_req: Request, res: Response, next: NextFunction) => {
+		try {
+			const applications = await VisitApplicationModel.find({
+				deleted: false,
 			})
-			.lean()
-			.exec();
+				.lean()
+				.exec();
 
-		res.stdRes.data = absences;
-	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-	}
+			let retval = [];
+			for (const app of applications) {
+				try {
+					let vatusaData = {} as IVisitingStatus;
+					if (process.env['NODE_ENV'] === 'development') {
+						vatusaData = {
+							visiting: true,
+							recentlyRostered: false,
+							hasRating: true,
+							ratingConsolidation: true,
+							needsBasic: false,
+							promo: false,
+							visitingDays: 0,
+							hasHome: true,
+							ratingHours: 0,
+							promoDays: 0,
+						};
+					} else {
+						const { data } = await vatusaApi.get(`/user/${app.cid}/transfer/checklist`);
+						vatusaData = {
+							visiting: data.data.visiting,
+							recentlyRostered: data.data['60days'],
+							hasRating: data.data.hasRating,
+							ratingConsolidation: data.data['50hrs'],
+							needsBasic: data.data.needbasic,
+							promo: data.data.promo,
+							visitingDays: data.data.visitingDays,
+							hasHome: data.data.hasHome,
+							ratingHours: data.data.ratingHours,
+							promoDays: data.data.promoDays,
+						};
+					}
 
-	return res.json(res.stdRes);
-});
+					retval.push({
+						application: app,
+						statusChecks: vatusaData,
+					});
+				} catch (_e) {
+					retval.push({
+						application: app,
+						statusChecks: null,
+					});
+				}
+			}
 
-router.post('/absence', getUser, isManagement, async (req: Request, res: Response) => {
-	try {
-		if (
-			!req.body ||
-			req.body.controller === '' ||
-			req.body.expirationDate === 'T00:00:00.000Z' ||
-			req.body.reason === ''
-		) {
-			throw {
-				code: 400,
-				message: 'You must fill out all required fields',
-			};
+			return res.status(status.OK).json(retval);
+		} catch (e) {
+			captureException(e);
+
+			return next(e);
 		}
+	},
+);
 
-		if (new Date(req.body.expirationDate) < new Date()) {
-			throw {
-				code: 400,
-				message: 'Expiration date must be in the future',
-			};
+router.get(
+	'/absence',
+	getUser,
+	isManagement,
+	async (_req: Request, res: Response, next: NextFunction) => {
+		try {
+			const absences = await AbsenceModel.find({
+				expirationDate: {
+					$gte: new Date(),
+				},
+				deleted: false,
+			})
+				.populate('user', 'fname lname cid')
+				.sort({
+					expirationDate: 'asc',
+				})
+				.lean()
+				.exec();
+
+			return res.status(status.OK).json(absences);
+		} catch (e) {
+			captureException(e);
+
+			return next(e);
 		}
+	},
+);
 
-		await AbsenceModel.create(req.body);
+router.post(
+	'/absence',
+	getUser,
+	isManagement,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			if (
+				!req.body ||
+				req.body.controller === '' ||
+				req.body.expirationDate === 'T00:00:00.000Z' ||
+				req.body.reason === ''
+			) {
+				throw {
+					code: 400,
+					message: 'You must fill out all required fields',
+				};
+			}
 
-		await NotificationModel.create({
-			recipient: req.body.controller,
-			title: 'Leave of Absence granted',
-			read: false,
-			content: `You have been granted Leave of Absence until <b>${new Date(
-				req.body.expirationDate,
-			).toLocaleString('en-US', {
-				month: 'long',
-				day: 'numeric',
-				year: 'numeric',
-				timeZone: 'UTC',
-			})}</b>.`,
-		});
+			if (new Date(req.body.expirationDate) < new Date()) {
+				throw {
+					code: 400,
+					message: 'Expiration date must be in the future',
+				};
+			}
 
-		await DossierModel.create({
-			by: req.user!.cid,
-			affected: req.body.controller,
-			action: `%b added a leave of absence for %a: ${req.body.reason}`,
-		});
-	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-	}
+			await AbsenceModel.create(req.body);
 
-	return res.json(res.stdRes);
-});
+			await NotificationModel.create({
+				recipient: req.body.controller,
+				title: 'Leave of Absence granted',
+				read: false,
+				content: `You have been granted a Leave of Absence until <b>${new Date(
+					req.body.expirationDate,
+				).toLocaleString('en-US', {
+					month: 'long',
+					day: 'numeric',
+					year: 'numeric',
+					timeZone: 'UTC',
+				})}</b>.`,
+			});
 
-router.delete('/absence/:id', getUser, isManagement, async (req: Request, res: Response) => {
-	try {
-		if (!req.params['id']) {
-			throw {
-				code: 400,
-				message: 'Invalid request',
-			};
+			await DossierModel.create({
+				by: req.user!.cid,
+				affected: req.body.controller,
+				action: `%b added a leave of absence for %a until ${new Date(req.body.expirationDate).toLocaleDateString()}: ${req.body.reason}`,
+			});
+
+			return res.status(status.CREATED);
+		} catch (e) {
+			captureException(e);
+
+			return next(e);
 		}
+	},
+);
 
-		const absence = await AbsenceModel.findOne({ _id: req.params['id'] }).exec();
-		if (!absence) {
-			throw {
-				code: 400,
-				message: 'Unable to locate absence.',
-			};
+router.delete(
+	'/absence/:id',
+	getUser,
+	isManagement,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			if (!req.params['id']) {
+				throw {
+					code: 400,
+					message: 'Invalid request',
+				};
+			}
+
+			const absence = await AbsenceModel.findOne({ _id: req.params['id'] }).exec();
+			if (!absence) {
+				throw {
+					code: 400,
+					message: 'Unable to locate absence.',
+				};
+			}
+
+			await absence.delete();
+
+			await DossierModel.create({
+				by: req.user!.cid,
+				affected: absence.controller,
+				action: `%b deleted the leave of absence for %a.`,
+			});
+
+			return res.status(status.NO_CONTENT);
+		} catch (e) {
+			captureException(e);
+
+			return next(e);
 		}
+	},
+);
 
-		await absence.delete();
-
-		await DossierModel.create({
-			by: req.user!.cid,
-			affected: absence.controller,
-			action: `%b deleted the leave of absence for %a.`,
-		});
-	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-	}
-
-	return res.json(res.stdRes);
-});
-
-router.get('/log', getUser, isStaff, async (req: Request, res: Response) => {
+router.get('/log', getUser, isStaff, async (req: Request, res: Response, next: NextFunction) => {
 	const page = +(req.query['page'] as string) || 1;
 	const limit = +(req.query['limit'] as string) || 20;
 	const amount = await DossierModel.countDocuments();
@@ -386,19 +403,15 @@ router.get('/log', getUser, isStaff, async (req: Request, res: Response) => {
 			.populate('userAffected', 'fname lname cid')
 			.lean();
 
-		res.stdRes.data = {
-			dossier,
-			amount,
-		};
+		return res.status(200).json({ amount, dossier });
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 
-router.get('/:cid', getUser, async (req: Request, res: Response) => {
+router.get('/:cid', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const user = await UserModel.findOne({
 			cid: req.params['cid'],
@@ -433,64 +446,68 @@ router.get('/:cid', getUser, async (req: Request, res: Response) => {
 
 		if (!user) {
 			throw {
-				code: 404,
+				code: status.NOT_FOUND,
 				message: 'Unable to find controller',
 			};
 		}
 
 		if (req.user?.isSeniorStaff) {
-			res.stdRes.data = user;
+			return res.status(status.OK).json(user);
 		} else {
 			const { email, ...userNoEmail } = user;
-			res.stdRes.data = userNoEmail;
+			return res.status(status.OK).json(userNoEmail);
 		}
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	}
 
-	return res.json(res.stdRes);
+		return next(e);
+	}
 });
 
-router.put('/:cid/rating', internalAuth, async (req: Request, res: Response) => {
-	if (!req.body.rating) {
-		throw {
-			code: 400,
-			message: 'Rating is required',
-		};
-	}
-
-	try {
-		const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
-
-		if (!user) {
+router.put(
+	'/:cid/rating',
+	internalAuth,
+	async (req: Request, res: Response, next: NextFunction) => {
+		if (!req.body.rating) {
 			throw {
-				code: 400,
-				message: 'Unable to find user',
+				code: status.BAD_REQUEST,
+				message: 'Rating is required',
 			};
 		}
 
-		if (user.rating !== req.body.rating) {
-			user.rating = req.body.rating;
+		try {
+			const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
 
-			await user.save();
+			if (!user) {
+				throw {
+					code: status.NOT_FOUND,
+					message: 'Unable to find user',
+				};
+			}
 
-			await DossierModel.create({
-				by: -1,
-				affected: req.params['cid'],
-				action: `%a was set as Rating ${req.body.rating} by an external service.`,
-			});
+			if (user.rating !== req.body.rating) {
+				user.rating = req.body.rating;
+
+				await user.save();
+
+				await DossierModel.create({
+					by: -1,
+					affected: req.params['cid'],
+					action: `%a was set as Rating ${req.body.rating} by an external service.`,
+				});
+			}
+
+			return res.status(status.OK);
+		} catch (e) {
+			captureException(e);
+
+			return next(e);
 		}
-	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-	}
-
-	return res.json(res.stdRes);
-});
+	},
+);
 
 // @TODO: fix this to remove the ts-ignore and structure the data properly
-router.get('/stats/:cid', async (req: Request, res: Response) => {
+router.get('/stats/:cid', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const controllerHours = await ControllerHoursModel.find({ cid: req.params['cid'] }).exec();
 
@@ -572,20 +589,20 @@ router.get('/stats/:cid', async (req: Request, res: Response) => {
 		hours.sessionAvg = Math.round(
 			Object.values(hours.total).reduce((acc, cv) => acc + cv) / hours.sessionCount,
 		);
-		res.stdRes.data = hours;
-	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-	}
 
-	return res.json(res.stdRes);
+		return res.status(status.OK).json(hours);
+	} catch (e) {
+		captureException(e);
+
+		return next(e);
+	}
 });
 
-router.post('/visit', getUser, async (req: Request, res: Response) => {
+router.post('/visit', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.user) {
 			throw {
-				code: 401,
+				code: status.UNAUTHORIZED,
 				message: 'Unable to verify user',
 			};
 		}
@@ -622,15 +639,16 @@ router.post('/visit', getUser, async (req: Request, res: Response) => {
 				user: userData,
 			},
 		});
-	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-	}
 
-	return res.json(res.stdRes);
+		return res.status(status.CREATED);
+	} catch (e) {
+		captureException(e);
+
+		return next(e);
+	}
 });
 
-router.get('/visit/status', getUser, async (req: Request, res: Response) => {
+router.get('/visit/status', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const count = await VisitApplicationModel.countDocuments({
 			cid: req.user!.cid,
@@ -639,7 +657,7 @@ router.get('/visit/status', getUser, async (req: Request, res: Response) => {
 
 		const { data: vatusaData } = await vatusaApi.get(`/user/${req.user!.cid}/transfer/checklist`);
 
-		res.stdRes.data = {
+		return res.status(status.OK).json({
 			count,
 			status: {
 				hasHome: vatusaData.data.hasHome,
@@ -653,61 +671,64 @@ router.get('/visit/status', getUser, async (req: Request, res: Response) => {
 				promoDays: vatusaData.data.promoDays,
 				ratingHours: vatusaData.data.ratingHours,
 			} as IVisitingStatus,
-		};
+		});
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	}
 
-	return res.json(res.stdRes);
+		return next(e);
+	}
 });
 
-router.put('/visit/:cid', getUser, hasRole(['atm', 'datm']), async (req, res) => {
-	try {
-		const application = await VisitApplicationModel.findOne({ cid: req.params['cid'] }).exec();
-		if (!application) {
-			throw {
-				code: 404,
-				message: 'Visiting Application Not Found.',
-			};
-		}
+router.put(
+	'/visit/:cid',
+	getUser,
+	hasRole(['atm', 'datm']),
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const application = await VisitApplicationModel.findOne({ cid: req.params['cid'] }).exec();
+			if (!application) {
+				throw {
+					code: status.NOT_FOUND,
+					message: 'Visiting Application Not Found.',
+				};
+			}
 
-		await vatusaApi.post(`/facility/ZAU/roster/manageVisitor/${req.params['cid']}`);
+			await vatusaApi.post(`/facility/ZAU/roster/manageVisitor/${req.params['cid']}`);
 
-		await application.delete();
+			await application.delete();
 
-		const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
-		if (!user) {
-			throw {
-				code: 404,
-				message: 'User not found',
-			};
-		}
+			const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
+			if (!user) {
+				throw {
+					code: status.NOT_FOUND,
+					message: 'User not found',
+				};
+			}
 
-		const oi = await UserModel.find({ deletedAt: null, member: true }).select('oi').lean().exec();
-		if (!oi || oi.length === 0) {
-			throw {
-				code: 500,
-				message: 'Unable to generate Operating Initials',
-			};
-		}
+			const oi = await UserModel.find({ deletedAt: null, member: true }).select('oi').lean().exec();
+			if (!oi || oi.length === 0) {
+				throw {
+					code: 500,
+					message: 'Unable to generate Operating Initials',
+				};
+			}
 
-		const userOi = generateOperatingInitials(
-			user.fname,
-			user.lname,
-			oi.map((oi) => oi.oi || '').filter((oi) => oi !== ''),
-		);
+			const userOi = generateOperatingInitials(
+				user.fname,
+				user.lname,
+				oi.map((oi) => oi.oi || '').filter((oi) => oi !== ''),
+			);
 
-		if (userOi === '') {
-			captureMessage(`Unable to generate OIs for ${req.params['cid']}`);
-		}
+			if (userOi === '') {
+				captureMessage(`Unable to generate OIs for ${req.params['cid']}`);
+			}
 
-		user.member = true;
-		user.vis = true;
-		user.oi = userOi;
+			user.member = true;
+			user.vis = true;
+			user.oi = userOi;
 
-		// Assign certCodes based on rating removed right now due to policy change. I will leave this here in case future policy is changed.
-		/*let certCodes = [];
+			// Assign certCodes based on rating removed right now due to policy change. I will leave this here in case future policy is changed.
+			/*let certCodes = [];
 		if (user.rating >= 2) {
 		  certCodes.push('gnd', 'del');
 		}
@@ -719,38 +740,42 @@ router.put('/visit/:cid', getUser, hasRole(['atm', 'datm']), async (req, res) =>
 		}
 		user.certCodes = certCodes;*/
 
-		await user.save();
+			await user.save();
 
-		sendMail({
-			to: user.email,
-			subject: `Visiting Application Accepted | Chicago ARTCC`,
-			template: 'visitAccepted',
-			context: {
-				name: `${user.fname} ${user.lname}`,
-			},
-		});
+			sendMail({
+				to: user.email,
+				subject: `Visiting Application Accepted | Chicago ARTCC`,
+				template: 'visitAccepted',
+				context: {
+					name: `${user.fname} ${user.lname}`,
+				},
+			});
 
-		DossierModel.create({
-			by: req.user!.cid,
-			affected: user.cid,
-			action: `%b approved the visiting application for %a.`,
-		});
-	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-	}
-});
+			DossierModel.create({
+				by: req.user!.cid,
+				affected: user.cid,
+				action: `%b approved the visiting application for %a.`,
+			});
+
+			return res.status(status.OK);
+		} catch (e) {
+			captureException(e);
+
+			return next(e);
+		}
+	},
+);
 
 router.delete(
 	'/visit/:cid',
 	getUser,
 	hasRole(['atm', 'datm']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const application = await VisitApplicationModel.findOne({ cid: req.params['cid'] }).exec();
 			if (!application) {
 				throw {
-					code: 404,
+					code: status.NOT_FOUND,
 					message: 'Visiting Application Not Found.',
 				};
 			}
@@ -760,7 +785,7 @@ router.delete(
 			const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
 			if (!user) {
 				throw {
-					code: 404,
+					code: status.NOT_FOUND,
 					message: 'User not found',
 				};
 			}
@@ -780,28 +805,29 @@ router.delete(
 				affected: user.cid,
 				action: `%b rejected the visiting application for %a: ${req.body.reason}`,
 			});
-		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
-			captureException(e);
-		}
 
-		return res.json(res.stdRes);
+			return res.status(status.NO_CONTENT);
+		} catch (e) {
+			captureException(e);
+
+			return next(e);
+		}
 	},
 );
 
-router.post('/:cid', internalAuth, async (req: Request, res: Response) => {
+router.post('/:cid', internalAuth, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
 		if (user) {
 			throw {
-				code: 409,
+				code: status.CONFLICT,
 				message: 'This user already exists',
 			};
 		}
 
 		if (!req.body) {
 			throw {
-				code: 400,
+				code: status.BAD_REQUEST,
 				message: 'No user data provided',
 			};
 		}
@@ -864,101 +890,110 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response) => {
 			affected: req.body.cid,
 			action: `%a was created by an external service.`,
 		});
-	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-	}
 
-	return res.json(res.stdRes);
+		return res.status(status.CREATED);
+	} catch (e) {
+		captureException(e);
+
+		return next(e);
+	}
 });
 
-router.put('/:cid/member', internalAuth, async (req: Request, res: Response) => {
+router.put(
+	'/:cid/member',
+	internalAuth,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
+
+			if (!user) {
+				throw {
+					code: status.NOT_FOUND,
+					message: 'Unable to find user',
+				};
+			}
+
+			let assignedOi: string | null = null;
+			if (req.body.member === true) {
+				const oi = await UserModel.find({ deletedAt: null, member: true })
+					.select('oi')
+					.lean()
+					.exec();
+				assignedOi = generateOperatingInitials(
+					user.fname,
+					user.lname,
+					oi.map((oi) => oi.oi || '').filter((oi) => oi !== ''),
+				);
+
+				user.joinDate = req.body.joinDate || new Date();
+				user.removalDate = null;
+			} else {
+				user.history.push({
+					start: user.joinDate!,
+					end: new Date(),
+					reason: `Removed from roster by an external service.`,
+				});
+				user.joinDate = null;
+				user.removalDate = new Date();
+			}
+			user.member = req.body.member;
+			user.oi = assignedOi;
+
+			await user.save();
+			const ratings = [
+				'Unknown',
+				'OBS',
+				'S1',
+				'S2',
+				'S3',
+				'C1',
+				'C2',
+				'C3',
+				'I1',
+				'I2',
+				'I3',
+				'SUP',
+				'ADM',
+			];
+			if (req.body.member || req.body.vis) {
+				sendMail({
+					to: 'atm@zauartcc.org, datm@zauartcc.org, ta@zauartcc.org',
+					subject: `New ${user.vis ? 'Visitor' : 'Member'}: ${user.fname} ${user.lname} | Chicago ARTCC`,
+					template: 'newController',
+					context: {
+						name: `${user.fname} ${user.lname}`,
+						email: user.email,
+						cid: user.cid,
+						rating: ratings[user.rating],
+						vis: user.vis,
+						type: user.vis ? 'visitor' : 'member',
+						home: 'NA',
+					},
+				});
+			}
+
+			await DossierModel.create({
+				by: -1,
+				affected: req.params['cid'],
+				action: `%a was ${req.body.member ? 'added to' : 'removed from'} the roster by an external service.`,
+			});
+
+			return res.status(status.OK);
+		} catch (e) {
+			captureException(e);
+
+			return next(e);
+		}
+	},
+);
+
+router.put('/:cid/visit', internalAuth, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
 
 		if (!user) {
 			throw {
-				code: 400,
-				message: 'Unable to find user',
-			};
-		}
-
-		let assignedOi: string | null = null;
-		if (req.body.member === true) {
-			const oi = await UserModel.find({ deletedAt: null, member: true }).select('oi').lean().exec();
-			assignedOi = generateOperatingInitials(
-				user.fname,
-				user.lname,
-				oi.map((oi) => oi.oi || '').filter((oi) => oi !== ''),
-			);
-
-			user.joinDate = req.body.joinDate || new Date();
-			user.removalDate = null;
-		} else {
-			user.history.push({
-				start: user.joinDate!,
-				end: new Date(),
-				reason: `Removed from roster by an external service.`,
-			});
-			user.joinDate = null;
-			user.removalDate = new Date();
-		}
-		user.member = req.body.member;
-		user.oi = assignedOi;
-
-		await user.save();
-		const ratings = [
-			'Unknown',
-			'OBS',
-			'S1',
-			'S2',
-			'S3',
-			'C1',
-			'C2',
-			'C3',
-			'I1',
-			'I2',
-			'I3',
-			'SUP',
-			'ADM',
-		];
-		if (req.body.member || req.body.vis) {
-			sendMail({
-				to: 'atm@zauartcc.org, datm@zauartcc.org, ta@zauartcc.org',
-				subject: `New ${user.vis ? 'Visitor' : 'Member'}: ${user.fname} ${user.lname} | Chicago ARTCC`,
-				template: 'newController',
-				context: {
-					name: `${user.fname} ${user.lname}`,
-					email: user.email,
-					cid: user.cid,
-					rating: ratings[user.rating],
-					vis: user.vis,
-					type: user.vis ? 'visitor' : 'member',
-					home: 'NA',
-				},
-			});
-		}
-
-		await DossierModel.create({
-			by: -1,
-			affected: req.params['cid'],
-			action: `%a was ${req.body.member ? 'added to' : 'removed from'} the roster by an external service.`,
-		});
-	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-	}
-
-	return res.json(res.stdRes);
-});
-
-router.put('/:cid/visit', internalAuth, async (req: Request, res: Response) => {
-	try {
-		const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
-
-		if (!user) {
-			throw {
-				code: 400,
+				code: status.NOT_FOUND,
 				message: 'Unable to find user',
 			};
 		}
@@ -972,23 +1007,24 @@ router.put('/:cid/visit', internalAuth, async (req: Request, res: Response) => {
 			affected: req.params['cid'],
 			action: `%a was set as a ${req.body.vis ? 'visiting controller' : 'home controller'} by an external service.`,
 		});
-	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-	}
 
-	return res.json(res.stdRes);
+		return res.status(status.OK);
+	} catch (e) {
+		captureException(e);
+
+		return next(e);
+	}
 });
 
 router.put(
 	'/:cid',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'fe', 'ec', 'wm', 'ins', 'mtr']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.body.form) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'No user data included',
 				};
 			}
@@ -1010,7 +1046,7 @@ router.put(
 
 			if (!user) {
 				throw {
-					code: 404,
+					code: status.NOT_FOUND,
 					message: 'User not found',
 				};
 			}
@@ -1068,95 +1104,111 @@ router.put(
 				affected: req.params['cid'],
 				action: `%a was updated by %b.`,
 			});
-		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
-			captureException(e);
-		}
 
-		return res.json(res.stdRes);
+			return res.status(status.OK);
+		} catch (e) {
+			captureException(e);
+
+			return next(e);
+		}
 	},
 );
 
-router.put('/remove-cert/:cid', internalAuth, async (req: Request, res: Response) => {
-	try {
-		// Find the user by CID
-		const cid = req.params['cid'];
-		const user = await UserModel.findOne({ cid }).exec();
+router.put(
+	'/remove-cert/:cid',
+	internalAuth,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			// Find the user by CID
+			const cid = req.params['cid'];
+			const user = await UserModel.findOne({ cid }).exec();
 
-		if (!user) {
-			return res.status(404).json({ message: 'User not found' });
+			if (!user) {
+				throw {
+					code: status.NOT_FOUND,
+					message: 'User not found',
+				};
+			}
+
+			// Remove the user's certCodes and certificationDate
+			user.certCodes = []; // Clear certCodes
+			user.certificationDate = []; // Clear certificationDate (remove all certifications and gained dates)
+
+			await user.save();
+
+			return res.status(status.OK).json({ message: 'Certs removed successfully' });
+		} catch (e) {
+			console.error('Error removing certs', e);
+			captureException(e);
+
+			return next(e);
 		}
+	},
+);
 
-		// Remove the user's certCodes and certificationDate
-		user.certCodes = []; // Clear certCodes
-		user.certificationDate = []; // Clear certificationDate (remove all certifications and gained dates)
+router.delete(
+	'/:cid',
+	getUser,
+	hasRole(['atm', 'datm']),
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			if (!req.body.reason) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'You must specify a reason',
+				};
+			}
 
-		await user.save();
+			const user = await UserModel.findOne({ cid: req.params['cid'] });
 
-		return res.status(200).json({ message: 'Certs removed successfully' });
-	} catch (error) {
-		console.error('Error removing certs', error);
-		return res.status(500).json({ message: 'Internal server error' });
-	}
-});
+			if (!user) {
+				throw {
+					code: status.NOT_FOUND,
+					message: 'User not found',
+				};
+			}
 
-router.delete('/:cid', getUser, hasRole(['atm', 'datm']), async (req: Request, res: Response) => {
-	try {
-		if (!req.body.reason) {
-			throw {
-				code: 400,
-				message: 'You must specify a reason',
-			};
-		}
+			if (user.vis) {
+				await vatusaApi.delete(`/facility/ZAU/roster/manageVisitor/${req.params['cid']}`, {
+					data: {
+						reason: req.body.reason,
+						by: req.user!.cid,
+					},
+				});
+			} else {
+				await vatusaApi.delete(`/facility/ZAU/roster/${req.params['cid']}`, {
+					data: {
+						reason: req.body.reason,
+						by: req.user!.cid,
+					},
+				});
+			}
 
-		const user = await UserModel.findOne({ cid: req.params['cid'] });
-
-		if (!user) {
-			throw {
-				code: 400,
-				message: 'User not found.',
-			};
-		}
-
-		if (user.vis) {
-			await vatusaApi.delete(`/facility/ZAU/roster/manageVisitor/${req.params['cid']}`, {
-				data: {
-					reason: req.body.reason,
-					by: req.user!.cid,
-				},
+			user.member = false;
+			user.removalDate = new Date();
+			user.history.push({
+				start: user.joinDate!,
+				end: new Date(),
+				reason: req.body.reason,
 			});
-		} else {
-			await vatusaApi.delete(`/facility/ZAU/roster/${req.params['cid']}`, {
-				data: {
-					reason: req.body.reason,
-					by: req.user!.cid,
-				},
+			user.joinDate = null;
+
+			await user.save();
+
+			await DossierModel.create({
+				by: req.user!.cid,
+				affected: req.params['cid'],
+				action: `%a was removed from the roster by %b, reason: ${req.body.reason}`,
 			});
+
+			return res.status(status.NO_CONTENT);
+		} catch (e) {
+			captureException(e);
+
+			return next(e);
 		}
-
-		user.member = false;
-		user.removalDate = new Date();
-		user.history.push({
-			start: user.joinDate!,
-			end: new Date(),
-			reason: req.body.reason,
-		});
-		user.joinDate = null;
-
-		await user.save();
-
-		await DossierModel.create({
-			by: req.user!.cid,
-			affected: req.params['cid'],
-			action: `%a was removed from the roster by %b, reason: ${req.body.reason}`,
-		});
-	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-	}
-
-	return res.json(res.stdRes);
-});
+	},
+);
 
 export default router;
 
