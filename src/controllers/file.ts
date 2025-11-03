@@ -1,14 +1,14 @@
 import { captureException } from '@sentry/node';
-import { Router, type Request, type Response } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
 import fs from 'fs/promises';
 import multer from 'multer';
-import { convertToReturnDetails } from '../app.js';
 import { deleteFromS3, uploadToS3 } from '../helpers/s3.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
 import { DocumentModel } from '../models/document.js';
 import { DossierModel } from '../models/dossier.js';
 import { DownloadModel } from '../models/download.js';
+import status from '../types/status.js';
 
 const router = Router();
 
@@ -24,30 +24,37 @@ const upload = multer({
 });
 
 // Downloads
-router.get('/downloads', async (_req: Request, res: Response) => {
+router.get('/downloads', async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const downloads = await DownloadModel.find({ deletedAt: null })
 			.sort({ category: 'asc', name: 'asc' })
 			.lean()
 			.exec();
-		res.stdRes.data = downloads;
+
+		return res.status(status.OK).json(downloads);
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 
-router.get('/downloads/:id', async (req: Request, res: Response) => {
+router.get('/downloads/:id', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const download = await DownloadModel.findById(req.params['id']).lean().exec();
-		res.stdRes.data = download;
+
+		if (!download) {
+			throw {
+				code: status.NOT_FOUND,
+				message: 'Download not found',
+			};
+		}
+
+		return res.status(status.OK).json(download);
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 
@@ -56,17 +63,17 @@ router.post(
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'fe', 'wm']),
 	upload.single('download'),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.body.category) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'You must select a category',
 				};
 			}
 			if (!req.file) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'Missing file',
 				};
 			}
@@ -74,7 +81,7 @@ router.post(
 			if (req.file.size > 100 * 1024 * 1024) {
 				// 100MiB
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'File too large',
 				};
 			}
@@ -95,11 +102,12 @@ router.post(
 				affected: -1,
 				action: `%b created the file *${req.body.name}*.`,
 			});
+
+			return res.status(status.CREATED);
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
@@ -109,11 +117,11 @@ router.put(
 	upload.single('download'),
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'fe', 'wm']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const download = await DownloadModel.findById(req.params['id']).exec();
 			if (!download) {
-				throw { code: 404, message: 'Download not found' };
+				throw { code: status.NOT_FOUND, message: 'Download not found' };
 			}
 
 			if (!req.file) {
@@ -126,7 +134,7 @@ router.put(
 			} else {
 				// ✅ File size check (100MiB limit)
 				if (req.file.size > 100 * 1024 * 1024) {
-					throw { code: 400, message: 'File too large' };
+					throw { code: status.BAD_REQUEST, message: 'File too large' };
 				}
 
 				// 🚨 **Step 1: Delete Old File from S3 (if it exists)**
@@ -153,11 +161,12 @@ router.put(
 				affected: -1,
 				action: `%b updated the file *${req.body.name}*.`,
 			});
+
+			return res.status(status.OK);
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
@@ -166,12 +175,12 @@ router.delete(
 	'/downloads/:id',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'fe', 'wm']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			// 🚀 **Step 1: Fetch the file info from the database**
 			const download = await DownloadModel.findById(req.params['id']).lean().exec();
 			if (!download) {
-				return res.status(404).json({ error: 'File not found' });
+				return res.status(status.NOT_FOUND).json({ error: 'File not found' });
 			}
 
 			// 🗑️ **Step 2: Delete the file from S3 if it exists**
@@ -188,17 +197,18 @@ router.delete(
 				affected: -1,
 				action: `%b deleted the file *${download.name}*.`,
 			});
+
+			return res.status(status.NO_CONTENT);
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
 
 // Documents
-router.get('/documents', async (_req: Request, res: Response) => {
+router.get('/documents', async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const documents = await DocumentModel.find({ deletedAt: null })
 			.select('-content')
@@ -206,26 +216,33 @@ router.get('/documents', async (_req: Request, res: Response) => {
 			.sort({ name: 'asc' })
 			.lean()
 			.exec();
-		res.stdRes.data = documents;
+
+		return res.status(status.OK).json(documents);
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 
-router.get('/documents/:slug', async (req: Request, res: Response) => {
+router.get('/documents/:slug', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const document = await DocumentModel.findOne({ slug: req.params['slug'], deletedAt: null })
 			.lean()
 			.exec();
-		res.stdRes.data = document;
+
+		if (!document) {
+			throw {
+				code: status.NOT_FOUND,
+				message: 'Document not found',
+			};
+		}
+
+		return res.status(status.OK).json(document);
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 
@@ -234,19 +251,19 @@ router.post(
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'fe', 'wm']),
 	upload.single('download'),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const { name, category, description, content, type } = req.body;
 			if (!category) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'You must select a category',
 				};
 			}
 
 			if (!content && type === 'doc') {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'You must include content',
 				};
 			}
@@ -262,12 +279,12 @@ router.post(
 
 			if (type === 'file') {
 				if (!req.file) {
-					throw { code: 400, message: 'File required' };
+					throw { code: status.BAD_REQUEST, message: 'File required' };
 				}
 				if (req.file.size > 100 * 1024 * 1024) {
 					// 100MiB
 					throw {
-						code: 400,
+						code: status.BAD_REQUEST,
 						message: 'File too large',
 					};
 				}
@@ -302,11 +319,12 @@ router.post(
 				affected: -1,
 				action: `%b created the document *${req.body.name}*.`,
 			});
+
+			return res.status(status.CREATED);
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
@@ -316,11 +334,14 @@ router.put(
 	upload.single('download'),
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'fe', 'wm']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const document = await DocumentModel.findOne({ slug: req.params['slug'] }).exec();
 			if (!document) {
-				return res.status(404).json({ error: 'Document not found' });
+				throw {
+					code: status.NOT_FOUND,
+					message: 'Document not found',
+				};
 			}
 
 			const { name, category, description, content, type } = req.body;
@@ -359,7 +380,7 @@ router.put(
 				} else {
 					// ✅ File size check (100MiB limit)
 					if (req.file.size > 100 * 1024 * 1024) {
-						throw { code: 400, message: 'File too large.' };
+						throw { code: status.BAD_REQUEST, message: 'File too large.' };
 					}
 
 					// 🚨 **Step 1: Delete Old File from S3 (if it exists)**
@@ -391,11 +412,12 @@ router.put(
 				affected: -1,
 				action: `%b updated the document *${name}*.`,
 			});
+
+			return res.status(status.OK);
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
@@ -404,12 +426,15 @@ router.delete(
 	'/documents/:id',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'fe', 'wm']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			// 🚀 **Step 1: Fetch the document from the database**
 			const doc = await DocumentModel.findById(req.params['id']).lean().exec();
 			if (!doc) {
-				return res.status(404).json({ error: 'Document not found' });
+				throw {
+					code: status.NOT_FOUND,
+					message: 'Document not found',
+				};
 			}
 
 			// 🗑️ **Step 2: Delete the file from S3 if it exists**
@@ -426,11 +451,12 @@ router.delete(
 				affected: -1,
 				action: `%b deleted the document *${doc.name}*.`,
 			});
+
+			return res.status(status.NO_CONTENT);
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
