@@ -23,22 +23,9 @@ import vatusaRouter from './controllers/vatusa.js';
 import { setupS3 } from './helpers/s3.js';
 import { soloExpiringNotifications, syncVatusaSoloEndorsements } from './tasks/solo.js';
 import { syncVatusaTrainingRecords } from './tasks/trainingRecords.js';
-import type { ReturnDetails } from './types/StandardResponse.js';
 
 console.log(`Starting application. . . .`);
 const app = express();
-
-app.use((_req: Request, res: Response, next: NextFunction) => {
-	res.stdRes = {
-		ret_det: {
-			code: 200,
-			message: '',
-		},
-		data: {},
-	};
-
-	next();
-});
 
 app.use(cookie());
 
@@ -137,15 +124,15 @@ if (process.env['NODE_ENV'] === 'production') {
 }
 console.log('Is Sentry initialized and enabled', Sentry.isInitialized(), Sentry.isEnabled());
 
-// app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
-// 	if (res.headersSent) {
-// 		return next(err);
-// 	}
+app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
+	if (res.headersSent) {
+		return next(err);
+	}
 
-// 	res.status(err.status || 500).json({
-// 		message: err.message || 'An internal server error occurred.',
-// 	});
-// });
+	res.status(err.status || 500).json({
+		message: err.message || 'An internal server error occurred.',
+	});
+});
 
 console.log('Starting Express listener. . . .');
 app.listen(process.env['PORT'], () => {
@@ -171,36 +158,4 @@ if (process.env['NODE_ENV'] === 'production') {
 		{ name: 'Training Record Sync', timezone: 'America/Chicago', catch: true },
 		() => syncVatusaTrainingRecords(),
 	);
-}
-
-export function convertToReturnDetails(e: unknown): ReturnDetails {
-	// 1. Check if 'e' is a standard Error object
-	if (e instanceof Error) {
-		// Return a generic error structure
-		return {
-			code: 500, // Use a standard server error code
-			message: e.message || 'An unexpected server error occurred.',
-		};
-	}
-
-	// 2. Check if 'e' is an object that already looks like ReturnDetails (e.g., a thrown response object)
-	else if (
-		typeof e === 'object' &&
-		e !== null &&
-		'code' in e &&
-		'message' in e &&
-		typeof (e as any).code === 'number' &&
-		typeof (e as any).message === 'string'
-	) {
-		// If it's a known, structured object, use its properties
-		return e as ReturnDetails;
-	}
-
-	// 3. Fallback for primitive/unknown types (e.g., throw "a string")
-	else {
-		return {
-			code: 500,
-			message: `An unexpected error occurred: ${String(e)}`,
-		};
-	}
 }
