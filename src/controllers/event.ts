@@ -216,7 +216,7 @@ router.put('/:slug/signup', getUser, async (req: Request, res: Response, next: N
 			action: `%b signed up for the event *${event.name}*.`,
 		});
 
-		return res.status(status.OK);
+		return res.status(status.OK).json();
 	} catch (e) {
 		captureException(e);
 
@@ -362,7 +362,7 @@ router.put(
 				action: `%b manually signed up %a for the event *${event.name}*.`,
 			});
 
-			return res.status(status.OK);
+			return res.status(status.OK).json();
 		} catch (e) {
 			captureException(e);
 
@@ -511,7 +511,7 @@ router.post(
 					console.log(error);
 				});
 
-			return res.status(status.OK);
+			return res.status(status.OK).json();
 		} catch (e) {
 			captureException(e);
 
@@ -583,7 +583,7 @@ router.post(
 				action: `%b created the event *${req.body.name}*.`,
 			});
 
-			return res.status(status.CREATED);
+			return res.status(status.CREATED).json();
 		} catch (e) {
 			captureException(e);
 
@@ -720,7 +720,7 @@ router.put(
 				action: `%b updated the event *${eventData.name}*.`,
 			});
 
-			return res.status(status.OK);
+			return res.status(status.OK).json();
 		} catch (e) {
 			captureException(e);
 
@@ -757,7 +757,7 @@ router.delete(
 				action: `%b deleted the event *${deleteEvent.name}*.`,
 			});
 
-			return res.status(status.NO_CONTENT);
+			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
 			captureException(e);
 
@@ -896,7 +896,7 @@ router.put(
 				action: `%b notified controllers of positions for the event *${eventData.name}*.`,
 			});
 
-			return res.status(status.OK);
+			return res.status(status.OK).json();
 		} catch (e) {
 			captureException(e);
 
@@ -927,7 +927,7 @@ router.put(
 				};
 			}
 
-			return res.status(status.OK);
+			return res.status(status.OK).json();
 		} catch (e) {
 			captureException(e);
 
@@ -1005,7 +1005,7 @@ router.post('/staffingRequest', async (req: Request, res: Response, next: NextFu
 			},
 		});
 
-		return res.status(status.CREATED);
+		return res.status(status.CREATED).json();
 	} catch (e) {
 		captureException(e);
 
@@ -1030,7 +1030,7 @@ router.put(
 
 			await staffingRequest.save();
 
-			return res.status(status.OK);
+			return res.status(status.OK).json();
 		} catch (e) {
 			captureException(e);
 
@@ -1088,7 +1088,7 @@ router.put(
 				});
 			}
 
-			return res.status(status.OK);
+			return res.status(status.OK).json();
 		} catch (e) {
 			captureException(e);
 
@@ -1114,7 +1114,7 @@ router.delete(
 
 			await staffingRequest.delete();
 
-			return res.status(status.NO_CONTENT);
+			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
 			captureException(e);
 

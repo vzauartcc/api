@@ -167,7 +167,7 @@ router.post('/request/new', getUser, async (req: Request, res: Response, next: N
 			},
 		});
 
-		return res.status(status.CREATED);
+		return res.status(status.CREATED).json();
 	} catch (e) {
 		captureException(e);
 
@@ -311,7 +311,7 @@ router.post(
 				},
 			});
 
-			return res.status(status.OK);
+			return res.status(status.OK).json();
 		} catch (e) {
 			captureException(e);
 
@@ -355,7 +355,7 @@ router.delete('/request/:id', getUser, async (req: Request, res: Response, next:
 			});
 		}
 
-		return res.status(status.NO_CONTENT);
+		return res.status(status.NO_CONTENT).json();
 	} catch (e) {
 		captureException(e);
 
@@ -456,7 +456,7 @@ router.delete(
 
 			await session.delete();
 
-			return res.status(status.NO_CONTENT);
+			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
 			captureException(e);
 
@@ -648,7 +648,7 @@ router.put(
 				};
 			}
 
-			return res.status(status.OK);
+			return res.status(status.OK).json();
 		} catch (e) {
 			captureException(e);
 
@@ -767,7 +767,7 @@ router.put(
 				link: `/dash/training/session/${req.params['id']}`,
 			});
 
-			return res.status(status.OK);
+			return res.status(status.OK).json();
 		} catch (e) {
 			captureException(e);
 
@@ -846,7 +846,7 @@ router.post(
 				submitted: false,
 			});
 
-			return res.status(status.CREATED);
+			return res.status(status.CREATED).json();
 		} catch (e) {
 			captureException(e);
 
@@ -947,7 +947,7 @@ router.post(
 				link: `/dash/training/session/${doc._id}`,
 			});
 
-			return res.status(status.CREATED);
+			return res.status(status.CREATED).json();
 		} catch (e) {
 			captureException(e);
 
@@ -1063,7 +1063,7 @@ router.post(
 				}
 			}
 
-			return res.status(status.CREATED);
+			return res.status(status.CREATED).json();
 		} catch (e) {
 			captureException(e);
 
@@ -1115,7 +1115,7 @@ router.delete(
 				action: `%b deleted a solo endorsement for %a to work ${req.body.position} until ${DateTime.fromJSDate(solo.expires).toUTC().toFormat(zau.DATE_FORMAT)}`,
 			});
 
-			return res.status(status.NO_CONTENT);
+			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
 			captureException(e);
 

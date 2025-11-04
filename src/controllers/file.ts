@@ -103,7 +103,7 @@ router.post(
 				action: `%b created the file *${req.body.name}*.`,
 			});
 
-			return res.status(status.CREATED);
+			return res.status(status.CREATED).json();
 		} catch (e) {
 			captureException(e);
 
@@ -162,7 +162,7 @@ router.put(
 				action: `%b updated the file *${req.body.name}*.`,
 			});
 
-			return res.status(status.OK);
+			return res.status(status.OK).json();
 		} catch (e) {
 			captureException(e);
 
@@ -198,7 +198,7 @@ router.delete(
 				action: `%b deleted the file *${download.name}*.`,
 			});
 
-			return res.status(status.NO_CONTENT);
+			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
 			captureException(e);
 
@@ -320,7 +320,7 @@ router.post(
 				action: `%b created the document *${req.body.name}*.`,
 			});
 
-			return res.status(status.CREATED);
+			return res.status(status.CREATED).json();
 		} catch (e) {
 			captureException(e);
 
@@ -413,7 +413,7 @@ router.put(
 				action: `%b updated the document *${name}*.`,
 			});
 
-			return res.status(status.OK);
+			return res.status(status.OK).json();
 		} catch (e) {
 			captureException(e);
 
@@ -452,7 +452,7 @@ router.delete(
 				action: `%b deleted the document *${doc.name}*.`,
 			});
 
-			return res.status(status.NO_CONTENT);
+			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
 			captureException(e);
 

@@ -85,7 +85,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 			action: `%b submitted feedback about %a.`,
 		});
 
-		return res.status(status.CREATED);
+		return res.status(status.CREATED).json();
 	} catch (e) {
 		captureException(e);
 
@@ -169,7 +169,7 @@ router.put(
 				action: `%b approved feedback for %a.`,
 			});
 
-			return res.status(status.OK);
+			return res.status(status.OK).json();
 		} catch (e) {
 			captureException(e);
 
@@ -201,7 +201,7 @@ router.put(
 				action: `%b rejected feedback for %a.`,
 			});
 
-			return res.status(status.OK);
+			return res.status(status.OK).json();
 		} catch (e) {
 			captureException(e);
 

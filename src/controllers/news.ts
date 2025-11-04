@@ -72,7 +72,7 @@ router.post(
 				action: `%b created the news item *${req.body.title}*.`,
 			});
 
-			return res.status(status.CREATED);
+			return res.status(status.CREATED).json();
 		} catch (e) {
 			captureException(e);
 
@@ -139,7 +139,7 @@ router.put(
 				action: `%b updated the news item *${newsItem.title}*.`,
 			});
 
-			return res.status(status.OK);
+			return res.status(status.OK).json();
 		} catch (e) {
 			captureException(e);
 
@@ -177,7 +177,7 @@ router.delete(
 				action: `%b deleted the news item *${newsItem.title}*.`,
 			});
 
-			return res.status(status.NO_CONTENT);
+			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
 			captureException(e);
 

@@ -121,7 +121,7 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 			action: `%b connected their Discord.`,
 		});
 
-		return res.status(status.CREATED);
+		return res.status(status.CREATED).json();
 	} catch (e) {
 		captureException(e);
 
@@ -133,7 +133,7 @@ router.delete('/user', getUser, async (req: Request, res: Response, next: NextFu
 	try {
 		await UserModel.updateOne({ cid: req.user!.cid }, { $unset: { discord: '', discordInfo: '' } });
 
-		res.status(status.OK);
+		res.status(status.OK).json();
 	} catch (e) {
 		captureException(e);
 

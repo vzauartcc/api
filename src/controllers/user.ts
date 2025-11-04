@@ -284,7 +284,7 @@ router.put(
 				},
 			).exec();
 
-			return res.status(status.OK);
+			return res.status(status.OK).json();
 		} catch (e) {
 			captureException(e);
 
@@ -305,7 +305,7 @@ router.put('/notifications/read/:id', async (req: Request, res: Response, next: 
 			read: true,
 		}).exec();
 
-		res.status(status.OK);
+		res.status(status.OK).json();
 	} catch (e) {
 		captureException(e);
 
@@ -320,7 +320,7 @@ router.delete(
 		try {
 			await NotificationModel.deleteMany({ recipient: req.user!.cid }).exec();
 
-			return res.status(status.NO_CONTENT);
+			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
 			captureException(e);
 
@@ -346,7 +346,7 @@ router.put('/profile', getUser, async (req: Request, res: Response, next: NextFu
 			action: `%b updated their profile.`,
 		});
 
-		return res.status(status.OK);
+		return res.status(status.OK).json();
 	} catch (e) {
 		captureException(e);
 
@@ -370,7 +370,7 @@ router.patch('/:cid', internalAuth, async (req: Request, res: Response, next: Ne
 			},
 		);
 
-		return res.status(status.OK);
+		return res.status(status.OK).json();
 	} catch (e) {
 		captureException(e);
 

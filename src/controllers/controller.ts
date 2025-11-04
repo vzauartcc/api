@@ -340,7 +340,7 @@ router.post(
 				action: `%b added a leave of absence for %a until ${new Date(req.body.expirationDate).toLocaleDateString()}: ${req.body.reason}`,
 			});
 
-			return res.status(status.CREATED);
+			return res.status(status.CREATED).json();
 		} catch (e) {
 			captureException(e);
 
@@ -378,7 +378,7 @@ router.delete(
 				action: `%b deleted the leave of absence for %a.`,
 			});
 
-			return res.status(status.NO_CONTENT);
+			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
 			captureException(e);
 
@@ -497,7 +497,7 @@ router.put(
 				});
 			}
 
-			return res.status(status.OK);
+			return res.status(status.OK).json();
 		} catch (e) {
 			captureException(e);
 
@@ -640,7 +640,7 @@ router.post('/visit', getUser, async (req: Request, res: Response, next: NextFun
 			},
 		});
 
-		return res.status(status.CREATED);
+		return res.status(status.CREATED).json();
 	} catch (e) {
 		captureException(e);
 
@@ -757,7 +757,7 @@ router.put(
 				action: `%b approved the visiting application for %a.`,
 			});
 
-			return res.status(status.OK);
+			return res.status(status.OK).json();
 		} catch (e) {
 			captureException(e);
 
@@ -806,7 +806,7 @@ router.delete(
 				action: `%b rejected the visiting application for %a: ${req.body.reason}`,
 			});
 
-			return res.status(status.NO_CONTENT);
+			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
 			captureException(e);
 
@@ -891,7 +891,7 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response, next: Nex
 			action: `%a was created by an external service.`,
 		});
 
-		return res.status(status.CREATED);
+		return res.status(status.CREATED).json();
 	} catch (e) {
 		captureException(e);
 
@@ -978,7 +978,7 @@ router.put(
 				action: `%a was ${req.body.member ? 'added to' : 'removed from'} the roster by an external service.`,
 			});
 
-			return res.status(status.OK);
+			return res.status(status.OK).json();
 		} catch (e) {
 			captureException(e);
 
@@ -1008,7 +1008,7 @@ router.put('/:cid/visit', internalAuth, async (req: Request, res: Response, next
 			action: `%a was set as a ${req.body.vis ? 'visiting controller' : 'home controller'} by an external service.`,
 		});
 
-		return res.status(status.OK);
+		return res.status(status.OK).json();
 	} catch (e) {
 		captureException(e);
 
@@ -1105,7 +1105,7 @@ router.put(
 				action: `%a was updated by %b.`,
 			});
 
-			return res.status(status.OK);
+			return res.status(status.OK).json();
 		} catch (e) {
 			captureException(e);
 
@@ -1201,7 +1201,7 @@ router.delete(
 				action: `%a was removed from the roster by %b, reason: ${req.body.reason}`,
 			});
 
-			return res.status(status.NO_CONTENT);
+			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
 			captureException(e);
 

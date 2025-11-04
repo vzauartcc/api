@@ -14,11 +14,11 @@ export default async function (req: Request, res: Response, next: NextFunction) 
 	const userToken = req.cookies['token'] || '';
 
 	if (!userToken || userToken === '') {
-		return res.status(status.UNAUTHORIZED);
+		return res.status(status.UNAUTHORIZED).json();
 	}
 
 	if (!process.env['JWT_SECRET']) {
-		return res.status(status.INTERNAL_SERVER_ERROR);
+		return res.status(status.INTERNAL_SERVER_ERROR).json();
 	}
 
 	try {
@@ -40,7 +40,7 @@ export default async function (req: Request, res: Response, next: NextFunction) 
 			delete req.user;
 			deleteAuthCookie(res);
 
-			return res.status(status.FORBIDDEN);
+			return res.status(status.FORBIDDEN).json();
 		}
 
 		req.user = user as unknown as IUser;

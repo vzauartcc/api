@@ -7,7 +7,7 @@ const router = Router();
 // Default router
 router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 	try {
-		return res.status(status.UNAUTHORIZED);
+		return res.status(status.UNAUTHORIZED).json();
 	} catch (e) {
 		captureException(e);
 

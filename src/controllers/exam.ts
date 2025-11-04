@@ -58,7 +58,7 @@ const createExamValidation = [
 		});
 
 		if (errors.length > 0) {
-			return res.status(400).json({ errors });
+			return res.status(status.BAD_REQUEST).json({ errors });
 		}
 
 		return next();
@@ -490,7 +490,7 @@ router.delete(
 
 			await deletedExam.delete();
 
-			return res.status(status.NO_CONTENT);
+			return res.status(status.NO_CONTENT).json();
 			// Respond with success message
 		} catch (e) {
 			captureException(e);

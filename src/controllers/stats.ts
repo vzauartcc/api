@@ -499,7 +499,7 @@ router.post(
 			redis.set(`FIFTY:${cid}`, fiftyData);
 			redis.expire(`FIFTY:${cid}`, 86400);
 
-			return res.status(status.CREATED);
+			return res.status(status.CREATED).json();
 		} catch (e) {
 			captureException(e);
 

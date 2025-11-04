@@ -4,7 +4,7 @@ import status from '../types/status.js';
 
 export default function (req: Request, res: Response, next: NextFunction) {
 	if (!process.env['MICRO_ACCESS_KEY']) {
-		return res.status(status.UNAUTHORIZED);
+		return res.status(status.UNAUTHORIZED).json();
 	}
 
 	if (
@@ -13,7 +13,7 @@ export default function (req: Request, res: Response, next: NextFunction) {
 	) {
 		captureMessage('Attempted access to an internal protected route');
 
-		return res.status(status.FORBIDDEN);
+		return res.status(status.FORBIDDEN).json();
 	}
 
 	return next();

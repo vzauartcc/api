@@ -189,7 +189,7 @@ router.post('/vatis', async (req: Request, res: Response, next: NextFunction) =>
 		req.app.redis.publish('ATIS:UPDATE', Facility);
 
 		console.log('Successfully processed the request and set the ATIS in Redis');
-		return res.status(status.OK);
+		return res.status(status.OK).json();
 	} catch (e) {
 		captureException(e);
 
@@ -318,7 +318,7 @@ router.post('/pireps', async (req: Request, res: Response, next: NextFunction) =
 			manual: true,
 		});
 
-		return res.status(status.CREATED);
+		return res.status(status.CREATED).json();
 	} catch (e) {
 		captureException(e);
 
@@ -330,7 +330,7 @@ router.delete('/pireps/:id', async (req: Request, res: Response, next: NextFunct
 	try {
 		await PirepModel.findByIdAndDelete(req.params['id']).exec();
 
-		return res.status(status.NO_CONTENT);
+		return res.status(status.NO_CONTENT).json();
 	} catch (e) {
 		captureException(e);
 

@@ -14,7 +14,7 @@ export default async function (req: Request, res: Response, next: NextFunction) 
 		!process.env['VATSIM_AUTH_CLIENT_ID'] ||
 		!process.env['VATSIM_AUTH_CLIENT_SECRET']
 	) {
-		return res.status(status.INTERNAL_SERVER_ERROR);
+		return res.status(status.INTERNAL_SERVER_ERROR).json();
 	}
 
 	let redirectUrl = 'http://localhost:8080/login/verify';
@@ -45,7 +45,7 @@ export default async function (req: Request, res: Response, next: NextFunction) 
 			!process.env['VATSIM_AUTH_CLIENT_ID_IDS'] ||
 			!process.env['VATSIM_AUTH_CLIENT_SECRET_IDS']
 		) {
-			return res.status(status.INTERNAL_SERVER_ERROR);
+			return res.status(status.INTERNAL_SERVER_ERROR).json();
 		}
 
 		clientId = process.env['VATSIM_AUTH_CLIENT_ID_IDS'];
