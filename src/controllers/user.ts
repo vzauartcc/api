@@ -18,7 +18,7 @@ import status from '../types/status.js';
 const router = Router();
 
 // Logged in check
-router.get('/', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/self', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.cookies['token']) {
 			throw {
