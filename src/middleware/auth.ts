@@ -1,6 +1,20 @@
 import { captureMessage } from '@sentry/node';
 import type { NextFunction, Request, Response } from 'express';
 import status from '../types/status.js';
+import { isKeyValid } from './internalAuth.js';
+import { isUserValid } from './user.js';
+
+export async function userOrInternal(req: Request, res: Response, next: NextFunction) {
+	if (isKeyValid(req)) {
+		return next();
+	}
+
+	if (await isUserValid(req)) {
+		return next();
+	}
+
+	return res.status(status.FORBIDDEN).json();
+}
 
 export function hasRole(roles: string[]) {
 	return function (req: Request, res: Response, next: NextFunction) {

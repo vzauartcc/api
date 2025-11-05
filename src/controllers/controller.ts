@@ -335,7 +335,7 @@ router.post(
 			});
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: req.body.controller,
 				action: `%b added a leave of absence for %a until ${new Date(req.body.expirationDate).toLocaleDateString()}: ${req.body.reason}`,
 			});
@@ -373,7 +373,7 @@ router.delete(
 			await absence.delete();
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: absence.controller,
 				action: `%b deleted the leave of absence for %a.`,
 			});
@@ -451,7 +451,7 @@ router.get('/:cid', getUser, async (req: Request, res: Response, next: NextFunct
 			};
 		}
 
-		if (req.user?.isSeniorStaff) {
+		if (req.user.isSeniorStaff) {
 			return res.status(status.OK).json(user);
 		} else {
 			const { email, ...userNoEmail } = user;
@@ -651,11 +651,11 @@ router.post('/visit', getUser, async (req: Request, res: Response, next: NextFun
 router.get('/visit/status', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const count = await VisitApplicationModel.countDocuments({
-			cid: req.user!.cid,
+			cid: req.user.cid,
 			deleted: false,
 		}).exec();
 
-		const { data: vatusaData } = await vatusaApi.get(`/user/${req.user!.cid}/transfer/checklist`);
+		const { data: vatusaData } = await vatusaApi.get(`/user/${req.user.cid}/transfer/checklist`);
 
 		return res.status(status.OK).json({
 			count,
@@ -752,7 +752,7 @@ router.put(
 			});
 
 			DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: user.cid,
 				action: `%b approved the visiting application for %a.`,
 			});
@@ -801,7 +801,7 @@ router.delete(
 			});
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: user.cid,
 				action: `%b rejected the visiting application for %a: ${req.body.reason}`,
 			});
@@ -1100,7 +1100,7 @@ router.put(
 
 			// Log the update in the user's dossier
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: req.params['cid'],
 				action: `%a was updated by %b.`,
 			});
@@ -1172,14 +1172,14 @@ router.delete(
 				await vatusaApi.delete(`/facility/ZAU/roster/manageVisitor/${req.params['cid']}`, {
 					data: {
 						reason: req.body.reason,
-						by: req.user!.cid,
+						by: req.user.cid,
 					},
 				});
 			} else {
 				await vatusaApi.delete(`/facility/ZAU/roster/${req.params['cid']}`, {
 					data: {
 						reason: req.body.reason,
-						by: req.user!.cid,
+						by: req.user.cid,
 					},
 				});
 			}
@@ -1196,7 +1196,7 @@ router.delete(
 			await user.save();
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: req.params['cid'],
 				action: `%a was removed from the roster by %b, reason: ${req.body.reason}`,
 			});

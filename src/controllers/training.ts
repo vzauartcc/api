@@ -26,7 +26,7 @@ router.get(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const upcoming = await TrainingRequestModel.find({
-				studentCid: req.user!.cid,
+				studentCid: req.user.cid,
 				deleted: false,
 				startTime: {
 					$gt: new Date(new Date().toUTCString()), // request is in the future
@@ -102,7 +102,7 @@ router.post('/request/new', getUser, async (req: Request, res: Response, next: N
 			};
 		}
 
-		const totalRequests = await req.app.redis.get(`TRAININGREQ:${req.user!.cid}`);
+		const totalRequests = await req.app.redis.get(`TRAININGREQ:${req.user.cid}`);
 
 		if (parseInt(totalRequests!, 10) > 5) {
 			throw {
@@ -111,18 +111,18 @@ router.post('/request/new', getUser, async (req: Request, res: Response, next: N
 			};
 		}
 
-		req.app.redis.set(`TRAININGREQ:${req.user!.cid}`, (+totalRequests! || 0) + 1);
-		req.app.redis.expire(`TRAININGREQ:${req.user!.cid}`, 14400);
+		req.app.redis.set(`TRAININGREQ:${req.user.cid}`, (+totalRequests! || 0) + 1);
+		req.app.redis.expire(`TRAININGREQ:${req.user.cid}`, 14400);
 
 		await TrainingRequestModel.create({
-			studentCid: req.user!.cid,
+			studentCid: req.user.cid,
 			startTime: req.body.startTime,
 			endTime: req.body.endTime,
 			milestoneCode: req.body.milestone,
 			remarks: req.body.remarks,
 		});
 
-		const student = await UserModel.findOne({ cid: req.user!.cid })
+		const student = await UserModel.findOne({ cid: req.user.cid })
 			.select('fname lname')
 			.lean()
 			.exec();
@@ -177,7 +177,7 @@ router.post('/request/new', getUser, async (req: Request, res: Response, next: N
 
 router.get('/milestones', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		const user = await UserModel.findOne({ cid: req.user!.cid })
+		const user = await UserModel.findOne({ cid: req.user.cid })
 			.select('trainingMilestones rating')
 			.populate('trainingMilestones', 'code name rating')
 			.lean()
@@ -243,7 +243,7 @@ router.post(
 			}
 
 			const request = await TrainingRequestModel.findByIdAndUpdate(req.params['id'], {
-				instructorCid: req.user!.cid,
+				instructorCid: req.user.cid,
 				startTime: req.body.startTime,
 				endTime: req.body.endTime,
 			})
@@ -259,7 +259,7 @@ router.post(
 
 			const session = await TrainingSessionModel.create({
 				studentCid: request.studentCid,
-				instructorCid: req.user!.cid,
+				instructorCid: req.user.cid,
 				startTime: req.body.startTime,
 				endTime: req.body.endTime,
 				milestoneCode: request.milestoneCode,
@@ -270,7 +270,7 @@ router.post(
 				.select('fname lname email')
 				.lean()
 				.exec();
-			const instructor = await UserModel.findOne({ cid: req.user!.cid })
+			const instructor = await UserModel.findOne({ cid: req.user.cid })
 				.select('fname lname email')
 				.lean()
 				.exec();
@@ -331,7 +331,7 @@ router.delete('/request/:id', getUser, async (req: Request, res: Response, next:
 			};
 		}
 
-		const isSelf = req.user!.cid === request.studentCid;
+		const isSelf = req.user.cid === request.studentCid;
 
 		if (!isSelf) {
 			hasRole(['atm', 'datm', 'ta'])(req, res, () => {}); // Call the auth middleware
@@ -341,7 +341,7 @@ router.delete('/request/:id', getUser, async (req: Request, res: Response, next:
 
 		if (isSelf) {
 			await NotificationModel.create({
-				recipient: req.user!.cid,
+				recipient: req.user.cid,
 				read: false,
 				title: 'Training Request Cancelled',
 				content: 'You have deleted your training request.',
@@ -351,7 +351,7 @@ router.delete('/request/:id', getUser, async (req: Request, res: Response, next:
 				recipient: request.studentCid,
 				read: false,
 				title: 'Training Request Cancelled',
-				content: `Your training request has been deleted by ${req.user!.fname + ' ' + req.user!.lname}.`,
+				content: `Your training request has been deleted by ${req.user.fname + ' ' + req.user.lname}.`,
 			});
 		}
 
@@ -407,7 +407,7 @@ router.get(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const sessions = await TrainingSessionModel.find({
-				instructorCid: req.user!.cid,
+				instructorCid: req.user.cid,
 				submitted: false,
 				deleted: { $ne: true },
 			})
@@ -447,7 +447,7 @@ router.delete(
 				};
 			}
 
-			if (session.instructorCid !== req.user!.cid) {
+			if (session.instructorCid !== req.user.cid) {
 				throw {
 					code: status.FORBIDDEN,
 					message: 'Not your session',
@@ -469,7 +469,7 @@ router.delete(
 router.get('/session/:id', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const isIns = ['ta', 'ins', 'mtr', 'ia', 'atm', 'datm'].some((r) =>
-			req.user!.roleCodes.includes(r),
+			req.user.roleCodes.includes(r),
 		);
 
 		let session = null;
@@ -548,12 +548,12 @@ router.get('/sessions/past', getUser, async (req: Request, res: Response, next: 
 		const limit = +(req.query['limit'] as string) || 20;
 
 		const amount = await TrainingSessionModel.countDocuments({
-			studentCid: req.user!.cid,
+			studentCid: req.user.cid,
 			deleted: false,
 			submitted: true,
 		}).exec();
 		const sessions = await TrainingSessionModel.find({
-			studentCid: req.user!.cid,
+			studentCid: req.user.cid,
 			deleted: false,
 			submitted: true,
 		})
@@ -831,7 +831,7 @@ router.post(
 
 			await TrainingSessionModel.create({
 				studentCid: req.body.student,
-				instructorCid: req.user!.cid,
+				instructorCid: req.user.cid,
 				milestoneCode: req.body.milestone,
 				position: req.body.position,
 				startTime: start,
@@ -908,7 +908,7 @@ router.post(
 			const duration = `${('00' + hours).slice(-2)}:${('00' + minutes).slice(-2)}`;
 
 			const vatusaRes = await vatusaApi.post(`/user/${req.body.student}/training/record`, {
-				instructor_id: req.user!.cid,
+				instructor_id: req.user.cid,
 				session_date: DateTime.fromJSDate(start).toFormat('y-MM-dd HH:mm'),
 				position: req.body.position,
 				duration: duration,
@@ -923,7 +923,7 @@ router.post(
 
 			const doc = await TrainingSessionModel.create({
 				studentCid: req.body.student,
-				instructorCid: req.user!.cid,
+				instructorCid: req.user.cid,
 				milestoneCode: req.body.milestone,
 				position: req.body.position,
 				startTime: start,
@@ -943,7 +943,7 @@ router.post(
 				recipient: doc.studentCid,
 				read: false,
 				title: 'Training Notes Submitted',
-				content: `The training notes from your session with <b>${req.user!.fname + ' ' + req.user!.lname}</b> have been submitted.`,
+				content: `The training notes from your session with <b>${req.user.fname + ' ' + req.user.lname}</b> have been submitted.`,
 				link: `/dash/training/session/${doc._id}`,
 			});
 
@@ -1025,7 +1025,7 @@ router.post(
 
 			SoloEndorsementModel.create({
 				studentCid: student.cid,
-				instructorCid: req.user!.cid,
+				instructorCid: req.user.cid,
 				position: req.body.position,
 				vatusaId: vatusaId,
 				expires: endDate,
@@ -1035,11 +1035,11 @@ router.post(
 				recipient: req.body.student,
 				read: false,
 				title: 'Solo Endorsement Issued',
-				content: `You have been issued a solo endorsement for <b>${req.body.position}</b> by <b>${req.user!.fname} ${req.user!.lname}</b>. It will expire on ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}`,
+				content: `You have been issued a solo endorsement for <b>${req.body.position}</b> by <b>${req.user.fname} ${req.user.lname}</b>. It will expire on ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}`,
 			});
 
 			DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: req.body.student,
 				action: `%b issued a solo endorsement for %a to work ${req.body.position} until ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}`,
 			});
@@ -1050,7 +1050,7 @@ router.post(
 						content:
 							':student: **SOLO ENDORSEMENT ISSUED** :student:\n\n' +
 							`Student Name: ${student.fname} ${student.lname}${student.discord ? ` <@${student.discord}>` : ''}\n` +
-							`Instructor Name: ${req.user!.fname} ${req.user!.lname}\n` +
+							`Instructor Name: ${req.user.fname} ${req.user.lname}\n` +
 							`Issued Date: ${DateTime.fromJSDate(new Date()).toUTC().toFormat(zau.DATE_FORMAT)}\n` +
 							`Expires Date: ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}\n` +
 							`Position: ${req.body.position}\n` +
@@ -1110,7 +1110,7 @@ router.delete(
 			}
 
 			DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: req.body.student,
 				action: `%b deleted a solo endorsement for %a to work ${req.body.position} until ${DateTime.fromJSDate(solo.expires).toUTC().toFormat(zau.DATE_FORMAT)}`,
 			});

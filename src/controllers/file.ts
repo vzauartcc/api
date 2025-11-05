@@ -98,7 +98,7 @@ router.post(
 			});
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: -1,
 				action: `%b created the file *${req.body.name}*.`,
 			});
@@ -157,7 +157,7 @@ router.put(
 
 			// ✅ Log the update in dossier
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: -1,
 				action: `%b updated the file *${req.body.name}*.`,
 			});
@@ -193,7 +193,7 @@ router.delete(
 
 			// ✅ Log deletion in dossier
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: -1,
 				action: `%b deleted the file *${download.name}*.`,
 			});
@@ -298,7 +298,7 @@ router.post(
 					category,
 					description,
 					slug,
-					author: req.user!.cid,
+					author: req.user.cid,
 					type: 'file',
 					fileName: req.file.filename,
 				});
@@ -309,13 +309,13 @@ router.post(
 					description,
 					content,
 					slug,
-					author: req.user!.cid,
+					author: req.user.cid,
 					type: 'doc',
 				});
 			}
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: -1,
 				action: `%b created the document *${req.body.name}*.`,
 			});
@@ -408,7 +408,7 @@ router.put(
 
 			// ✅ Log update in dossier
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: -1,
 				action: `%b updated the document *${name}*.`,
 			});
@@ -447,7 +447,7 @@ router.delete(
 
 			// ✅ Log deletion in dossier
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: -1,
 				action: `%b deleted the document *${doc.name}*.`,
 			});

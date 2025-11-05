@@ -172,7 +172,7 @@ router.put('/:slug/signup', getUser, async (req: Request, res: Response, next: N
 			};
 		}
 
-		if (req.user!.member === false) {
+		if (req.user.member === false) {
 			throw {
 				code: status.FORBIDDEN,
 				message: 'You must be a member of ZAU',
@@ -196,7 +196,7 @@ router.put('/:slug/signup', getUser, async (req: Request, res: Response, next: N
 			{
 				$push: {
 					signups: {
-						cid: req.user!.cid,
+						cid: req.user.cid,
 						requests: req.body.requests,
 					},
 				},
@@ -211,7 +211,7 @@ router.put('/:slug/signup', getUser, async (req: Request, res: Response, next: N
 		}
 
 		await DossierModel.create({
-			by: req.user!.cid,
+			by: req.user.cid,
 			affected: -1,
 			action: `%b signed up for the event *${event.name}*.`,
 		});
@@ -231,7 +231,7 @@ router.delete('/:slug/signup', getUser, async (req: Request, res: Response, next
 			{
 				$pull: {
 					signups: {
-						cid: req.user!.cid,
+						cid: req.user.cid,
 					},
 				},
 			},
@@ -245,7 +245,7 @@ router.delete('/:slug/signup', getUser, async (req: Request, res: Response, next
 		}
 
 		await DossierModel.create({
-			by: req.user!.cid,
+			by: req.user.cid,
 			affected: -1,
 			action: `%b deleted their signup for the event *${event.name}*.`,
 		});
@@ -283,9 +283,9 @@ router.delete(
 			}
 
 			for (const position of signup.positions) {
-				if (position.takenBy === req.user!.cid) {
+				if (position.takenBy === req.user.cid) {
 					await EventModel.findOneAndUpdate(
-						{ url: req.params['slug'], 'positions.takenBy': req.user!.cid },
+						{ url: req.params['slug'], 'positions.takenBy': req.user.cid },
 						{
 							$set: {
 								'positions.$.takenBy': null,
@@ -296,7 +296,7 @@ router.delete(
 			}
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: req.params['cid'],
 				action: `%b manually deleted the event signup for %a for the event *${signup.name}*.`,
 			});
@@ -357,7 +357,7 @@ router.put(
 			).exec();
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: req.params['cid'],
 				action: `%b manually signed up %a for the event *${event.name}*.`,
 			});
@@ -572,13 +572,13 @@ router.post(
 				bannerUrl: req.file.filename,
 				eventStart: req.body.startTime,
 				eventEnd: req.body.endTime,
-				createdBy: req.user!.cid,
+				createdBy: req.user.cid,
 				open: true,
 				submitted: false,
 			});
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: -1,
 				action: `%b created the event *${req.body.name}*.`,
 			});
@@ -715,7 +715,7 @@ router.put(
 			await eventData.save();
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: -1,
 				action: `%b updated the event *${eventData.name}*.`,
 			});
@@ -752,7 +752,7 @@ router.delete(
 			await deleteEvent.delete();
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: -1,
 				action: `%b deleted the event *${deleteEvent.name}*.`,
 			});
@@ -775,7 +775,7 @@ router.delete(
 // 		});
 
 // 		await DossierModel.create({
-// 			by: req.user!.cid,
+// 			by: req.user.cid,
 // 			affected: -1,
 // 			action: `%b updated the positions assignments for the event *${event.name}*.`
 // 		});
@@ -827,13 +827,13 @@ router.put(
 
 			if (cid) {
 				await DossierModel.create({
-					by: req.user!.cid,
+					by: req.user.cid,
 					affected: cid,
 					action: `%b assigned %a to *${assignedPosition.pos}* for *${eventData.name}*.`,
 				});
 			} else {
 				await DossierModel.create({
-					by: req.user!.cid,
+					by: req.user.cid,
 					affected: -1,
 					action: `%b unassigned *${assignedPosition.pos}* for *${eventData.name}*.`,
 				});
@@ -891,7 +891,7 @@ router.put(
 			});
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: -1,
 				action: `%b notified controllers of positions for the event *${eventData.name}*.`,
 			});
@@ -1082,7 +1082,7 @@ router.put(
 				});
 
 				await DossierModel.create({
-					by: req.user!.cid,
+					by: req.user.cid,
 					affected: -1,
 					action: `%b approved a staffing request for ${req.body.vaName}.`,
 				});

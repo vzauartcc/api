@@ -2,10 +2,6 @@ import { Redis } from 'ioredis';
 import type { IUser } from 'models/user.ts';
 import type { OauthRequest } from 'types/CustomRequest.ts';
 
-export interface IdsUser extends IUser {
-	idsToken?: string;
-}
-
 // Extend the Express Application interface
 declare global {
 	namespace Express {
@@ -21,8 +17,9 @@ declare global {
 		}
 
 		export interface Request {
-			user?: IdsUser;
-			oauth?: OauthRequest;
+			user: IUser;
+			oauth: OauthRequest;
+			internal: boolean;
 		}
 	}
 }

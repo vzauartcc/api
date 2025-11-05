@@ -26,7 +26,7 @@ router.get('/users', internalAuth, async (_req: Request, res: Response, next: Ne
 
 router.get('/user', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		return res.status(status.OK).json(!!req.user!.discordInfo?.clientId);
+		return res.status(status.OK).json(!!req.user.discordInfo?.clientId);
 	} catch (e) {
 		captureException(e);
 
@@ -131,7 +131,7 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 
 router.delete('/user', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		await UserModel.updateOne({ cid: req.user!.cid }, { $unset: { discord: '', discordInfo: '' } });
+		await UserModel.updateOne({ cid: req.user.cid }, { $unset: { discord: '', discordInfo: '' } });
 
 		res.status(status.OK).json();
 	} catch (e) {

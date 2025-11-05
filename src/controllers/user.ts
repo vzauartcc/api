@@ -61,12 +61,12 @@ router.post('/idsToken', getUser, async (req: Request, res: Response, next: Next
 		}
 
 		const idsToken = randomUUID();
-		req.user!.idsToken = idsToken;
+		req.user.idsToken = idsToken;
 
-		await UserModel.findOneAndUpdate({ cid: req.user!.cid }, { idsToken }).exec();
+		await UserModel.findOneAndUpdate({ cid: req.user.cid }, { idsToken }).exec();
 
 		await DossierModel.create({
-			by: req.user!.cid,
+			by: req.user.cid,
 			affected: -1,
 			action: `%b generated a new IDS Token.`,
 		});
@@ -86,7 +86,7 @@ router.post('/login', oAuth, async (req: Request, res: Response, next: NextFunct
 		if (!req.oauth) {
 			throw {
 				code: status.BAD_REQUEST,
-				message: 'Bad request.',
+				message: 'Bad request',
 			};
 		}
 
@@ -206,7 +206,7 @@ router.get('/logout', async (req: Request, res: Response, next: NextFunction) =>
 router.get('/sessions', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const sessions = await ControllerHoursModel.find({
-			cid: req.user!.cid,
+			cid: req.user.cid,
 			timeStart: { $gt: zau.activity.period.startOfCurrent },
 		})
 			.sort({ timeStart: -1 })
@@ -214,7 +214,7 @@ router.get('/sessions', getUser, async (req: Request, res: Response, next: NextF
 			.exec();
 
 		const trainings = await TrainingSessionModel.find({
-			studentCid: req.user!.cid,
+			studentCid: req.user.cid,
 			startTime: zau.activity.period.startOfCurrent,
 		})
 			.sort({ startTime: -1 })
@@ -241,17 +241,17 @@ router.get('/notifications', getUser, async (req: Request, res: Response, next: 
 
 		const unread = await NotificationModel.countDocuments({
 			deleted: false,
-			recipient: req.user!.cid,
+			recipient: req.user.cid,
 			read: false,
 		}).exec();
 
 		const amount = await NotificationModel.countDocuments({
 			deleted: false,
-			recipient: req.user!.cid,
+			recipient: req.user.cid,
 		}).exec();
 
 		const notif = await NotificationModel.find({
-			recipient: req.user!.cid,
+			recipient: req.user.cid,
 			deleted: false,
 		})
 			.skip(limit * (page - 1))
@@ -278,7 +278,7 @@ router.put(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			await NotificationModel.updateMany(
-				{ recipient: req.user!.cid },
+				{ recipient: req.user.cid },
 				{
 					read: true,
 				},
@@ -318,7 +318,7 @@ router.delete(
 	getUser,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			await NotificationModel.deleteMany({ recipient: req.user!.cid }).exec();
+			await NotificationModel.deleteMany({ recipient: req.user.cid }).exec();
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
@@ -334,14 +334,14 @@ router.put('/profile', getUser, async (req: Request, res: Response, next: NextFu
 		const { bio } = req.body;
 
 		await UserModel.findOneAndUpdate(
-			{ cid: req.user!.cid },
+			{ cid: req.user.cid },
 			{
 				bio,
 			},
 		).exec();
 
 		await DossierModel.create({
-			by: req.user!.cid,
+			by: req.user.cid,
 			affected: -1,
 			action: `%b updated their profile.`,
 		});

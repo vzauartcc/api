@@ -67,7 +67,7 @@ router.post(
 			}
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: -1,
 				action: `%b created the news item *${req.body.title}*.`,
 			});
@@ -134,7 +134,7 @@ router.put(
 			await newsItem.save();
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: -1,
 				action: `%b updated the news item *${newsItem.title}*.`,
 			});
@@ -172,7 +172,7 @@ router.delete(
 			}
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: -1,
 				action: `%b deleted the news item *${newsItem.title}*.`,
 			});

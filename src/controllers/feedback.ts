@@ -164,7 +164,7 @@ router.put(
 			});
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: approved.controllerCid,
 				action: `%b approved feedback for %a.`,
 			});
@@ -196,7 +196,7 @@ router.put(
 			await feedback.delete();
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: feedback.controllerCid,
 				action: `%b rejected feedback for %a.`,
 			});
@@ -217,12 +217,12 @@ router.get('/own', getUser, async (req: Request, res: Response, next: NextFuncti
 
 		const amount = await FeedbackModel.countDocuments({
 			approved: true,
-			controllerCid: req.user!.cid,
+			controllerCid: req.user.cid,
 		}).exec();
 		const feedback = await FeedbackModel.aggregate([
 			{
 				$match: {
-					controllerCid: req.user!.cid,
+					controllerCid: req.user.cid,
 					approved: true,
 				},
 			},

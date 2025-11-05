@@ -95,7 +95,7 @@ router.post(
 				questions: req.body.questions,
 				timeLimit: req.body.timeLimit,
 				questionSubsetSize: req.body.questionSubsetSize,
-				createdBy: req.user!._id,
+				createdBy: req.user._id,
 			});
 			await newExam.save();
 
@@ -159,7 +159,7 @@ router.post(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const { examId } = req.params;
-			const userId = req.user!._id;
+			const userId = req.user._id;
 
 			// Prevent starting another attempt if one is already in progress and not timed out
 			const now = new Date();
@@ -263,7 +263,7 @@ router.post(
 		try {
 			const { responses } = req.body; // Expected format: [{ questionId, selectedOption }]
 			const examId = req.params['examId'];
-			const userId = req.user!._id;
+			const userId = req.user._id;
 
 			const exam = await ExamModel.findById(examId).populate('questions').exec();
 			if (!exam) {
@@ -395,7 +395,7 @@ router.get(
 		try {
 			const examAttempt = await ExamAttemptModel.findOne({
 				exam: req.params['id'],
-				user: req.user!._id, // Ensure results are fetched for the logged-in user
+				user: req.user._id, // Ensure results are fetched for the logged-in user
 			}).exec();
 
 			if (!examAttempt) {
@@ -420,7 +420,7 @@ router.patch(
 	async (req: Request, res: Response, next: NextFunction) => {
 		const { examId, questionId } = req.params;
 		const { additionalTimeSpent } = req.body; // The additional time spent on the question
-		const userId = req.user!._id;
+		const userId = req.user._id;
 
 		try {
 			// Find the exam attempt

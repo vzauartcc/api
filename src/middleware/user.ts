@@ -11,18 +11,31 @@ export interface UserPayload {
 }
 
 export default async function (req: Request, res: Response, next: NextFunction) {
-	const userToken = req.cookies['token'] || '';
+	if (!(await isUserValid(req))) {
+		deleteAuthCookie(res);
 
-	if (!userToken || userToken === '') {
-		return res.status(status.UNAUTHORIZED).json();
+		return res.status(status.FORBIDDEN).json();
+	}
+
+	if (!req.user) {
+		return res.status(status.FORBIDDEN).json();
+	}
+
+	return next();
+}
+
+export async function isUserValid(req: Request) {
+	const token = req.cookies['token'];
+	if (!token || token.trim() === '') {
+		return false;
 	}
 
 	if (!process.env['JWT_SECRET']) {
-		return res.status(status.INTERNAL_SERVER_ERROR).json();
+		return false;
 	}
 
 	try {
-		const decoded = jwt.verify(userToken, process.env['JWT_SECRET']) as UserPayload;
+		const decoded = jwt.verify(token, process.env['JWT_SECRET']) as UserPayload;
 
 		const user = await UserModel.findOne({ cid: decoded.cid })
 			.populate([
@@ -37,18 +50,14 @@ export default async function (req: Request, res: Response, next: NextFunction) 
 			.exec();
 
 		if (!user) {
-			delete req.user;
-			deleteAuthCookie(res);
-
-			return res.status(status.FORBIDDEN).json();
+			return false;
 		}
 
 		req.user = user as unknown as IUser;
+
+		return true;
 	} catch (err) {
-		delete req.user;
-		deleteAuthCookie(res);
-	} finally {
-		return next();
+		return false;
 	}
 }
 

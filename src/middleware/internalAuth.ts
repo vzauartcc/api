@@ -3,18 +3,30 @@ import type { NextFunction, Request, Response } from 'express';
 import status from '../types/status.js';
 
 export default function (req: Request, res: Response, next: NextFunction) {
-	if (!process.env['MICRO_ACCESS_KEY']) {
-		return res.status(status.UNAUTHORIZED).json();
+	if (isKeyValid(req)) {
+		return next();
 	}
 
-	if (
-		!req.headers.authorization ||
-		req.headers.authorization !== `Bearer ${process.env['MICRO_ACCESS_KEY']}`
-	) {
+	return res.status(status.FORBIDDEN).json();
+}
+
+export function isKeyValid(req: Request): boolean {
+	if (!process.env['MICRO_ACCESS_KEY']) {
+		captureMessage('MICRO_ACCESS_KEY not set.');
+
+		req.internal = false;
+		return false;
+	}
+
+	const key = req.headers.authorization;
+
+	if (!key || key !== `Bearer ${process.env['MICRO_ACCESS_KEY']}`) {
 		captureMessage('Attempted access to an internal protected route');
 
-		return res.status(status.FORBIDDEN).json();
+		req.internal = false;
+		return false;
 	}
 
-	return next();
+	req.internal = true;
+	return true;
 }
