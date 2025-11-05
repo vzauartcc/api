@@ -88,7 +88,7 @@ router.post('/info', async (req: Request, res: Response) => {
 			};
 		}
 
-		const response = await discord.getCurrentUser();
+		const response = await discord.getCurrentUser(token.token_type, token.access_token);
 
 		if (!response || !response.data) {
 			throw {

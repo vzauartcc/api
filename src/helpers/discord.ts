@@ -39,9 +39,13 @@ async function sendMessage(channelId: string, message: IDiscordMessage) {
 	}
 }
 
-async function getCurrentUser() {
+async function getCurrentUser(tokenType: string, accessToken: string) {
 	try {
-		return await discord.get('/users/@me');
+		return await discord.get('/users/@me', {
+			headers: {
+				Authorization: `${tokenType} ${accessToken}`,
+			},
+		});
 	} catch (err) {
 		if (axios.isAxiosError(err) && err.response) {
 			console.error(`Failed to get current discord user. Discord API Error:`, err.response.data);
