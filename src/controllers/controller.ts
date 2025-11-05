@@ -624,7 +624,7 @@ router.post('/visit', getUser, async (req: Request, res: Response, next: NextFun
 			subject: `Visiting Application Received | Chicago ARTCC`,
 			template: 'visitReceived',
 			context: {
-				name: `${req.user.fname} ${req.user.lname}`,
+				name: req.user.name,
 			},
 		});
 		sendMail({
@@ -633,7 +633,7 @@ router.post('/visit', getUser, async (req: Request, res: Response, next: NextFun
 				name: 'Chicago ARTCC',
 				address: 'no-reply@zauartcc.org',
 			},
-			subject: `New Visiting Application: ${req.user.fname} ${req.user.lname} | Chicago ARTCC`,
+			subject: `New Visiting Application: ${req.user.name} | Chicago ARTCC`,
 			template: 'staffNewVisit',
 			context: {
 				user: userData,
@@ -747,7 +747,7 @@ router.put(
 				subject: `Visiting Application Accepted | Chicago ARTCC`,
 				template: 'visitAccepted',
 				context: {
-					name: `${user.fname} ${user.lname}`,
+					name: `${user.name}`,
 				},
 			});
 
@@ -795,7 +795,7 @@ router.delete(
 				subject: `Visiting Application Rejected | Chicago ARTCC`,
 				template: 'visitRejected',
 				context: {
-					name: `${user.fname} ${user.lname}`,
+					name: `${user.name}`,
 					reason: req.body.reason,
 				},
 			});
@@ -958,10 +958,10 @@ router.put(
 			if (req.body.member || req.body.vis) {
 				sendMail({
 					to: 'atm@zauartcc.org, datm@zauartcc.org, ta@zauartcc.org',
-					subject: `New ${user.vis ? 'Visitor' : 'Member'}: ${user.fname} ${user.lname} | Chicago ARTCC`,
+					subject: `New ${user.vis ? 'Visitor' : 'Member'}: ${user.name} | Chicago ARTCC`,
 					template: 'newController',
 					context: {
-						name: `${user.fname} ${user.lname}`,
+						name: `${user.name}`,
 						email: user.email,
 						cid: user.cid,
 						rating: ratings[user.rating],

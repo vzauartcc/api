@@ -141,7 +141,7 @@ router.post('/request/new', getUser, async (req: Request, res: Response, next: N
 
 		sendMail({
 			to: 'training@zauartcc.org',
-			subject: `New Training Request: ${student.fname} ${student.lname} | Chicago ARTCC`,
+			subject: `New Training Request: ${student.name} | Chicago ARTCC`,
 			template: 'newRequest',
 			context: {
 				student: student.fname + ' ' + student.lname,
@@ -351,7 +351,7 @@ router.delete('/request/:id', getUser, async (req: Request, res: Response, next:
 				recipient: request.studentCid,
 				read: false,
 				title: 'Training Request Cancelled',
-				content: `Your training request has been deleted by ${req.user.fname + ' ' + req.user.lname}.`,
+				content: `Your training request has been deleted by ${req.user.name}.`,
 			});
 		}
 
@@ -943,7 +943,7 @@ router.post(
 				recipient: doc.studentCid,
 				read: false,
 				title: 'Training Notes Submitted',
-				content: `The training notes from your session with <b>${req.user.fname + ' ' + req.user.lname}</b> have been submitted.`,
+				content: `The training notes from your session with <b>${req.user.name}</b> have been submitted.`,
 				link: `/dash/training/session/${doc._id}`,
 			});
 
@@ -1035,7 +1035,7 @@ router.post(
 				recipient: req.body.student,
 				read: false,
 				title: 'Solo Endorsement Issued',
-				content: `You have been issued a solo endorsement for <b>${req.body.position}</b> by <b>${req.user.fname} ${req.user.lname}</b>. It will expire on ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}`,
+				content: `You have been issued a solo endorsement for <b>${req.body.position}</b> by <b>${req.user.name}</b>. It will expire on ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}`,
 			});
 
 			DossierModel.create({
@@ -1049,8 +1049,8 @@ router.post(
 					await discord.sendMessage('1341139323604439090', {
 						content:
 							':student: **SOLO ENDORSEMENT ISSUED** :student:\n\n' +
-							`Student Name: ${student.fname} ${student.lname}${student.discord ? ` <@${student.discord}>` : ''}\n` +
-							`Instructor Name: ${req.user.fname} ${req.user.lname}\n` +
+							`Student Name: ${student.name}${student.discord ? ` <@${student.discord}>` : ''}\n` +
+							`Instructor Name: ${req.user.name}\n` +
 							`Issued Date: ${DateTime.fromJSDate(new Date()).toUTC().toFormat(zau.DATE_FORMAT)}\n` +
 							`Expires Date: ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}\n` +
 							`Position: ${req.body.position}\n` +

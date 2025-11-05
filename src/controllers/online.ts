@@ -89,7 +89,7 @@ router.get('/top', async (_req: Request, res: Response, next: NextFunction) => {
 			const len = Math.round((session.timeEnd.getTime() - session.timeStart.getTime()) / 1000);
 			if (!controllerTimes.has(session.cid)) {
 				controllerTimes.set(session.cid, {
-					name: session.user ? `${session.user.fname} ${session.user.lname}` : session.cid,
+					name: session.user ? `${session.user.name}` : session.cid,
 					cid: session.cid,
 					len: 0,
 				});

@@ -883,7 +883,7 @@ router.put(
 						template: 'event',
 						context: {
 							eventTitle: eventData.name,
-							name: `${user.fname} ${user.lname}`,
+							name: `${user.name}`,
 							slug: eventData.url,
 						},
 					});

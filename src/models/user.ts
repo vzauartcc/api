@@ -51,6 +51,7 @@ export interface IUser extends SoftDeleteDocument, ITimestamps {
 	history: IUserHistory[];
 
 	// Virtual Properties
+	name: string;
 	isMem: boolean;
 	isManagement: boolean;
 	isSeniorStaff: boolean;
@@ -137,10 +138,6 @@ UserSchema.plugin(MongooseDelete, {
 UserSchema.plugin(mongooseLeanVirtuals);
 
 UserSchema.virtual('name').get(function (this: IUser) {
-	if (this.prefName) {
-		return `${this.fname} ${this.cid}`;
-	}
-
 	return `${this.fname} ${this.lname}`;
 });
 

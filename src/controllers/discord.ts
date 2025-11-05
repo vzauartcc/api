@@ -107,7 +107,7 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 
 		user.discord = discordUser.id;
 
-		let nickname = `${user.fname} ${user.lname} | ${user.ratingShort}`;
+		let nickname = `${user.name} | ${user.ratingShort}`;
 		await req.app.redis
 			.lpush('newUser4512', JSON.stringify([discordUser.id, token.access_token, nickname]))
 			.then(() => console.log('Task sent to queue', discordUser.id))

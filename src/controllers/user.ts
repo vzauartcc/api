@@ -5,6 +5,7 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import jwt from 'jsonwebtoken';
 import { uploadToS3 } from '../helpers/s3.js';
 import zau from '../helpers/zau.js';
+import { userOrInternal } from '../middleware/auth.js';
 import internalAuth from '../middleware/internalAuth.js';
 import getUser, { deleteAuthCookie, type UserPayload } from '../middleware/user.js';
 import oAuth from '../middleware/vatsim.js';
@@ -16,6 +17,75 @@ import { UserModel } from '../models/user.js';
 import status from '../types/status.js';
 
 const router = Router();
+
+router.get('/', userOrInternal, async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		let allUsers = [];
+		if (req.internal === true) {
+			allUsers = await UserModel.find({})
+				.populate([
+					{
+						path: 'certifications',
+						options: {
+							sort: { order: 'desc' },
+						},
+					},
+				])
+				.lean({ virtuals: true })
+				.exec();
+		} else {
+			let select = '-discordInfo -idsToken';
+			if (!req.user.isStaff) {
+				select += ' -broadcast -prefName -email -discord';
+			}
+			allUsers = await UserModel.find({})
+				.select(select)
+				.populate([
+					{
+						path: 'certifications',
+						options: {
+							sort: { order: 'desc' },
+						},
+					},
+					{
+						path: 'roles',
+						options: {
+							sort: { order: 'asc' },
+						},
+					},
+					{
+						path: 'absence',
+						match: {
+							expirationDate: {
+								$gte: new Date(),
+							},
+							deleted: false,
+						},
+						select: '-reason',
+					},
+				])
+				.lean({ virtuals: true })
+				.exec();
+		}
+
+		const home = allUsers.filter((user) => user.vis === false && user.member === true);
+		const visiting = allUsers.filter((user) => user.vis === true && user.member === true);
+		const removed = allUsers.filter((user) => user.member === false);
+
+		if (!home || !visiting || !removed) {
+			throw {
+				code: status.INTERNAL_SERVER_ERROR,
+				message: 'Unable to retrieve controllers',
+			};
+		}
+
+		return res.status(status.OK).json({ home, visiting, removed });
+	} catch (e) {
+		captureException(e);
+
+		return next(e);
+	}
+});
 
 // Logged in check
 router.get('/self', async (req: Request, res: Response, next: NextFunction) => {
