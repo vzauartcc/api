@@ -45,7 +45,7 @@ export function isSelf(req: Request, res: Response, next: NextFunction) {
 }
 
 export function isInstructor(req: Request, res: Response, next: NextFunction) {
-	if (req.user && req.user.isIns) {
+	if (req.user && req.user.isInstructor) {
 		return next();
 	}
 

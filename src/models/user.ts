@@ -52,11 +52,11 @@ export interface IUser extends SoftDeleteDocument, ITimestamps {
 
 	// Virtual Properties
 	name: string;
-	isMem: boolean;
+	isMember: boolean;
 	isManagement: boolean;
 	isSeniorStaff: boolean;
 	isStaff: boolean;
-	isIns: boolean;
+	isInstructor: boolean;
 	ratingShort: string;
 	ratingLong: string;
 	certCodeList: string[];
@@ -141,7 +141,7 @@ UserSchema.virtual('name').get(function (this: IUser) {
 	return `${this.fname} ${this.lname}`;
 });
 
-UserSchema.virtual('isMem').get(function (this: IUser) {
+UserSchema.virtual('isMember').get(function (this: IUser) {
 	return this.member;
 });
 
@@ -166,7 +166,7 @@ UserSchema.virtual('isStaff').get(function (this: IUser) {
 	return this.roleCodes.some((r) => search.includes(r));
 });
 
-UserSchema.virtual('isIns').get(function (this: IUser) {
+UserSchema.virtual('isInstructor').get(function (this: IUser) {
 	if (!this.roleCodes) return false;
 
 	const search = ['atm', 'datm', 'ins', 'mtr', 'ia'];
