@@ -94,7 +94,9 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 });
 
 router.get('/controllers', async (_req: Request, res: Response, next: NextFunction) => {
-	// Controller list on feedback page
+	// Controller list on feedback page, and used in various other places to only return a trimmed list of controllers
+
+	// @TODO consider switching to aggregate, maybe allow pipeline options to be passed in to reduce data even further
 	try {
 		const controllers = await UserModel.find({ deletedAt: null, member: true })
 			.sort('fname')

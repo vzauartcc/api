@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
 import { sendMail } from '../helpers/mailer.js';
-import { userSelector } from '../helpers/mongodb.js';
+import { getUsers } from '../helpers/mongodb.js';
 import { uploadToS3 } from '../helpers/s3.js';
 import { vatusaApi, type IVisitingStatus } from '../helpers/vatusa.js';
 import { hasRole, isManagement, isStaff } from '../middleware/auth.js';
@@ -22,38 +22,7 @@ const router = Router();
 
 router.get('/', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		const allUsers = await UserModel.find({ member: true })
-			.select(userSelector(req.user.isStaff || req.user.isInstructor))
-			.sort({
-				lname: 'asc',
-				fname: 'asc',
-			})
-			.populate([
-				{
-					path: 'certifications',
-					options: {
-						sort: { order: 'desc' },
-					},
-				},
-				{
-					path: 'roles',
-					options: {
-						sort: { order: 'asc' },
-					},
-				},
-				{
-					path: 'absence',
-					match: {
-						expirationDate: {
-							$gte: new Date(),
-						},
-						deleted: false,
-					},
-					select: !req.user.isStaff ? 'expirationDate' : null,
-				},
-			])
-			.lean({ virtuals: ['ratingShort', 'ratingLong', 'roles'] })
-			.exec();
+		const allUsers = await getUsers(req.user.isStaff || req.user.isInstructor, {});
 
 		const home = allUsers.filter((user) => user.vis === false);
 		const visiting = allUsers.filter((user) => user.vis === true);
@@ -413,50 +382,18 @@ router.get('/log', getUser, isStaff, async (req: Request, res: Response, next: N
 
 router.get('/:cid', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		const user = await UserModel.findOne({
-			cid: req.params['cid'],
-		})
-			.select(userSelector(req.user.isStaff || req.user.isInstructor))
-			.populate([
-				{
-					path: 'certifications',
-					options: {
-						sort: { order: 'desc' },
-					},
-				},
-				{
-					path: 'roles',
-					options: {
-						sort: { order: 'asc' },
-					},
-				},
-				{
-					path: 'absence',
-					match: {
-						expirationDate: {
-							$gte: new Date(),
-						},
-						deleted: false,
-					},
-					select: !req.user.isStaff ? 'expirationDate' : null,
-				},
-			])
-			.lean({ virtuals: ['ratingShort', 'ratingLong', 'roles'] })
-			.exec();
+		const user = await getUsers(req.user.isStaff || req.user.isInstructor, {
+			cid: Number(req.params['cid']),
+		});
 
-		if (!user) {
+		if (!user || user.length === 0) {
 			throw {
 				code: status.NOT_FOUND,
 				message: 'Unable to find controller',
 			};
 		}
 
-		if (req.user.isSeniorStaff) {
-			return res.status(status.OK).json(user);
-		} else {
-			const { email, ...userNoEmail } = user;
-			return res.status(status.OK).json(userNoEmail);
-		}
+		return res.status(status.OK).json(user[0]);
 	} catch (e) {
 		captureException(e);
 
