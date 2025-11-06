@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
 import { sendMail } from '../helpers/mailer.js';
+import { userSelector } from '../helpers/mongodb.js';
 import { uploadToS3 } from '../helpers/s3.js';
 import { vatusaApi, type IVisitingStatus } from '../helpers/vatusa.js';
 import { hasRole, isManagement, isStaff } from '../middleware/auth.js';
@@ -19,10 +20,10 @@ import status from '../types/status.js';
 
 const router = Router();
 
-router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		const allUsers = await UserModel.find({})
-			.select('-email -idsToken -discordInfo -certificationDate -broadcast')
+		const allUsers = await UserModel.find({ member: true })
+			.select(userSelector(req.user.isStaff || req.user.isInstructor))
 			.sort({
 				lname: 'asc',
 				fname: 'asc',
@@ -48,24 +49,23 @@ router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 						},
 						deleted: false,
 					},
-					select: '-reason',
+					select: !req.user.isStaff ? 'expirationDate' : null,
 				},
 			])
-			.lean({ virtuals: true })
+			.lean({ virtuals: ['ratingShort', 'ratingLong', 'roles'] })
 			.exec();
 
-		const home = allUsers.filter((user) => user.vis === false && user.member === true);
-		const visiting = allUsers.filter((user) => user.vis === true && user.member === true);
-		const removed = allUsers.filter((user) => user.member === false);
+		const home = allUsers.filter((user) => user.vis === false);
+		const visiting = allUsers.filter((user) => user.vis === true);
 
-		if (!home || !visiting || !removed) {
+		if (!home || !visiting) {
 			throw {
 				code: status.INTERNAL_SERVER_ERROR,
 				message: 'Unable to retrieve controllers',
 			};
 		}
 
-		return res.status(status.OK).json({ home, visiting, removed });
+		return res.status(status.OK).json({ home, visiting });
 	} catch (e) {
 		captureException(e);
 
@@ -416,7 +416,7 @@ router.get('/:cid', getUser, async (req: Request, res: Response, next: NextFunct
 		const user = await UserModel.findOne({
 			cid: req.params['cid'],
 		})
-			.select('-idsToken -discordInfo -discord -certificationDate -broadcast')
+			.select(userSelector(req.user.isStaff || req.user.isInstructor))
 			.populate([
 				{
 					path: 'certifications',
@@ -438,10 +438,10 @@ router.get('/:cid', getUser, async (req: Request, res: Response, next: NextFunct
 						},
 						deleted: false,
 					},
-					select: '-reason',
+					select: !req.user.isStaff ? 'expirationDate' : null,
 				},
 			])
-			.lean({ virtuals: true })
+			.lean({ virtuals: ['ratingShort', 'ratingLong', 'roles'] })
 			.exec();
 
 		if (!user) {
