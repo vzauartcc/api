@@ -9,7 +9,7 @@ export interface CustomMailOptions extends SendMailOptions {
 	context?: Record<string, any>;
 }
 
-const emailDir = path.join(import.meta.dirname, '/email');
+const emailDir = path.join(import.meta.dirname, '../email');
 
 handlebars.registerHelper('formatDate', function (date: string) {
 	return DateTime.fromJSDate(new Date(date)).setZone('America/Chicago').toFormat('MM-dd-y t');
