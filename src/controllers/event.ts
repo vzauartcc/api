@@ -104,7 +104,6 @@ router.get('/staffingRequest', async (req: Request, res: Response, next: NextFun
 	}
 });
 
-// @TODO: fix this to be part of the StandardResponse
 router.get('/staffingRequest/:id', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
@@ -551,7 +550,7 @@ router.post(
 					message: 'Banner type not supported',
 				};
 			}
-			if (req.file.size > 10 * 10240 * 10240) {
+			if (req.file.size > 30 * 10240 * 10240) {
 				// 10MiB
 				throw {
 					code: status.BAD_REQUEST,
