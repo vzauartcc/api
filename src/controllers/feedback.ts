@@ -1,11 +1,11 @@
 import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
+import { getUsers } from '../helpers/mongodb.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
 import { DossierModel } from '../models/dossier.js';
 import { FeedbackModel } from '../models/feedback.js';
 import { NotificationModel } from '../models/notification.js';
-import { UserModel } from '../models/user.js';
 import status from '../types/status.js';
 
 const router = Router();
@@ -93,17 +93,41 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 	}
 });
 
-router.get('/controllers', async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/controllers', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	// Controller list on feedback page, and used in various other places to only return a trimmed list of controllers
-
-	// @TODO consider switching to aggregate, maybe allow pipeline options to be passed in to reduce data even further
 	try {
-		const controllers = await UserModel.find({ deletedAt: null, member: true })
-			.sort('fname')
-			.select('fname lname cid rating vis _id')
-			.lean()
-			.exec();
+		const allUsers = await getUsers(req.user.isStaff || req.user.isInstructor, {
+			deletedAt: null,
+			member: true,
+		});
+		const controllers = [];
+		for (const user of allUsers) {
+			controllers.push({
+				_id: user.id,
+				fname: user.fname,
+				lname: user.lname,
+				cid: user.cid,
+				rating: user.rating,
+				vis: user.vis,
+			});
+		}
+		controllers.sort((a, b) => {
+			const nameA = a.fname.toUpperCase();
+			const nameB = b.fname.toUpperCase();
 
+			if (nameA < nameB) return -1;
+
+			if (nameA > nameB) return 1;
+
+			const aName = a.lname.toUpperCase();
+			const bName = b.lname.toUpperCase();
+
+			if (aName < bName) return -1;
+
+			if (aName > bName) return 1;
+
+			return 0;
+		});
 		return res.status(status.OK).json(controllers);
 	} catch (e) {
 		captureException(e);
