@@ -1,4 +1,4 @@
-import { UserModel } from '../models/user.js';
+import { UserModel, type IUser } from '../models/user.js';
 import zau from './zau.js';
 
 export function userSelector(isStaff: boolean): string {
@@ -10,7 +10,8 @@ export function userSelector(isStaff: boolean): string {
 	return select;
 }
 
-export async function getUsers(isStaff: boolean, findOptions: any) {
+export async function getUsersWithPrivacy(user: IUser, findOptions = {}) {
+	const isStaff = user.isStaff || user.isInstructor || user.rating >= 11;
 	const projectLName = isStaff
 		? '$lname'
 		: {

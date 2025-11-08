@@ -1,6 +1,6 @@
 import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { getUsers } from '../helpers/mongodb.js';
+import { getUsersWithPrivacy } from '../helpers/mongodb.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
 import { DossierModel } from '../models/dossier.js';
@@ -96,7 +96,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 router.get('/controllers', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	// Controller list on feedback page, and used in various other places to only return a trimmed list of controllers
 	try {
-		const allUsers = await getUsers(req.user.isStaff || req.user.isInstructor, {
+		const allUsers = await getUsersWithPrivacy(req.user, {
 			deletedAt: null,
 			member: true,
 		});

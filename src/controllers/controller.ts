@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
 import { sendMail } from '../helpers/mailer.js';
-import { getUsers } from '../helpers/mongodb.js';
+import { getUsersWithPrivacy } from '../helpers/mongodb.js';
 import { uploadToS3 } from '../helpers/s3.js';
 import { vatusaApi, type IVisitingStatus } from '../helpers/vatusa.js';
 import { hasRole, isManagement, isStaff } from '../middleware/auth.js';
@@ -22,7 +22,7 @@ const router = Router();
 
 router.get('/', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		const allUsers = await getUsers(req.user.isStaff || req.user.isInstructor, {});
+		const allUsers = await getUsersWithPrivacy(req.user);
 
 		const home = allUsers.filter((user) => user.vis === false);
 		const visiting = allUsers.filter((user) => user.vis === true);
@@ -318,7 +318,7 @@ router.get('/log', getUser, isStaff, async (req: Request, res: Response, next: N
 
 router.get('/:cid', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		const user = await getUsers(req.user.isStaff || req.user.isInstructor, {
+		const user = await getUsersWithPrivacy(req.user, {
 			cid: Number(req.params['cid']),
 		});
 
