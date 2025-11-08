@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import type { IUser } from '../models/user.js';
 import { UserModel } from '../models/user.js';
+import status from '../types/status.js';
 
 export interface UserPayload {
 	cid: number;
@@ -10,28 +11,31 @@ export interface UserPayload {
 }
 
 export default async function (req: Request, res: Response, next: NextFunction) {
-	const userToken = req.cookies['token'] || '';
+	if (!(await isUserValid(req))) {
+		deleteAuthCookie(res);
 
-	if (!userToken || userToken === '') {
-		res.stdRes.ret_det = {
-			code: 401,
-			message: 'Not authorized.',
-		};
+		return res.status(status.FORBIDDEN).json();
+	}
 
-		return res.json(res.stdRes);
+	if (!req.user) {
+		return res.status(status.FORBIDDEN).json();
+	}
+
+	return next();
+}
+
+export async function isUserValid(req: Request) {
+	const token = req.cookies['token'];
+	if (!token || token.trim() === '') {
+		return false;
 	}
 
 	if (!process.env['JWT_SECRET']) {
-		res.stdRes.ret_det = {
-			code: 500,
-			message: 'Internal Server Error.',
-		};
-
-		return res.json(res.stdRes);
+		return false;
 	}
 
 	try {
-		const decoded = jwt.verify(userToken, process.env['JWT_SECRET']) as UserPayload;
+		const decoded = jwt.verify(token, process.env['JWT_SECRET']) as UserPayload;
 
 		const user = await UserModel.findOne({ cid: decoded.cid })
 			.populate([
@@ -46,23 +50,14 @@ export default async function (req: Request, res: Response, next: NextFunction) 
 			.exec();
 
 		if (!user) {
-			delete req.user;
-			deleteAuthCookie(res);
-
-			res.stdRes.ret_det = {
-				code: 403,
-				message: 'Not authorized...',
-			};
-
-			return res.json(res.stdRes);
+			return false;
 		}
 
 		req.user = user as unknown as IUser;
+
+		return true;
 	} catch (err) {
-		delete req.user;
-		deleteAuthCookie(res);
-	} finally {
-		return next();
+		return false;
 	}
 }
 

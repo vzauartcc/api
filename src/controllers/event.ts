@@ -1,9 +1,8 @@
 import { captureException } from '@sentry/node';
-import { Router, type Request, type Response } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
 import { fileTypeFromFile } from 'file-type';
 import fs from 'fs/promises';
 import multer from 'multer';
-import { convertToReturnDetails } from '../app.js';
 import { sendMail } from '../helpers/mailer.js';
 import { deleteFromS3, uploadToS3 } from '../helpers/s3.js';
 import { hasRole } from '../middleware/auth.js';
@@ -14,6 +13,7 @@ import type { IEventPosition, IEventPositionData } from '../models/eventPosition
 import type { IEventSignup } from '../models/eventSignup.js';
 import { StaffingRequestModel } from '../models/staffingRequest.js';
 import { UserModel, type IUser } from '../models/user.js';
+import status from '../types/status.js';
 
 const router = Router();
 
@@ -28,7 +28,7 @@ const upload = multer({
 	}),
 });
 
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const events = await EventModel.find({
 			eventEnd: {
@@ -40,16 +40,15 @@ router.get('/', async (_req: Request, res: Response) => {
 			.lean()
 			.exec();
 
-		res.stdRes.data = events;
+		return res.status(status.OK).json(events);
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 
-router.get('/archive', async (req: Request, res: Response) => {
+router.get('/archive', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const page = +(req.query['page'] as string) || 1;
 		const limit = +(req.query['limit'] as string) || 10;
@@ -72,66 +71,15 @@ router.get('/archive', async (req: Request, res: Response) => {
 			.lean()
 			.exec();
 
-		res.stdRes.data = {
-			amount: count,
-			events: events,
-		};
+		return res.status(status.OK).json({ amount: count, events });
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 
-router.get('/staffingRequest', async (req: Request, res: Response) => {
-	try {
-		const page = +(req.query['page'] as string) || 1;
-		const limit = +(req.query['limit'] as string) || 10;
-
-		const count = await StaffingRequestModel.countDocuments({ deleted: false }).exec();
-		let requests: any[] = [];
-
-		if (count > 0) {
-			requests = await StaffingRequestModel.find({ deleted: false })
-				.skip(limit * (page - 1))
-				.limit(limit)
-				.sort({ date: 'desc' })
-				.lean()
-				.exec();
-		}
-
-		res.stdRes.data = {
-			amount: count,
-			requests: requests,
-		};
-	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
-	}
-});
-
-// @TODO: fix this to be part of the StandardResponse
-router.get('/staffingRequest/:id', async (req: Request, res: Response) => {
-	try {
-		const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
-
-		if (!staffingRequest) {
-			return res.status(404).json({ error: 'Staffing request not found' });
-		}
-
-		return res.status(200).json({ staffingRequest });
-	} catch (e) {
-		console.error(e);
-		return res
-			.status(500)
-			.json({ error: 'An error occurred while retrieving the staffing request' });
-	}
-});
-
-router.get('/:slug', async (req: Request, res: Response) => {
+router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const event = await EventModel.findOne({
 			url: req.params['slug'],
@@ -140,16 +88,16 @@ router.get('/:slug', async (req: Request, res: Response) => {
 			.lean()
 			.exec();
 
-		res.stdRes.data = event;
+		return res.status(status.OK).json(event);
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 
-router.get('/:slug/positions', async (req: Request, res: Response) => {
+//#region Position Signups
+router.get('/:slug/positions', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const event = await EventModel.findOne({
 			url: req.params['slug'],
@@ -164,27 +112,26 @@ router.get('/:slug/positions', async (req: Request, res: Response) => {
 			.lean({ virtuals: true })
 			.exec();
 
-		res.stdRes.data = event;
+		return res.status(status.OK).json(event);
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 
-router.put('/:slug/signup', getUser, async (req: Request, res: Response) => {
+router.put('/:slug/signup', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (req.body.requests.length > 3) {
 			throw {
-				code: 400,
+				code: status.BAD_REQUEST,
 				message: 'You may only give 3 preferred positions',
 			};
 		}
 
-		if (req.user!.member === false) {
+		if (req.user.member === false) {
 			throw {
-				code: 403,
+				code: status.FORBIDDEN,
 				message: 'You must be a member of ZAU',
 			};
 		}
@@ -195,7 +142,7 @@ router.put('/:slug/signup', getUser, async (req: Request, res: Response) => {
 					r.toLowerCase() === 'any') === false
 			) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: "Request must be a valid callsign or 'Any'",
 				};
 			}
@@ -206,7 +153,7 @@ router.put('/:slug/signup', getUser, async (req: Request, res: Response) => {
 			{
 				$push: {
 					signups: {
-						cid: req.user!.cid,
+						cid: req.user.cid,
 						requests: req.body.requests,
 					},
 				},
@@ -215,32 +162,33 @@ router.put('/:slug/signup', getUser, async (req: Request, res: Response) => {
 
 		if (!event) {
 			throw {
-				code: 400,
-				message: 'Bad request',
+				code: status.NOT_FOUND,
+				message: 'Event not found',
 			};
 		}
 
 		await DossierModel.create({
-			by: req.user!.cid,
+			by: req.user.cid,
 			affected: -1,
 			action: `%b signed up for the event *${event.name}*.`,
 		});
+
+		return res.status(status.OK).json();
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 
-router.delete('/:slug/signup', getUser, async (req: Request, res: Response) => {
+router.delete('/:slug/signup', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const event = await EventModel.findOneAndUpdate(
 			{ url: req.params['slug'] },
 			{
 				$pull: {
 					signups: {
-						cid: req.user!.cid,
+						cid: req.user.cid,
 					},
 				},
 			},
@@ -248,21 +196,22 @@ router.delete('/:slug/signup', getUser, async (req: Request, res: Response) => {
 
 		if (!event) {
 			throw {
-				code: 400,
-				message: 'Bad Request.',
+				code: status.NOT_FOUND,
+				message: 'Event not found',
 			};
 		}
 
 		await DossierModel.create({
-			by: req.user!.cid,
+			by: req.user.cid,
 			affected: -1,
 			action: `%b deleted their signup for the event *${event.name}*.`,
 		});
+
+		return res.status(status.NO_CONTENT);
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 
@@ -270,7 +219,7 @@ router.delete(
 	'/:slug/mandelete/:cid',
 	getUser,
 	hasRole(['atm', 'datm', 'ec', 'wm']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const signup = await EventModel.findOneAndUpdate(
 				{ url: req.params['slug'] },
@@ -285,15 +234,15 @@ router.delete(
 
 			if (!signup) {
 				throw {
-					code: 400,
-					message: 'Bad Request.',
+					code: status.NOT_FOUND,
+					message: 'Signup not found',
 				};
 			}
 
 			for (const position of signup.positions) {
-				if (position.takenBy === req.user!.cid) {
+				if (position.takenBy === req.user.cid) {
 					await EventModel.findOneAndUpdate(
-						{ url: req.params['slug'], 'positions.takenBy': req.user!.cid },
+						{ url: req.params['slug'], 'positions.takenBy': req.user.cid },
 						{
 							$set: {
 								'positions.$.takenBy': null,
@@ -304,15 +253,16 @@ router.delete(
 			}
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: req.params['cid'],
 				action: `%b manually deleted the event signup for %a for the event *${signup.name}*.`,
 			});
+
+			return res.status(status.NO_CONTENT);
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
@@ -321,12 +271,12 @@ router.put(
 	'/:slug/mansignup/:cid',
 	getUser,
 	hasRole(['atm', 'datm', 'ec', 'wm']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
 			if (!user) {
 				throw {
-					code: 400,
+					code: status.NOT_FOUND,
 					message: 'Controller not found',
 				};
 			}
@@ -335,7 +285,7 @@ router.put(
 
 			if (!event) {
 				throw {
-					code: 404,
+					code: status.NOT_FOUND,
 					message: 'Event not found',
 				};
 			}
@@ -346,7 +296,7 @@ router.put(
 
 			if (isAlreadySignedUp) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'Controller is already signed up for this event',
 				};
 			}
@@ -364,37 +314,94 @@ router.put(
 			).exec();
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: req.params['cid'],
 				action: `%b manually signed up %a for the event *${event.name}*.`,
 			});
 
-			res.stdRes.ret_det = {
-				code: 200,
-				message: 'Controller successfully signed up',
-			};
+			return res.status(status.OK).json();
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
 
-// @TODO: convert to StandardResponse
+router.put(
+	'/:slug/assign',
+	getUser,
+	hasRole(['atm', 'datm', 'ec', 'wm']),
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const { position, cid } = req.body;
+
+			const eventData = await EventModel.findOneAndUpdate(
+				{ url: req.params['slug'], 'positions._id': position },
+				{
+					$set: {
+						'positions.$.takenBy': cid || null,
+					},
+				},
+				{
+					new: true,
+				},
+			).exec();
+
+			if (!eventData) {
+				throw {
+					code: status.NOT_FOUND,
+					message: 'Event Not Found.',
+				};
+			}
+
+			const assignedPosition = eventData.positions.find(
+				(pos: IEventPosition) => pos.id === position,
+			);
+
+			if (!assignedPosition) {
+				throw {
+					code: status.INTERNAL_SERVER_ERROR,
+					message: 'Internal Server Error',
+				};
+			}
+
+			if (cid) {
+				await DossierModel.create({
+					by: req.user.cid,
+					affected: cid,
+					action: `%b assigned %a to *${assignedPosition.pos}* for *${eventData.name}*.`,
+				});
+			} else {
+				await DossierModel.create({
+					by: req.user.cid,
+					affected: -1,
+					action: `%b unassigned *${assignedPosition.pos}* for *${eventData.name}*.`,
+				});
+			}
+
+			return res.status(status.OK).json(assignedPosition);
+		} catch (e) {
+			captureException(e);
+
+			return next(e);
+		}
+	},
+);
+//#endregion
+
 router.post(
 	'/sendEvent',
 	getUser,
 	hasRole(['atm', 'datm', 'ec', 'wm']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const url = req.body.url;
 			const eventData = await EventModel.findOne({ url: url }).exec();
 			if (!eventData) {
 				throw {
-					code: 400,
-					message: 'Bad Request.',
+					code: status.NOT_FOUND,
+					message: 'Event not found',
 				};
 			}
 
@@ -409,11 +416,11 @@ router.post(
 						};
 					} else {
 						try {
-							const res1 = await UserModel.findOne({ cid: position.takenBy }).exec();
+							const res1 = await UserModel.findOne({ cid: position.takenBy }).lean().exec();
 							if (!res1) {
 								throw {
-									code: 500,
-									message: 'Internal Server Error.',
+									code: status.INTERNAL_SERVER_ERROR,
+									message: 'Internal Server Error',
 								};
 							}
 
@@ -492,8 +499,8 @@ router.post(
 
 			if (!webhookUrl) {
 				throw {
-					code: 500,
-					message: 'Internal Server Error.',
+					code: status.INTERNAL_SERVER_ERROR,
+					message: 'Internal Server Error',
 				};
 			}
 
@@ -522,10 +529,12 @@ router.post(
 				.catch((error) => {
 					console.log(error);
 				});
+
+			return res.status(status.OK).json();
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
-			res.json(res.stdRes);
 			captureException(e);
+
+			return next(e);
 		}
 	},
 );
@@ -535,12 +544,12 @@ router.post(
 	getUser,
 	hasRole(['atm', 'datm', 'ec', 'wm']),
 	upload.single('banner'),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.file?.path) {
 				throw {
-					code: 400,
-					message: 'Bad Request.',
+					code: status.BAD_REQUEST,
+					message: 'Path missing',
 				};
 			}
 
@@ -557,14 +566,14 @@ router.post(
 
 			if (fileType === undefined || !allowedTypes.includes(fileType.mime)) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'Banner type not supported',
 				};
 			}
-			if (req.file.size > 10 * 10240 * 10240) {
+			if (req.file.size > 30 * 10240 * 10240) {
 				// 10MiB
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'Banner too large',
 				};
 			}
@@ -582,21 +591,22 @@ router.post(
 				bannerUrl: req.file.filename,
 				eventStart: req.body.startTime,
 				eventEnd: req.body.endTime,
-				createdBy: req.user!.cid,
+				createdBy: req.user.cid,
 				open: true,
 				submitted: false,
 			});
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: -1,
 				action: `%b created the event *${req.body.name}*.`,
 			});
+
+			return res.status(status.CREATED).json();
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
@@ -606,13 +616,13 @@ router.put(
 	getUser,
 	hasRole(['atm', 'datm', 'ec', 'wm']),
 	upload.single('banner'),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const eventData = await EventModel.findOne({ url: req.params['slug'] }).exec();
 			if (!eventData) {
 				throw {
-					code: 400,
-					message: 'Bad Request.',
+					code: status.NOT_FOUND,
+					message: 'Event not found',
 				};
 			}
 
@@ -695,14 +705,14 @@ router.put(
 				const fileType = await fileTypeFromFile(req.file.path);
 				if (fileType === undefined || !allowedTypes.includes(fileType.mime)) {
 					throw {
-						code: 400,
+						code: status.BAD_REQUEST,
 						message: 'File type not supported',
 					};
 				}
 				if (req.file.size > 30 * 10240 * 10240) {
 					// 30MiB
 					throw {
-						code: 400,
+						code: status.BAD_REQUEST,
 						message: 'File too large',
 					};
 				}
@@ -724,15 +734,16 @@ router.put(
 			await eventData.save();
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: -1,
 				action: `%b updated the event *${eventData.name}*.`,
 			});
+
+			return res.status(status.OK).json();
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
@@ -741,12 +752,15 @@ router.delete(
 	'/:slug',
 	getUser,
 	hasRole(['atm', 'datm', 'ec', 'wm']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const deleteEvent = await EventModel.findOne({ url: req.params['slug'] }).exec();
 
 			if (!deleteEvent) {
-				return res.status(404).json({ error: 'Event not found' });
+				throw {
+					code: status.NOT_FOUND,
+					message: 'Event not found',
+				};
 			}
 
 			// 🚨 **Delete Banner from S3 If It Exists**
@@ -757,15 +771,16 @@ router.delete(
 			await deleteEvent.delete();
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: -1,
 				action: `%b deleted the event *${deleteEvent.name}*.`,
 			});
+
+			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
@@ -779,7 +794,7 @@ router.delete(
 // 		});
 
 // 		await DossierModel.create({
-// 			by: req.user!.cid,
+// 			by: req.user.cid,
 // 			affected: -1,
 // 			action: `%b updated the positions assignments for the event *${event.name}*.`
 // 		});
@@ -792,72 +807,10 @@ router.delete(
 // });
 
 router.put(
-	'/:slug/assign',
-	getUser,
-	hasRole(['atm', 'datm', 'ec', 'wm']),
-	async (req: Request, res: Response) => {
-		try {
-			const { position, cid } = req.body;
-
-			const eventData = await EventModel.findOneAndUpdate(
-				{ url: req.params['slug'], 'positions._id': position },
-				{
-					$set: {
-						'positions.$.takenBy': cid || null,
-					},
-				},
-				{
-					new: true,
-				},
-			).exec();
-
-			if (!eventData) {
-				throw {
-					code: 404,
-					message: 'Event Not Found.',
-				};
-			}
-
-			const assignedPosition = eventData.positions.find(
-				(pos: IEventPosition) => pos.id === position,
-			);
-
-			if (!assignedPosition) {
-				throw {
-					code: 500,
-					message: 'Internal Server Error',
-				};
-			}
-
-			if (cid) {
-				await DossierModel.create({
-					by: req.user!.cid,
-					affected: cid,
-					action: `%b assigned %a to *${assignedPosition.pos}* for *${eventData.name}*.`,
-				});
-			} else {
-				await DossierModel.create({
-					by: req.user!.cid,
-					affected: -1,
-					action: `%b unassigned *${assignedPosition.pos}* for *${eventData.name}*.`,
-				});
-			}
-
-			res.stdRes.data = assignedPosition;
-		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
-			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
-		}
-	},
-);
-
-router.put(
 	'/:slug/notify',
 	getUser,
 	hasRole(['atm', 'datm', 'ec', 'wm']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			await EventModel.updateOne(
 				{ url: req.params['slug'] },
@@ -874,7 +827,7 @@ router.put(
 				.exec();
 			if (!eventData) {
 				throw {
-					code: 404,
+					code: status.NOT_FOUND,
 					message: 'Event Not Found',
 				};
 			}
@@ -888,7 +841,7 @@ router.put(
 						template: 'event',
 						context: {
 							eventTitle: eventData.name,
-							name: `${user.fname} ${user.lname}`,
+							name: `${user.name}`,
 							slug: eventData.url,
 						},
 					});
@@ -896,15 +849,16 @@ router.put(
 			});
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: -1,
 				action: `%b notified controllers of positions for the event *${eventData.name}*.`,
 			});
+
+			return res.status(status.OK).json();
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
@@ -913,9 +867,9 @@ router.put(
 	'/:slug/close',
 	getUser,
 	hasRole(['atm', 'datm', 'ec', 'wm']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			await EventModel.updateOne(
+			const event = await EventModel.updateOne(
 				{ url: req.params['slug'] },
 				{
 					$set: {
@@ -923,16 +877,68 @@ router.put(
 					},
 				},
 			).exec();
+
+			if (!event) {
+				throw {
+					code: status.NOT_FOUND,
+					message: 'Event not found',
+				};
+			}
+
+			return res.status(status.OK).json();
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
 
-router.post('/staffingRequest', async (req: Request, res: Response) => {
+//#region Staffing Request
+router.get('/staffingRequest', async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const page = +(req.query['page'] as string) || 1;
+		const limit = +(req.query['limit'] as string) || 10;
+
+		const count = await StaffingRequestModel.countDocuments({ deleted: false }).exec();
+		let requests: any[] = [];
+
+		if (count > 0) {
+			requests = await StaffingRequestModel.find({ deleted: false })
+				.skip(limit * (page - 1))
+				.limit(limit)
+				.sort({ date: 'desc' })
+				.lean()
+				.exec();
+		}
+
+		return res.status(status.OK).json({ amount: count, requests });
+	} catch (e) {
+		captureException(e);
+
+		return next(e);
+	}
+});
+
+router.get('/staffingRequest/:id', async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
+
+		if (!staffingRequest) {
+			throw {
+				code: status.NOT_FOUND,
+				message: 'Staffing request not found',
+			};
+		}
+		return res.status(status.OK).json(staffingRequest);
+	} catch (e) {
+		captureException(e);
+
+		return next(e);
+	}
+});
+
+router.post('/staffingRequest', async (req: Request, res: Response, next: NextFunction) => {
 	// Submit staffing request
 	try {
 		if (
@@ -946,14 +952,14 @@ router.post('/staffingRequest', async (req: Request, res: Response) => {
 		) {
 			// Validation
 			throw {
-				code: 400,
+				code: status.BAD_REQUEST,
 				message: 'You must fill out all required fields',
 			};
 		}
 
 		if (isNaN(req.body.pilots)) {
 			throw {
-				code: 400,
+				code: status.BAD_REQUEST,
 				message: 'Pilots must be a number',
 			};
 		}
@@ -966,7 +972,7 @@ router.post('/staffingRequest', async (req: Request, res: Response) => {
 
 		if (count >= 3) {
 			throw {
-				code: 400,
+				code: status.TOO_MANY_REQUESTS,
 				message: 'You have reached the maximum limit of staffing requests with a pending status.',
 			};
 		}
@@ -1001,54 +1007,53 @@ router.post('/staffingRequest', async (req: Request, res: Response) => {
 			},
 		});
 
-		// Send a response to the client
+		return res.status(status.CREATED).json();
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 
-// @TODO: convert to StandardResponse
-router.put('/staffingRequest/:id/accept', async (req: Request, res: Response) => {
-	try {
-		const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
-
-		if (!staffingRequest) {
-			return res
-				.status(404)
-				.json({ ret_det: { code: 404, message: 'Staffing request not found' } });
-		}
-
-		staffingRequest.accepted = req.body.accepted;
-
-		await staffingRequest.save();
-
-		return res
-			.status(200)
-			.json({ ret_det: { code: 200, message: 'Staffing request updated successfully' } });
-	} catch (e) {
-		console.error(e);
-		return res.status(500).json({
-			ret_det: { code: 500, message: 'An error occurred while updating the staffing request' },
-		});
-	}
-});
-
-// @TODO: convert to StandardResponse
 router.put(
-	'/staffingRequest/:id',
-	getUser,
-	hasRole(['atm', 'datm', 'ec', 'wm']),
-	async (req: Request, res: Response) => {
+	'/staffingRequest/:id/accept',
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
 
 			if (!staffingRequest) {
-				return res
-					.status(404)
-					.json({ ret_det: { code: 404, message: 'Staffing request not found' } });
+				throw {
+					code: status.NOT_FOUND,
+					message: 'Staffing request not found',
+				};
+			}
+
+			staffingRequest.accepted = req.body.accepted;
+
+			await staffingRequest.save();
+
+			return res.status(status.OK).json();
+		} catch (e) {
+			captureException(e);
+
+			return next(e);
+		}
+	},
+);
+
+router.put(
+	'/staffingRequest/:id',
+	getUser,
+	hasRole(['atm', 'datm', 'ec', 'wm']),
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
+
+			if (!staffingRequest) {
+				throw {
+					code: status.NOT_FOUND,
+					message: 'Staffing request not found',
+				};
 			}
 
 			staffingRequest.vaName = req.body.vaName;
@@ -1063,8 +1068,7 @@ router.put(
 			await staffingRequest.save();
 
 			if (req.body.accepted) {
-				// Send an email notification to the specified email address
-				await sendMail({
+				sendMail({
 					to: req.body.email,
 					subject: `Staffing Request for ${req.body.vaName} accepted | Chicago ARTCC`,
 					template: `staffingRequestAccepted`,
@@ -1080,52 +1084,47 @@ router.put(
 				});
 
 				await DossierModel.create({
-					by: req.user!.cid,
+					by: req.user.cid,
 					affected: -1,
 					action: `%b approved a staffing request for ${req.body.vaName}.`,
 				});
 			}
 
-			return res
-				.status(200)
-				.json({ ret_det: { code: 200, message: 'Staffing request updated successfully' } });
+			return res.status(status.OK).json();
 		} catch (e) {
-			console.error(e);
-			return res.status(500).json({
-				ret_det: { code: 500, message: 'An error occurred while updating the staffing request' },
-			});
+			captureException(e);
+
+			return next(e);
 		}
 	},
 );
 
-// @TODO: convert to StandardResponse
 router.delete(
 	'/staffingRequest/:id',
 	getUser,
 	hasRole(['atm', 'datm', 'ec', 'wm']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
 
 			if (!staffingRequest) {
-				return res
-					.status(404)
-					.json({ ret_det: { code: 404, message: 'Staffing request not found' } });
+				throw {
+					code: status.NOT_FOUND,
+					message: 'Staffing request not found',
+				};
 			}
 
 			await staffingRequest.delete();
 
-			return res
-				.status(200)
-				.json({ ret_det: { code: 200, message: 'Staffing request deleted successfully' } });
+			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			console.error(e);
-			return res.status(500).json({
-				ret_det: { code: 500, message: 'An error occurred while deleting the staffing request' },
-			});
+			captureException(e);
+
+			return next(e);
 		}
 	},
 );
+//#endregion
 
 export default router;
 

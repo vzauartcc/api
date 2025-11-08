@@ -1,12 +1,12 @@
 import { captureException } from '@sentry/node';
-import { Router, type Request, type Response } from 'express';
-import { convertToReturnDetails } from '../app.js';
+import { Router, type NextFunction, type Request, type Response } from 'express';
+import { getUsersWithPrivacy } from '../helpers/mongodb.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
 import { DossierModel } from '../models/dossier.js';
 import { FeedbackModel } from '../models/feedback.js';
 import { NotificationModel } from '../models/notification.js';
-import { UserModel } from '../models/user.js';
+import status from '../types/status.js';
 
 const router = Router();
 
@@ -14,7 +14,7 @@ router.get(
 	'/',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'wm']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const page = +(req.query['page'] as string) || 1;
 			const limit = +(req.query['limit'] as string) || 20;
@@ -32,20 +32,16 @@ router.get(
 				.lean()
 				.exec();
 
-			res.stdRes.data = {
-				amount,
-				feedback,
-			};
+			return res.status(status.OK).json({ amount, feedback });
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
 
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 	// Submit feedback
 	try {
 		if (
@@ -59,14 +55,14 @@ router.post('/', async (req: Request, res: Response) => {
 		) {
 			// Validation
 			throw {
-				code: 400,
+				code: status.BAD_REQUEST,
 				message: 'You must fill out all required forms',
 			};
 		}
 
 		if (req.body.comments && req.body.comments.length > 5000) {
 			throw {
-				code: 400,
+				code: status.BAD_REQUEST,
 				message: 'Comments must not exceed 5000 characters in length',
 			};
 		}
@@ -88,28 +84,55 @@ router.post('/', async (req: Request, res: Response) => {
 			affected: req.body.controller,
 			action: `%b submitted feedback about %a.`,
 		});
+
+		return res.status(status.CREATED).json();
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 
-router.get('/controllers', async (_req: Request, res: Response) => {
-	// Controller list on feedback page
+router.get('/controllers', getUser, async (req: Request, res: Response, next: NextFunction) => {
+	// Controller list on feedback page, and used in various other places to only return a trimmed list of controllers
 	try {
-		const controllers = await UserModel.find({ deletedAt: null, member: true })
-			.sort('fname')
-			.select('fname lname cid rating vis _id')
-			.lean()
-			.exec();
-		res.stdRes.data = controllers;
+		const allUsers = await getUsersWithPrivacy(req.user, {
+			deletedAt: null,
+			member: true,
+		});
+		const controllers = [];
+		for (const user of allUsers) {
+			controllers.push({
+				_id: user.id,
+				fname: user.fname,
+				lname: user.lname,
+				cid: user.cid,
+				rating: user.rating,
+				vis: user.vis,
+			});
+		}
+		controllers.sort((a, b) => {
+			const nameA = a.fname.toUpperCase();
+			const nameB = b.fname.toUpperCase();
+
+			if (nameA < nameB) return -1;
+
+			if (nameA > nameB) return 1;
+
+			const aName = a.lname.toUpperCase();
+			const bName = b.lname.toUpperCase();
+
+			if (aName < bName) return -1;
+
+			if (aName > bName) return 1;
+
+			return 0;
+		});
+		return res.status(status.OK).json(controllers);
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 
@@ -117,7 +140,7 @@ router.get(
 	'/unapproved',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'wm']),
-	async (_req: Request, res: Response) => {
+	async (_req: Request, res: Response, next: NextFunction) => {
 		// Get all unapproved feedback
 		try {
 			const feedback = await FeedbackModel.find({ deletedAt: null, approved: false })
@@ -125,12 +148,12 @@ router.get(
 				.sort({ createdAt: 'desc' })
 				.lean()
 				.exec();
-			res.stdRes.data = feedback;
+
+			return res.status(status.OK).json(feedback);
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
@@ -139,7 +162,7 @@ router.put(
 	'/approve/:id',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'wm']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		// Approve feedback
 		try {
 			const approved = await FeedbackModel.findOneAndUpdate(
@@ -153,8 +176,8 @@ router.put(
 
 			if (!approved) {
 				throw {
-					code: 400,
-					message: 'Bad Request.',
+					code: status.NOT_FOUND,
+					message: 'Feedback entry not found',
 				};
 			}
 
@@ -167,15 +190,16 @@ router.put(
 			});
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: approved.controllerCid,
 				action: `%b approved feedback for %a.`,
 			});
+
+			return res.status(status.OK).json();
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
 			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+
+			return next(e);
 		}
 	},
 );
@@ -184,46 +208,47 @@ router.put(
 	'/reject/:id',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'wm']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		// Reject feedback
 		try {
 			const feedback = await FeedbackModel.findOne({ _id: req.params['id'] }).exec();
 			if (!feedback) {
 				throw {
-					code: 404,
-					message: 'Feedback Not Found.',
+					code: status.NOT_FOUND,
+					message: 'Feedback entry not found',
 				};
 			}
 
 			await feedback.delete();
 
 			await DossierModel.create({
-				by: req.user!.cid,
+				by: req.user.cid,
 				affected: feedback.controllerCid,
 				action: `%b rejected feedback for %a.`,
 			});
-		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
-			captureException(e);
-		}
 
-		return res.json(res.stdRes);
+			return res.status(status.OK).json();
+		} catch (e) {
+			captureException(e);
+
+			return next(e);
+		}
 	},
 );
 
-router.get('/own', getUser, async (req: Request, res: Response) => {
+router.get('/own', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const page = +(req.query['page'] as string) || 1;
 		const limit = +(req.query['limit'] as string) || 10;
 
 		const amount = await FeedbackModel.countDocuments({
 			approved: true,
-			controllerCid: req.user!.cid,
+			controllerCid: req.user.cid,
 		}).exec();
 		const feedback = await FeedbackModel.aggregate([
 			{
 				$match: {
-					controllerCid: req.user!.cid,
+					controllerCid: req.user.cid,
 					approved: true,
 				},
 			},
@@ -243,16 +268,12 @@ router.get('/own', getUser, async (req: Request, res: Response) => {
 			{ $limit: limit },
 		]).exec();
 
-		res.stdRes.data = {
-			feedback,
-			amount,
-		};
+		return res.status(status.OK).json({ feedback, amount });
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	}
 
-	return res.json(res.stdRes);
+		return next(e);
+	}
 });
 
 export default router;

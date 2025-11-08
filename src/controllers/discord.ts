@@ -1,42 +1,40 @@
 import { captureException } from '@sentry/node';
 import Discord from 'discord-oauth2';
-import { Router, type Request, type Response } from 'express';
-import { convertToReturnDetails } from '../app.js';
+import { Router, type NextFunction, type Request, type Response } from 'express';
 import discord from '../helpers/discord.js';
 import internalAuth from '../middleware/internalAuth.js';
 import getUser from '../middleware/user.js';
 import { DossierModel } from '../models/dossier.js';
 import { UserModel } from '../models/user.js';
+import status from '../types/status.js';
 
 const router = Router();
 
-router.get('/users', internalAuth, async (_req: Request, res: Response) => {
+router.get('/users', internalAuth, async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const users = await UserModel.find({ discordInfo: { $ne: null } })
 			.select('fname lname cid discordInfo roleCodes oi rating member vis')
 			.exec();
 
-		res.stdRes.data = users;
+		return res.status(status.OK).json(users);
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 
-router.get('/user', getUser, async (req: Request, res: Response) => {
+router.get('/user', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		res.stdRes.data = !!req.user?.discordInfo?.clientId;
+		return res.status(status.OK).json(!!req.user.discordInfo?.clientId);
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 
-router.post('/info', async (req: Request, res: Response) => {
+router.post('/info', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (
 			!process.env['DISCORD_CLIENT_ID'] ||
@@ -44,14 +42,14 @@ router.post('/info', async (req: Request, res: Response) => {
 			!process.env['DISCORD_REDIRECT_URI']
 		) {
 			throw {
-				code: 500,
+				code: status.INTERNAL_SERVER_ERROR,
 				message: 'Internal Server Error',
 			};
 		}
 
 		if (!req.body.code || !req.body.cid) {
 			throw {
-				code: 400,
+				code: status.BAD_REQUEST,
 				message: 'Incomplete request',
 			};
 		}
@@ -61,7 +59,7 @@ router.post('/info', async (req: Request, res: Response) => {
 
 		if (!user) {
 			throw {
-				code: 401,
+				code: status.UNAUTHORIZED,
 				message: 'User not found',
 			};
 		}
@@ -83,7 +81,7 @@ router.post('/info', async (req: Request, res: Response) => {
 
 		if (!token) {
 			throw {
-				code: 403,
+				code: status.FORBIDDEN,
 				message: 'Unable to authenticate with Discord',
 			};
 		}
@@ -92,7 +90,7 @@ router.post('/info', async (req: Request, res: Response) => {
 
 		if (!response || !response.data) {
 			throw {
-				code: 403,
+				code: status.FORBIDDEN,
 				message: 'Unable to retrieve Discord info',
 			};
 		}
@@ -109,7 +107,7 @@ router.post('/info', async (req: Request, res: Response) => {
 
 		user.discord = discordUser.id;
 
-		let nickname = `${user.fname} ${user.lname} | ${user.ratingShort}`;
+		let nickname = `${user.name} | ${user.ratingShort}`;
 		await req.app.redis
 			.lpush('newUser4512', JSON.stringify([discordUser.id, token.access_token, nickname]))
 			.then(() => console.log('Task sent to queue', discordUser.id))
@@ -122,22 +120,24 @@ router.post('/info', async (req: Request, res: Response) => {
 			affected: -1,
 			action: `%b connected their Discord.`,
 		});
+
+		return res.status(status.CREATED).json();
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 
-router.delete('/user', getUser, async (req: Request, res: Response) => {
+router.delete('/user', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		await UserModel.updateOne({ cid: req.user!.cid }, { $unset: { discord: '', discordInfo: '' } });
+		await UserModel.updateOne({ cid: req.user.cid }, { $unset: { discord: '', discordInfo: '' } });
+
+		res.status(status.OK).json();
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
 		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+
+		return next(e);
 	}
 });
 

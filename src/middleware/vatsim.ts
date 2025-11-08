@@ -1,11 +1,12 @@
 import { captureException } from '@sentry/node';
 import axios from 'axios';
 import type { NextFunction, Request, Response } from 'express';
+import status from '../types/status.js';
 
 export default async function (req: Request, res: Response, next: NextFunction) {
 	const code = req.body.code;
 	if (!code) {
-		return res.status(400).send('No authorization code provided.');
+		return res.status(status.BAD_REQUEST).send('No authorization code provided.');
 	}
 
 	if (
@@ -13,7 +14,7 @@ export default async function (req: Request, res: Response, next: NextFunction) 
 		!process.env['VATSIM_AUTH_CLIENT_ID'] ||
 		!process.env['VATSIM_AUTH_CLIENT_SECRET']
 	) {
-		return res.status(500).send('Internal server error.');
+		return res.status(status.INTERNAL_SERVER_ERROR).json();
 	}
 
 	let redirectUrl = 'http://localhost:8080/login/verify';
@@ -44,7 +45,7 @@ export default async function (req: Request, res: Response, next: NextFunction) 
 			!process.env['VATSIM_AUTH_CLIENT_ID_IDS'] ||
 			!process.env['VATSIM_AUTH_CLIENT_SECRET_IDS']
 		) {
-			return res.status(500).send('Internal server error.');
+			return res.status(status.INTERNAL_SERVER_ERROR).json();
 		}
 
 		clientId = process.env['VATSIM_AUTH_CLIENT_ID_IDS'];
@@ -60,6 +61,7 @@ export default async function (req: Request, res: Response, next: NextFunction) 
 		return next();
 	} catch (e) {
 		captureException(e);
-		return res.status(500).send();
+
+		return next(e);
 	}
 }
