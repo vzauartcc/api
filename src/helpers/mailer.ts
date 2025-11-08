@@ -24,10 +24,6 @@ const transport = nodemailer.createTransport({
 		user: 'no-reply@zauartcc.org',
 		pass: process.env['EMAIL_PASSWORD'],
 	},
-	from: {
-		name: 'Chicago ARTCC',
-		address: 'no-reply@zauartcc.org',
-	},
 });
 
 transport.use(
@@ -47,5 +43,5 @@ transport.use(
 export function sendMail(opts: CustomMailOptions) {
 	if (!process.env['EMAIL_PASSWORD']) return;
 
-	transport.sendMail(opts);
+	transport.sendMail({ ...opts, from: 'no-reply@zauartcc.org' });
 }
