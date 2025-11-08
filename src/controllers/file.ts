@@ -23,7 +23,7 @@ const upload = multer({
 	}),
 });
 
-// Downloads
+//#region Downloads
 router.get('/downloads', async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const downloads = await DownloadModel.find({ deletedAt: null })
@@ -206,8 +206,9 @@ router.delete(
 		}
 	},
 );
+//#endregion
 
-// Documents
+//#region Documents
 router.get('/documents', async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const documents = await DocumentModel.find({ deletedAt: null })
@@ -460,5 +461,6 @@ router.delete(
 		}
 	},
 );
+//#endregion
 
 export default router;

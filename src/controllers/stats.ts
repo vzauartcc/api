@@ -49,6 +49,7 @@ const ratings = [
 
 let testUserCID = 0;
 
+//#region Dashboards
 router.get(
 	'/admin',
 	getUser,
@@ -218,7 +219,9 @@ router.get(
 		}
 	},
 );
+//#endregion
 
+//#region Controller Activity Page
 function isExempt(user: IUser, startOfPeriod: Date) {
 	if (user.cid === testUserCID) {
 		console.log(`Checking exemption for test user ${user.cid}`);
@@ -487,6 +490,7 @@ router.get(
 		}
 	},
 );
+//#endregion
 
 router.post(
 	'/fifty/:cid',

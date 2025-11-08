@@ -304,6 +304,7 @@ router.get('/sessions', getUser, async (req: Request, res: Response, next: NextF
 	}
 });
 
+//#region Notifications
 router.get('/notifications', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const page = +(req.query['page'] as string) || 1;
@@ -398,10 +399,18 @@ router.delete(
 		}
 	},
 );
+//#endregion
 
 router.put('/profile', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const { bio } = req.body;
+
+		if (bio.length > 500) {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Bio too long',
+			};
+		}
 
 		await UserModel.findOneAndUpdate(
 			{ cid: req.user.cid },

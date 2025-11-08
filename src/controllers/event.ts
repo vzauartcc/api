@@ -79,49 +79,6 @@ router.get('/archive', async (req: Request, res: Response, next: NextFunction) =
 	}
 });
 
-router.get('/staffingRequest', async (req: Request, res: Response, next: NextFunction) => {
-	try {
-		const page = +(req.query['page'] as string) || 1;
-		const limit = +(req.query['limit'] as string) || 10;
-
-		const count = await StaffingRequestModel.countDocuments({ deleted: false }).exec();
-		let requests: any[] = [];
-
-		if (count > 0) {
-			requests = await StaffingRequestModel.find({ deleted: false })
-				.skip(limit * (page - 1))
-				.limit(limit)
-				.sort({ date: 'desc' })
-				.lean()
-				.exec();
-		}
-
-		return res.status(status.OK).json({ amount: count, requests });
-	} catch (e) {
-		captureException(e);
-
-		return next(e);
-	}
-});
-
-router.get('/staffingRequest/:id', async (req: Request, res: Response, next: NextFunction) => {
-	try {
-		const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
-
-		if (!staffingRequest) {
-			throw {
-				code: status.NOT_FOUND,
-				message: 'Staffing request not found',
-			};
-		}
-		return res.status(status.OK).json(staffingRequest);
-	} catch (e) {
-		captureException(e);
-
-		return next(e);
-	}
-});
-
 router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const event = await EventModel.findOne({
@@ -139,6 +96,7 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
 	}
 });
 
+//#region Position Signups
 router.get('/:slug/positions', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const event = await EventModel.findOne({
@@ -369,6 +327,68 @@ router.put(
 		}
 	},
 );
+
+router.put(
+	'/:slug/assign',
+	getUser,
+	hasRole(['atm', 'datm', 'ec', 'wm']),
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const { position, cid } = req.body;
+
+			const eventData = await EventModel.findOneAndUpdate(
+				{ url: req.params['slug'], 'positions._id': position },
+				{
+					$set: {
+						'positions.$.takenBy': cid || null,
+					},
+				},
+				{
+					new: true,
+				},
+			).exec();
+
+			if (!eventData) {
+				throw {
+					code: status.NOT_FOUND,
+					message: 'Event Not Found.',
+				};
+			}
+
+			const assignedPosition = eventData.positions.find(
+				(pos: IEventPosition) => pos.id === position,
+			);
+
+			if (!assignedPosition) {
+				throw {
+					code: status.INTERNAL_SERVER_ERROR,
+					message: 'Internal Server Error',
+				};
+			}
+
+			if (cid) {
+				await DossierModel.create({
+					by: req.user.cid,
+					affected: cid,
+					action: `%b assigned %a to *${assignedPosition.pos}* for *${eventData.name}*.`,
+				});
+			} else {
+				await DossierModel.create({
+					by: req.user.cid,
+					affected: -1,
+					action: `%b unassigned *${assignedPosition.pos}* for *${eventData.name}*.`,
+				});
+			}
+
+			return res.status(status.OK).json(assignedPosition);
+		} catch (e) {
+			captureException(e);
+
+			return next(e);
+		}
+	},
+);
+//#endregion
 
 router.post(
 	'/sendEvent',
@@ -787,67 +807,6 @@ router.delete(
 // });
 
 router.put(
-	'/:slug/assign',
-	getUser,
-	hasRole(['atm', 'datm', 'ec', 'wm']),
-	async (req: Request, res: Response, next: NextFunction) => {
-		try {
-			const { position, cid } = req.body;
-
-			const eventData = await EventModel.findOneAndUpdate(
-				{ url: req.params['slug'], 'positions._id': position },
-				{
-					$set: {
-						'positions.$.takenBy': cid || null,
-					},
-				},
-				{
-					new: true,
-				},
-			).exec();
-
-			if (!eventData) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Event Not Found.',
-				};
-			}
-
-			const assignedPosition = eventData.positions.find(
-				(pos: IEventPosition) => pos.id === position,
-			);
-
-			if (!assignedPosition) {
-				throw {
-					code: status.INTERNAL_SERVER_ERROR,
-					message: 'Internal Server Error',
-				};
-			}
-
-			if (cid) {
-				await DossierModel.create({
-					by: req.user.cid,
-					affected: cid,
-					action: `%b assigned %a to *${assignedPosition.pos}* for *${eventData.name}*.`,
-				});
-			} else {
-				await DossierModel.create({
-					by: req.user.cid,
-					affected: -1,
-					action: `%b unassigned *${assignedPosition.pos}* for *${eventData.name}*.`,
-				});
-			}
-
-			return res.status(status.OK).json(assignedPosition);
-		} catch (e) {
-			captureException(e);
-
-			return next(e);
-		}
-	},
-);
-
-router.put(
 	'/:slug/notify',
 	getUser,
 	hasRole(['atm', 'datm', 'ec', 'wm']),
@@ -934,6 +893,50 @@ router.put(
 		}
 	},
 );
+
+//#region Staffing Request
+router.get('/staffingRequest', async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const page = +(req.query['page'] as string) || 1;
+		const limit = +(req.query['limit'] as string) || 10;
+
+		const count = await StaffingRequestModel.countDocuments({ deleted: false }).exec();
+		let requests: any[] = [];
+
+		if (count > 0) {
+			requests = await StaffingRequestModel.find({ deleted: false })
+				.skip(limit * (page - 1))
+				.limit(limit)
+				.sort({ date: 'desc' })
+				.lean()
+				.exec();
+		}
+
+		return res.status(status.OK).json({ amount: count, requests });
+	} catch (e) {
+		captureException(e);
+
+		return next(e);
+	}
+});
+
+router.get('/staffingRequest/:id', async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
+
+		if (!staffingRequest) {
+			throw {
+				code: status.NOT_FOUND,
+				message: 'Staffing request not found',
+			};
+		}
+		return res.status(status.OK).json(staffingRequest);
+	} catch (e) {
+		captureException(e);
+
+		return next(e);
+	}
+});
 
 router.post('/staffingRequest', async (req: Request, res: Response, next: NextFunction) => {
 	// Submit staffing request
@@ -1121,6 +1124,7 @@ router.delete(
 		}
 	},
 );
+//#endregion
 
 export default router;
 

@@ -168,72 +168,7 @@ router.get('/oi', async (_req: Request, res: Response, next: NextFunction) => {
 	}
 });
 
-router.get(
-	'/visit',
-	getUser,
-	isManagement,
-	async (_req: Request, res: Response, next: NextFunction) => {
-		try {
-			const applications = await VisitApplicationModel.find({
-				deleted: false,
-			})
-				.lean()
-				.exec();
-
-			let retval = [];
-			for (const app of applications) {
-				try {
-					let vatusaData = {} as IVisitingStatus;
-					if (process.env['NODE_ENV'] === 'development') {
-						vatusaData = {
-							visiting: true,
-							recentlyRostered: false,
-							hasRating: true,
-							ratingConsolidation: true,
-							needsBasic: false,
-							promo: false,
-							visitingDays: 0,
-							hasHome: true,
-							ratingHours: 0,
-							promoDays: 0,
-						};
-					} else {
-						const { data } = await vatusaApi.get(`/user/${app.cid}/transfer/checklist`);
-						vatusaData = {
-							visiting: data.data.visiting,
-							recentlyRostered: data.data['60days'],
-							hasRating: data.data.hasRating,
-							ratingConsolidation: data.data['50hrs'],
-							needsBasic: data.data.needbasic,
-							promo: data.data.promo,
-							visitingDays: data.data.visitingDays,
-							hasHome: data.data.hasHome,
-							ratingHours: data.data.ratingHours,
-							promoDays: data.data.promoDays,
-						};
-					}
-
-					retval.push({
-						application: app,
-						statusChecks: vatusaData,
-					});
-				} catch (_e) {
-					retval.push({
-						application: app,
-						statusChecks: null,
-					});
-				}
-			}
-
-			return res.status(status.OK).json(retval);
-		} catch (e) {
-			captureException(e);
-
-			return next(e);
-		}
-	},
-);
-
+//#region Absence
 router.get(
 	'/absence',
 	getUser,
@@ -355,6 +290,7 @@ router.delete(
 		}
 	},
 );
+//#endregion
 
 router.get('/log', getUser, isStaff, async (req: Request, res: Response, next: NextFunction) => {
 	const page = +(req.query['page'] as string) || 1;
@@ -534,6 +470,73 @@ router.get('/stats/:cid', async (req: Request, res: Response, next: NextFunction
 		return next(e);
 	}
 });
+
+//#region Visiting Application
+router.get(
+	'/visit',
+	getUser,
+	isManagement,
+	async (_req: Request, res: Response, next: NextFunction) => {
+		try {
+			const applications = await VisitApplicationModel.find({
+				deleted: false,
+			})
+				.lean()
+				.exec();
+
+			let retval = [];
+			for (const app of applications) {
+				try {
+					let vatusaData = {} as IVisitingStatus;
+					if (process.env['NODE_ENV'] === 'development') {
+						vatusaData = {
+							visiting: true,
+							recentlyRostered: false,
+							hasRating: true,
+							ratingConsolidation: true,
+							needsBasic: false,
+							promo: false,
+							visitingDays: 0,
+							hasHome: true,
+							ratingHours: 0,
+							promoDays: 0,
+						};
+					} else {
+						const { data } = await vatusaApi.get(`/user/${app.cid}/transfer/checklist`);
+						vatusaData = {
+							visiting: data.data.visiting,
+							recentlyRostered: data.data['60days'],
+							hasRating: data.data.hasRating,
+							ratingConsolidation: data.data['50hrs'],
+							needsBasic: data.data.needbasic,
+							promo: data.data.promo,
+							visitingDays: data.data.visitingDays,
+							hasHome: data.data.hasHome,
+							ratingHours: data.data.ratingHours,
+							promoDays: data.data.promoDays,
+						};
+					}
+
+					retval.push({
+						application: app,
+						statusChecks: vatusaData,
+					});
+				} catch (_e) {
+					retval.push({
+						application: app,
+						statusChecks: null,
+					});
+				}
+			}
+
+			return res.status(status.OK).json(retval);
+		} catch (e) {
+			captureException(e);
+
+			return next(e);
+		}
+	},
+);
 
 router.post('/visit', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
@@ -751,6 +754,7 @@ router.delete(
 		}
 	},
 );
+//#endregion
 
 router.post('/:cid', internalAuth, async (req: Request, res: Response, next: NextFunction) => {
 	try {
