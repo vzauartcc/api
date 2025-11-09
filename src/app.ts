@@ -4,6 +4,7 @@ import cors from 'cors';
 import { Cron } from 'croner';
 import type { NextFunction, Request, Response } from 'express';
 import express from 'express';
+import helmet from 'helmet';
 import { Redis } from 'ioredis';
 import mongoose from 'mongoose';
 import controllerRouter from './controllers/controller.js';
@@ -22,27 +23,12 @@ import vatusaRouter from './controllers/vatusa.js';
 import { setupS3 } from './helpers/s3.js';
 import { soloExpiringNotifications, syncVatusaSoloEndorsements } from './tasks/solo.js';
 import { syncVatusaTrainingRecords } from './tasks/trainingRecords.js';
-import type { ReturnDetails } from './types/StandardResponse.js';
 
 console.log(`Starting application. . . .`);
 const app = express();
 
-app.use((_req: Request, res: Response, next: NextFunction) => {
-	res.stdRes = {
-		ret_det: {
-			code: 200,
-			message: '',
-		},
-		data: {},
-	};
-
-	next();
-});
-
-console.log('Enabling cookie parsing. . . .');
 app.use(cookie());
 
-console.log('Setting JSON and URL Encode limits. . . .');
 app.use(express.json({ limit: '50mb' }));
 
 app.use(
@@ -60,9 +46,9 @@ if (!REDIS_URI) {
 }
 
 console.log('Connecting to redis. . . .');
-app.redis = new Redis(REDIS_URI);
+app.redis = new Redis(REDIS_URI, { family: 4 });
 app.redis.on('error', (err) => {
-	throw new Error(`Failed to connect to Redis: ${err}`);
+	throw new Error(`Redis error: ${err}`);
 });
 app.redis.on('connect', () => console.log('Successfully connected to Redis'));
 
@@ -78,17 +64,22 @@ app.use(
 	cors({
 		origin: origins,
 		credentials: true,
+		maxAge: 86400,
+		allowedHeaders: ['Content-Type', 'Accept', 'X-Requested-With'],
+		methods: 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
 	}),
 );
 
-console.log('Setting Access Control headers. . . .');
-app.use((_req: Request, res: Response, next: NextFunction) => {
-	res.setHeader('Access-Control-Allow-Origin', '*');
-	res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-	res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
-	res.setHeader('Access-Control-Allow-Credentials', 'true');
-	next();
-});
+app.use(helmet());
+
+// console.log('Setting Access Control headers. . . .');
+// app.use((_req: Request, res: Response, next: NextFunction) => {
+// 	res.setHeader('Access-Control-Allow-Origin', '*');
+// 	res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+// 	res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+// 	res.setHeader('Access-Control-Allow-Credentials', 'true');
+// 	next();
+// });
 
 console.log('Connecting to S3 bucket. . . .');
 setupS3();
@@ -104,9 +95,12 @@ console.log('Connecting to MongoDB. . . .');
 mongoose.set('toJSON', { virtuals: true });
 mongoose.set('toObject', { virtuals: true });
 mongoose.set('strictQuery', true);
-mongoose.connect(MONGO_URI);
+mongoose.connect(MONGO_URI, { family: 4 });
 const db = mongoose.connection;
 db.once('open', () => console.log('Successfully connected to MongoDB'));
+db.on('error', (err) => {
+	console.error('Mongoose error:', err);
+});
 
 console.log('Setting up routes. . . .');
 app.use('/online', onlineRouter);
@@ -130,16 +124,15 @@ if (process.env['NODE_ENV'] === 'production') {
 }
 console.log('Is Sentry initialized and enabled', Sentry.isInitialized(), Sentry.isEnabled());
 
-// Future use: Fallback express error handler
-// app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
-// 	if (res.headersSent) {
-// 		return next(err);
-// 	}
+app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
+	if (res.headersSent) {
+		return next(err);
+	}
 
-// 	res.status(err.status || 500).json({
-// 		message: 'An internal server error occurred.',
-// 	});
-// });
+	res.status(err.status || err.code || 500).json({
+		message: err.message || 'An internal server error occurred.',
+	});
+});
 
 console.log('Starting Express listener. . . .');
 app.listen(process.env['PORT'], () => {
@@ -165,36 +158,4 @@ if (process.env['NODE_ENV'] === 'production') {
 		{ name: 'Training Record Sync', timezone: 'America/Chicago', catch: true },
 		() => syncVatusaTrainingRecords(),
 	);
-}
-
-export function convertToReturnDetails(e: unknown): ReturnDetails {
-	// 1. Check if 'e' is a standard Error object
-	if (e instanceof Error) {
-		// Return a generic error structure
-		return {
-			code: 500, // Use a standard server error code
-			message: e.message || 'An unexpected server error occurred.',
-		};
-	}
-
-	// 2. Check if 'e' is an object that already looks like ReturnDetails (e.g., a thrown response object)
-	else if (
-		typeof e === 'object' &&
-		e !== null &&
-		'code' in e &&
-		'message' in e &&
-		typeof (e as any).code === 'number' &&
-		typeof (e as any).message === 'string'
-	) {
-		// If it's a known, structured object, use its properties
-		return e as ReturnDetails;
-	}
-
-	// 3. Fallback for primitive/unknown types (e.g., throw "a string")
-	else {
-		return {
-			code: 500,
-			message: `An unexpected error occurred: ${String(e)}`,
-		};
-	}
 }

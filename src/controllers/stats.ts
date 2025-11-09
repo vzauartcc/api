@@ -1,9 +1,8 @@
 import { captureException } from '@sentry/node';
 import axios from 'axios';
-import { Router, type Request, type Response } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
 import type { FlattenMaps } from 'mongoose';
-import { convertToReturnDetails } from '../app.js';
 import zau from '../helpers/zau.js';
 import { hasRole } from '../middleware/auth.js';
 import internalAuth from '../middleware/internalAuth.js';
@@ -13,6 +12,7 @@ import { FeedbackModel } from '../models/feedback.js';
 import { TrainingRequestModel } from '../models/trainingRequest.js';
 import { TrainingSessionModel } from '../models/trainingSession.js';
 import { UserModel, type IUser } from '../models/user.js';
+import status from '../types/status.js';
 
 const router = Router();
 
@@ -49,11 +49,12 @@ const ratings = [
 
 let testUserCID = 0;
 
+//#region Dashboards
 router.get(
 	'/admin',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'fe', 'ec', 'wm']),
-	async (_req: Request, res: Response) => {
+	async (_req: Request, res: Response, next: NextFunction) => {
 		try {
 			const d = new Date();
 			const thisMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
@@ -136,20 +137,22 @@ router.get(
 				item.rating = ratings[item._id];
 			}
 
-			res.stdRes.data.totalTime = totalTime[0] ? Math.round(totalTime[0].total / 1000) : 1;
-			res.stdRes.data.totalSessions = sessionCount[0] ? Math.round(sessionCount[0].total) : 1;
-			res.stdRes.data.feedback = feedback.reverse();
-			res.stdRes.data.hours = hours.reverse();
-			res.stdRes.data.counts = {
-				home: homeCount,
-				vis: visitorCount,
-				byRating: ratingCounts.reverse(),
-			};
+			return res.status(status.OK).json({
+				totalTime: totalTime[0] ? Math.round(totalTime[0].total / 1000) : 1,
+				totalSessions: sessionCount[0] ? Math.round(sessionCount[0].total) : 1,
+				feedback: feedback.reverse(),
+				hours: hours.reverse(),
+				counts: {
+					home: homeCount,
+					vis: visitorCount,
+					byRating: ratingCounts.reverse(),
+				},
+			});
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
-			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+			if (!(e as any).code) {
+				captureException(e);
+			}
+			return next(e);
 		}
 	},
 );
@@ -158,7 +161,7 @@ router.get(
 	'/ins',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
-	async (_req: Request, res: Response) => {
+	async (_req: Request, res: Response, next: NextFunction) => {
 		try {
 			let lastTraining = await TrainingSessionModel.aggregate([
 				{
@@ -205,20 +208,22 @@ router.get(
 				return acc;
 			}, {});
 
-			res.stdRes.data = {
+			return res.status(status.OK).json({
 				lastTraining,
 				lastRequest,
 				controllersWithoutTraining,
-			};
+			});
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
-			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+			if (!(e as any).code) {
+				captureException(e);
+			}
+			return next(e);
 		}
 	},
 );
+//#endregion
 
+//#region Controller Activity Page
 function isExempt(user: IUser, startOfPeriod: Date) {
 	if (user.cid === testUserCID) {
 		console.log(`Checking exemption for test user ${user.cid}`);
@@ -288,7 +293,7 @@ router.get(
 	'/activity',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'wm']),
-	async (req: Request, res: Response) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			//console.log('Start processing /activity endpoint');
 			if (req.query['cid']) {
@@ -479,30 +484,37 @@ router.get(
 			//console.log('Final checks applied, returning data');
 
 			// SECTION: Return Final Data
-			res.stdRes.data = Object.values(userData);
+			res.status(status.OK).json(Object.values(userData));
 		} catch (e) {
-			res.stdRes.ret_det = convertToReturnDetails(e);
-			captureException(e);
-		} finally {
-			return res.json(res.stdRes);
+			if (!(e as any).code) {
+				captureException(e);
+			}
+			return next(e);
 		}
 	},
 );
+//#endregion
 
-router.post('/fifty/:cid', internalAuth, async (req: Request, res: Response) => {
-	try {
-		const { redis } = req.app;
-		const { cid } = req.params;
-		const fiftyData = await getFiftyData(cid!);
-		redis.set(`FIFTY:${cid}`, fiftyData);
-		redis.expire(`FIFTY:${cid}`, 86400);
-	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
-	}
-});
+router.post(
+	'/fifty/:cid',
+	internalAuth,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const { redis } = req.app;
+			const { cid } = req.params;
+			const fiftyData = await getFiftyData(cid!);
+			redis.set(`FIFTY:${cid}`, fiftyData);
+			redis.expire(`FIFTY:${cid}`, 86400);
+
+			return res.status(status.CREATED).json();
+		} catch (e) {
+			if (!(e as any).code) {
+				captureException(e);
+			}
+			return next(e);
+		}
+	},
+);
 
 const getFiftyData = async (cid: string) => {
 	const today = DateTime.utc();

@@ -1,11 +1,11 @@
 import { captureException } from '@sentry/node';
 import axios from 'axios';
 import { randomUUID } from 'crypto';
-import { Router, type Request, type Response } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { convertToReturnDetails } from '../app.js';
 import { uploadToS3 } from '../helpers/s3.js';
 import zau from '../helpers/zau.js';
+import { userOrInternal } from '../middleware/auth.js';
 import internalAuth from '../middleware/internalAuth.js';
 import getUser, { deleteAuthCookie, type UserPayload } from '../middleware/user.js';
 import oAuth from '../middleware/vatsim.js';
@@ -14,15 +14,86 @@ import { DossierModel } from '../models/dossier.js';
 import { NotificationModel } from '../models/notification.js';
 import { TrainingSessionModel } from '../models/trainingSession.js';
 import { UserModel } from '../models/user.js';
+import status from '../types/status.js';
 
 const router = Router();
 
+router.get('/', userOrInternal, async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		let allUsers = [];
+		if (req.internal === true) {
+			allUsers = await UserModel.find({})
+				.populate([
+					{
+						path: 'certifications',
+						options: {
+							sort: { order: 'desc' },
+						},
+					},
+				])
+				.lean({ virtuals: true })
+				.exec();
+		} else {
+			let select = '-discordInfo -idsToken';
+			if (!req.user.isStaff) {
+				select += ' -broadcast -prefName -email -discord';
+			}
+			allUsers = await UserModel.find({})
+				.select(select)
+				.populate([
+					{
+						path: 'certifications',
+						options: {
+							sort: { order: 'desc' },
+						},
+					},
+					{
+						path: 'roles',
+						options: {
+							sort: { order: 'asc' },
+						},
+					},
+					{
+						path: 'absence',
+						match: {
+							expirationDate: {
+								$gte: new Date(),
+							},
+							deleted: false,
+						},
+						select: '-reason',
+					},
+				])
+				.lean({ virtuals: true })
+				.exec();
+		}
+
+		const home = allUsers.filter((user) => user.vis === false && user.member === true);
+		const visiting = allUsers.filter((user) => user.vis === true && user.member === true);
+		const removed = allUsers.filter((user) => user.member === false);
+
+		if (!home || !visiting || !removed) {
+			throw {
+				code: status.INTERNAL_SERVER_ERROR,
+				message: 'Unable to retrieve controllers',
+			};
+		}
+
+		return res.status(status.OK).json({ home, visiting, removed });
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
+	}
+});
+
 // Logged in check
-router.get('/', async (req: Request, res: Response) => {
+router.get('/self', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.cookies['token']) {
 			throw {
-				code: 401,
+				code: status.UNAUTHORIZED,
 				message: 'Token cookie not found',
 			};
 		}
@@ -38,57 +109,60 @@ router.get('/', async (req: Request, res: Response) => {
 		if (!user) {
 			deleteAuthCookie(res);
 			throw {
-				code: 401,
+				code: status.NOT_FOUND,
 				message: 'User not found.',
 			};
 		}
 
-		res.stdRes.data = user;
+		return res.status(status.OK).json(user);
 	} catch (e) {
 		deleteAuthCookie(res);
-		res.stdRes.ret_det = convertToReturnDetails(e);
-	}
 
-	return res.json(res.stdRes);
+		if (!(e as any).code) {
+			captureException(e);
+		}
+
+		return next(e);
+	}
 });
 
-router.post('/idsToken', getUser, async (req: Request, res: Response) => {
+router.post('/idsToken', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.cookies['token']) {
 			throw {
-				code: 401,
+				code: status.UNAUTHORIZED,
 				message: 'Not logged in',
 			};
 		}
 
 		const idsToken = randomUUID();
-		req.user!.idsToken = idsToken;
+		req.user.idsToken = idsToken;
 
-		await UserModel.findOneAndUpdate({ cid: req.user!.cid }, { idsToken }).exec();
+		await UserModel.findOneAndUpdate({ cid: req.user.cid }, { idsToken }).exec();
 
 		await DossierModel.create({
-			by: req.user!.cid,
+			by: req.user.cid,
 			affected: -1,
 			action: `%b generated a new IDS Token.`,
 		});
 
-		res.stdRes.data = idsToken;
+		return res.status(status.CREATED).json(idsToken);
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
 	}
-
-	return res.json(res.stdRes);
 });
 
 //#region Login/Logout
 // Endpoint to preform user login, uses oAuth middleware to retrieve an access token
-router.post('/login', oAuth, async (req: Request, res: Response) => {
+router.post('/login', oAuth, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.oauth) {
 			throw {
-				code: 400,
-				message: 'Bad request.',
+				code: status.BAD_REQUEST,
+				message: 'Bad request',
 			};
 		}
 
@@ -123,7 +197,7 @@ router.post('/login', oAuth, async (req: Request, res: Response) => {
 		// If that is the case throw a BadRequest exception.
 		if (Object.values(userData).some((x) => x === null || x === '')) {
 			throw {
-				code: 400,
+				code: status.BAD_REQUEST,
 				message: 'User must authorize all requested VATSIM data. [Authorize Data]',
 			};
 		}
@@ -180,80 +254,88 @@ router.post('/login', oAuth, async (req: Request, res: Response) => {
 			sameSite: true,
 			domain: process.env['DOMAIN'],
 		}); // Expires in 30 days
-	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-		res.status(500);
-	}
 
-	return res.json(res.stdRes);
+		return res.status(status.OK).json();
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
+	}
 });
 
-router.get('/logout', async (req: Request, res: Response) => {
+router.get('/logout', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.cookies['token']) {
 			throw {
-				code: 400,
+				code: status.UNAUTHORIZED,
 				message: 'User not logged in',
 			};
 		}
 
 		deleteAuthCookie(res);
-	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-	}
 
-	return res.json(res.stdRes);
+		return res.status(status.OK).json();
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
+	}
 });
 //#endregion
 
-router.get('/sessions', getUser, async (req: Request, res: Response) => {
+router.get('/sessions', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const sessions = await ControllerHoursModel.find({
-			cid: req.user!.cid,
+			cid: req.user.cid,
 			timeStart: { $gt: zau.activity.period.startOfCurrent },
 		})
 			.sort({ timeStart: -1 })
 			.lean()
 			.exec();
-		const training = await TrainingSessionModel.find({
-			studentCid: req.user!.cid,
+
+		const trainings = await TrainingSessionModel.find({
+			studentCid: req.user.cid,
 			startTime: zau.activity.period.startOfCurrent,
 		})
 			.sort({ startTime: -1 })
 			.lean()
 			.exec();
-		res.stdRes.data = {
+
+		return res.status(status.OK).json({
 			sessions,
-			training,
+			trainings,
 			period: zau.activity.period,
 			requirements: zau.activity.requirements,
-		};
+		});
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
 	}
-
-	return res.json(res.stdRes);
 });
 
-router.get('/notifications', getUser, async (req: Request, res: Response) => {
+//#region Notifications
+router.get('/notifications', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const page = +(req.query['page'] as string) || 1;
 		const limit = +(req.query['limit'] as string) || 10;
 
 		const unread = await NotificationModel.countDocuments({
 			deleted: false,
-			recipient: req.user!.cid,
+			recipient: req.user.cid,
 			read: false,
 		}).exec();
+
 		const amount = await NotificationModel.countDocuments({
 			deleted: false,
-			recipient: req.user!.cid,
+			recipient: req.user.cid,
 		}).exec();
+
 		const notif = await NotificationModel.find({
-			recipient: req.user!.cid,
+			recipient: req.user.cid,
 			deleted: false,
 		})
 			.skip(limit * (page - 1))
@@ -262,94 +344,118 @@ router.get('/notifications', getUser, async (req: Request, res: Response) => {
 			.lean()
 			.exec();
 
-		res.stdRes.data = {
+		return res.status(status.OK).json({
 			unread,
 			amount,
 			notif,
-		};
+		});
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
 	}
-
-	return res.json(res.stdRes);
 });
 
-router.put('/notifications/read/all', getUser, async (req: Request, res: Response) => {
-	try {
-		await NotificationModel.updateMany(
-			{ recipient: req.user!.cid },
-			{
-				read: true,
-			},
-		).exec();
-	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-	}
+router.put(
+	'/notifications/read/all',
+	getUser,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			await NotificationModel.updateMany(
+				{ recipient: req.user.cid },
+				{
+					read: true,
+				},
+			).exec();
 
-	return res.json(res.stdRes);
-});
+			return res.status(status.OK).json();
+		} catch (e) {
+			if (!(e as any).code) {
+				captureException(e);
+			}
+			return next(e);
+		}
+	},
+);
 
-router.put('/notifications/read/:id', async (req: Request, res: Response) => {
+router.put('/notifications/read/:id', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.params['id']) {
 			throw {
-				code: 400,
+				code: status.BAD_REQUEST,
 				message: 'Incomplete request',
 			};
 		}
 		await NotificationModel.findByIdAndUpdate(req.params['id'], {
 			read: true,
 		}).exec();
-	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-	}
 
-	return res.json(res.stdRes);
+		return res.status(status.OK).json();
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
+	}
 });
 
-router.delete('/notifications', getUser, async (req: Request, res: Response) => {
-	try {
-		await NotificationModel.deleteMany({ recipient: req.user!.cid }).exec();
-	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-	}
+router.delete(
+	'/notifications',
+	getUser,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			await NotificationModel.deleteMany({ recipient: req.user.cid }).exec();
 
-	return res.json(res.stdRes);
-});
+			return res.status(status.NO_CONTENT).json();
+		} catch (e) {
+			if (!(e as any).code) {
+				captureException(e);
+			}
+			return next(e);
+		}
+	},
+);
+//#endregion
 
-router.put('/profile', getUser, async (req: Request, res: Response) => {
+router.put('/profile', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const { bio } = req.body;
 
+		if (bio.length > 500) {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Bio too long',
+			};
+		}
+
 		await UserModel.findOneAndUpdate(
-			{ cid: req.user!.cid },
+			{ cid: req.user.cid },
 			{
 				bio,
 			},
 		).exec();
 
 		await DossierModel.create({
-			by: req.user!.cid,
+			by: req.user.cid,
 			affected: -1,
 			action: `%b updated their profile.`,
 		});
-	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-	}
 
-	return res.json(res.stdRes);
+		return res.status(status.OK).json();
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
+	}
 });
 
-router.patch('/:cid', internalAuth, async (req: Request, res: Response) => {
+router.patch('/:cid', internalAuth, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.body || !req.params['cid'] || req.params['cid'] === 'undefined') {
 			throw {
-				code: 400,
+				code: status.BAD_REQUEST,
 				message: 'No user data provided',
 			};
 		}
@@ -360,12 +466,14 @@ router.patch('/:cid', internalAuth, async (req: Request, res: Response) => {
 				...req.body,
 			},
 		);
-	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-	}
 
-	return res.json(res.stdRes);
+		return res.status(status.OK).json();
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
+	}
 });
 
 export default router;

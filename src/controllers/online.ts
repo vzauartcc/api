@@ -1,9 +1,9 @@
 import { captureException } from '@sentry/node';
-import { Router, type Request, type Response } from 'express';
-import { convertToReturnDetails } from '../app.js';
+import { Router, type NextFunction, type Request, type Response } from 'express';
 import { AtcOnlineModel } from '../models/atcOnline.js';
 import { ControllerHoursModel } from '../models/controllerHours.js';
 import { PilotOnlineModel } from '../models/pilotOnline.js';
+import status from '../types/status.js';
 
 const router = Router();
 
@@ -52,24 +52,21 @@ const positions = new Map([
 	['CTR', 'Center'],
 ]);
 
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const pilots = await PilotOnlineModel.find().lean().exec();
 		const atc = await AtcOnlineModel.find().lean({ virtuals: true }).exec();
 
-		res.stdRes.data = {
-			pilots: pilots,
-			atc: atc,
-		};
+		return res.status(status.OK).json({ pilots, atc });
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
 	}
 });
 
-router.get('/top', async (_req: Request, res: Response) => {
+router.get('/top', async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const d = new Date();
 		const thisMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
@@ -93,7 +90,7 @@ router.get('/top', async (_req: Request, res: Response) => {
 			const len = Math.round((session.timeEnd.getTime() - session.timeStart.getTime()) / 1000);
 			if (!controllerTimes.has(session.cid)) {
 				controllerTimes.set(session.cid, {
-					name: session.user ? `${session.user.fname} ${session.user.lname}` : session.cid,
+					name: session.user ? `${session.user.name}` : session.cid,
 					cid: session.cid,
 					len: 0,
 				});
@@ -120,21 +117,24 @@ router.get('/top', async (_req: Request, res: Response) => {
 				len: posTime.len + len,
 			});
 		}
-		res.stdRes.data.controllers = controllerTimes
-			.values()
-			.toArray()
-			.sort((a, b) => b.len - a.len)
-			.slice(0, 5);
-		res.stdRes.data.positions = positionTimes
-			.values()
-			.toArray()
-			.sort((a, b) => b.len - a.len)
-			.slice(0, 5);
+
+		return res.status(status.OK).json({
+			controllers: controllerTimes
+				.values()
+				.toArray()
+				.sort((a, b) => b.len - a.len)
+				.slice(0, 5),
+			positions: positionTimes
+				.values()
+				.toArray()
+				.sort((a, b) => b.len - a.len)
+				.slice(0, 5),
+		});
 	} catch (e) {
-		res.stdRes.ret_det = convertToReturnDetails(e);
-		captureException(e);
-	} finally {
-		return res.json(res.stdRes);
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
 	}
 });
 

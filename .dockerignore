@@ -9,6 +9,9 @@ npm-debug.log
 .env
 .local
 *.log
+nodemon.json
+.editorconfig
+seeds
 
 # Build artifacts (will be created during the build stage)
 dist
@@ -37,6 +40,7 @@ docker-compose.yml
 .eslintrc.json
 eslint.config.mjs
 .prettierrc.json
+
 # Project Files
 README.md
 doppler-template.yaml
