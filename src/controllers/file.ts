@@ -33,8 +33,9 @@ router.get('/downloads', async (_req: Request, res: Response, next: NextFunction
 
 		return res.status(status.OK).json(downloads);
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -52,8 +53,9 @@ router.get('/downloads/:id', async (req: Request, res: Response, next: NextFunct
 
 		return res.status(status.OK).json(download);
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -105,8 +107,9 @@ router.post(
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -164,8 +167,9 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -200,8 +204,9 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -220,8 +225,9 @@ router.get('/documents', async (_req: Request, res: Response, next: NextFunction
 
 		return res.status(status.OK).json(documents);
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -241,8 +247,9 @@ router.get('/documents/:slug', async (req: Request, res: Response, next: NextFun
 
 		return res.status(status.OK).json(document);
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -323,8 +330,9 @@ router.post(
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -416,8 +424,9 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -455,8 +464,9 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},

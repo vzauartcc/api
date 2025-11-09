@@ -18,8 +18,9 @@ router.get('/users', internalAuth, async (_req: Request, res: Response, next: Ne
 
 		return res.status(status.OK).json(users);
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -28,8 +29,9 @@ router.get('/user', getUser, async (req: Request, res: Response, next: NextFunct
 	try {
 		return res.status(status.OK).json(!!req.user.discordInfo?.clientId);
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -123,8 +125,9 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -135,8 +138,9 @@ router.delete('/user', getUser, async (req: Request, res: Response, next: NextFu
 
 		res.status(status.OK).json();
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });

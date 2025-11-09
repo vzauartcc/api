@@ -36,7 +36,9 @@ router.get('/', getUser, async (req: Request, res: Response, next: NextFunction)
 
 		return res.status(status.OK).json({ home, visiting });
 	} catch (e) {
-		captureException(e);
+		if (!(e as any).code) {
+			captureException(e);
+		}
 
 		return next(e);
 	}
@@ -131,8 +133,9 @@ router.get('/staff', async (_req: Request, res: Response, next: NextFunction) =>
 
 		return res.status(status.OK).json(staff);
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -143,8 +146,9 @@ router.get('/role', async (_req: Request, res: Response, next: NextFunction) => 
 
 		return res.status(status.OK).json(roles);
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -162,8 +166,9 @@ router.get('/oi', async (_req: Request, res: Response, next: NextFunction) => {
 
 		return res.status(status.OK).json(oi.map((o) => o.oi));
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -246,8 +251,9 @@ router.post(
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -284,8 +290,9 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -310,8 +317,9 @@ router.get('/log', getUser, isStaff, async (req: Request, res: Response, next: N
 
 		return res.status(200).json({ amount, dossier });
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -331,8 +339,9 @@ router.get('/:cid', getUser, async (req: Request, res: Response, next: NextFunct
 
 		return res.status(status.OK).json(user[0]);
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -372,8 +381,9 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -465,8 +475,9 @@ router.get('/stats/:cid', async (req: Request, res: Response, next: NextFunction
 
 		return res.status(status.OK).json(hours);
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -531,8 +542,9 @@ router.get(
 
 			return res.status(status.OK).json(retval);
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -613,8 +625,9 @@ router.get('/visit/status', getUser, async (req: Request, res: Response, next: N
 			} as IVisitingStatus,
 		});
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -699,8 +712,9 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -748,8 +762,9 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -834,8 +849,9 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response, next: Nex
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -921,8 +937,9 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -951,8 +968,9 @@ router.put('/:cid/visit', internalAuth, async (req: Request, res: Response, next
 
 		return res.status(status.OK).json();
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -1048,8 +1066,9 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -1080,8 +1099,10 @@ router.put(
 			return res.status(status.OK).json({ message: 'Certs removed successfully' });
 		} catch (e) {
 			console.error('Error removing certs', e);
-			captureException(e);
 
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -1144,8 +1165,9 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},

@@ -34,8 +34,9 @@ router.get(
 
 			return res.status(status.OK).json({ amount, feedback });
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -87,8 +88,9 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -133,8 +135,9 @@ router.get('/controllers', getUser, async (req: Request, res: Response, next: Ne
 
 		return res.status(status.OK).json(controllers);
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -154,8 +157,9 @@ router.get(
 
 			return res.status(status.OK).json(feedback);
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -200,8 +204,9 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -232,8 +237,9 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -273,8 +279,9 @@ router.get('/own', getUser, async (req: Request, res: Response, next: NextFuncti
 
 		return res.status(status.OK).json({ feedback, amount });
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });

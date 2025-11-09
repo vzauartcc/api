@@ -59,8 +59,9 @@ router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 
 		return res.status(status.OK).json({ pilots, atc });
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -130,8 +131,9 @@ router.get('/top', async (_req: Request, res: Response, next: NextFunction) => {
 				.slice(0, 5),
 		});
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });

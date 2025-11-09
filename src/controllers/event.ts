@@ -42,8 +42,9 @@ router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 
 		return res.status(status.OK).json(events);
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -73,8 +74,9 @@ router.get('/archive', async (req: Request, res: Response, next: NextFunction) =
 
 		return res.status(status.OK).json({ amount: count, events });
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -90,8 +92,9 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
 
 		return res.status(status.OK).json(event);
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -114,8 +117,9 @@ router.get('/:slug/positions', async (req: Request, res: Response, next: NextFun
 
 		return res.status(status.OK).json(event);
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -175,8 +179,9 @@ router.put('/:slug/signup', getUser, async (req: Request, res: Response, next: N
 
 		return res.status(status.OK).json();
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -209,8 +214,9 @@ router.delete('/:slug/signup', getUser, async (req: Request, res: Response, next
 
 		return res.status(status.NO_CONTENT);
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -260,8 +266,9 @@ router.delete(
 
 			return res.status(status.NO_CONTENT);
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -321,8 +328,9 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -382,8 +390,9 @@ router.put(
 
 			return res.status(status.OK).json(assignedPosition);
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -532,8 +541,9 @@ router.post(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -604,8 +614,9 @@ router.post(
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -741,8 +752,9 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -778,8 +790,9 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -856,8 +869,9 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -887,8 +901,9 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -914,8 +929,9 @@ router.get('/staffingRequest', async (req: Request, res: Response, next: NextFun
 
 		return res.status(status.OK).json({ amount: count, requests });
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -932,8 +948,9 @@ router.get('/staffingRequest/:id', async (req: Request, res: Response, next: Nex
 		}
 		return res.status(status.OK).json(staffingRequest);
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -1009,8 +1026,9 @@ router.post('/staffingRequest', async (req: Request, res: Response, next: NextFu
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -1034,8 +1052,9 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -1092,8 +1111,9 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -1118,8 +1138,9 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},

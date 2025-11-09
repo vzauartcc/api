@@ -101,8 +101,9 @@ router.post(
 
 			return res.status(status.CREATED).json({ examId: newExam.id });
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -145,8 +146,9 @@ router.patch(
 				.status(status.OK)
 				.json({ message: 'Exam updated successfully', exam: updatedExam });
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -248,8 +250,9 @@ router.post(
 				.status(status.CREATED)
 				.json({ message: 'Exam started successfully', attemptId: newAttempt.id, timeRemaining });
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -319,8 +322,9 @@ router.post(
 				responses: scoredResponses,
 			});
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -356,8 +360,9 @@ router.get(
 
 			return res.status(status.OK).json(examsWithQuestionCountAndCreator);
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -381,8 +386,9 @@ router.get(
 
 			return res.status(status.OK).json(exam);
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -407,8 +413,9 @@ router.get(
 
 			return res.status(status.OK).json(examAttempt);
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -450,8 +457,9 @@ router.patch(
 					.json({ message: 'Question not found in the current attempt.' });
 			}
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -493,8 +501,9 @@ router.delete(
 			return res.status(status.NO_CONTENT).json();
 			// Respond with success message
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},

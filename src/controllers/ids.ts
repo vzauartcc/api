@@ -33,7 +33,10 @@ router.post('/checktoken', async (req: Request, res: Response, next: NextFunctio
 
 		return res.status(status.OK).json(user);
 	} catch (e) {
-		captureException(e);
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		e;
 
 		return next(e);
 	}
@@ -45,8 +48,9 @@ router.get('/aircraft', async (req: Request, res: Response, next: NextFunction) 
 
 		return res.status(status.OK).json(pilots.split('|'));
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -82,8 +86,9 @@ router.get('/aircraft/feed', (req: Request, res: Response, next: NextFunction) =
 			sub.disconnect();
 		});
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -94,8 +99,9 @@ router.get('/aircraft/:callsign', async (req: Request, res: Response, next: Next
 
 		return res.status(status.OK).json(data);
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -132,8 +138,9 @@ router.get('/atis', (req: Request, res: Response, next: NextFunction) => {
 			sub.disconnect();
 		});
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -191,8 +198,9 @@ router.post('/vatis', async (req: Request, res: Response, next: NextFunction) =>
 		console.log('Successfully processed the request and set the ATIS in Redis');
 		return res.status(status.OK).json();
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -204,8 +212,9 @@ router.get('/stations', async (req: Request, res: Response, next: NextFunction) 
 
 		return res.status(status.OK).json(airports.split('|'));
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -223,8 +232,9 @@ router.get('/stations/:station', async (req: Request, res: Response, next: NextF
 			letter: atisInfo['letter'] || null,
 		});
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -235,8 +245,9 @@ router.get('/neighbors', async (req: Request, res: Response, next: NextFunction)
 
 		return res.status(status.OK).json(neighbors.length ? neighbors.split('|') : '');
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -247,8 +258,9 @@ router.get('/pireps', async (_req: Request, res: Response, next: NextFunction) =
 
 		return res.status(status.OK).json(pirep);
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -274,8 +286,9 @@ router.get('/vatsim-data', (_req: Request, res: Response, next: NextFunction) =>
 				res.status(status.INTERNAL_SERVER_ERROR).send('Error fetching data from external API.');
 			});
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -288,8 +301,9 @@ router.get('/charts/:airportCode', async (req: Request, res: Response, next: Nex
 
 		return res.status(status.OK).json(charts);
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -320,8 +334,9 @@ router.post('/pireps', async (req: Request, res: Response, next: NextFunction) =
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -332,8 +347,9 @@ router.delete('/pireps/:id', async (req: Request, res: Response, next: NextFunct
 
 		return res.status(status.NO_CONTENT).json();
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -353,8 +369,9 @@ router.put('/config/:id', async (req: Request, res: Response, next: NextFunction
 
 		return res.status(status.OK).json(updatedConfig);
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -371,8 +388,9 @@ router.get('/config/:id', async (req: Request, res: Response, next: NextFunction
 
 		return res.status(status.OK).json(config);
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });

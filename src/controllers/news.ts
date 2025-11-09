@@ -24,8 +24,9 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 
 		return res.status(status.OK).json({ amount, news });
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -74,8 +75,9 @@ router.post(
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -97,8 +99,9 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
 
 		return res.status(status.OK).json(newsItem);
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -141,8 +144,9 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -179,8 +183,9 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},

@@ -81,8 +81,9 @@ router.get('/', userOrInternal, async (req: Request, res: Response, next: NextFu
 
 		return res.status(status.OK).json({ home, visiting, removed });
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -117,6 +118,10 @@ router.get('/self', async (req: Request, res: Response, next: NextFunction) => {
 	} catch (e) {
 		deleteAuthCookie(res);
 
+		if (!(e as any).code) {
+			captureException(e);
+		}
+
 		return next(e);
 	}
 });
@@ -143,8 +148,9 @@ router.post('/idsToken', getUser, async (req: Request, res: Response, next: Next
 
 		return res.status(status.CREATED).json(idsToken);
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -251,8 +257,9 @@ router.post('/login', oAuth, async (req: Request, res: Response, next: NextFunct
 
 		return res.status(status.OK).json();
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -270,8 +277,9 @@ router.get('/logout', async (req: Request, res: Response, next: NextFunction) =>
 
 		return res.status(status.OK).json();
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -302,8 +310,9 @@ router.get('/sessions', getUser, async (req: Request, res: Response, next: NextF
 			requirements: zau.activity.requirements,
 		});
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -341,8 +350,9 @@ router.get('/notifications', getUser, async (req: Request, res: Response, next: 
 			notif,
 		});
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -361,8 +371,9 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -382,8 +393,9 @@ router.put('/notifications/read/:id', async (req: Request, res: Response, next: 
 
 		return res.status(status.OK).json();
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -397,8 +409,9 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -431,8 +444,9 @@ router.put('/profile', getUser, async (req: Request, res: Response, next: NextFu
 
 		return res.status(status.OK).json();
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -455,8 +469,9 @@ router.patch('/:cid', internalAuth, async (req: Request, res: Response, next: Ne
 
 		return res.status(status.OK).json();
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });

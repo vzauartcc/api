@@ -40,8 +40,9 @@ router.get(
 
 			return res.status(status.OK).json(upcoming);
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -169,8 +170,9 @@ router.post('/request/new', getUser, async (req: Request, res: Response, next: N
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -190,8 +192,9 @@ router.get('/milestones', getUser, async (req: Request, res: Response, next: Nex
 
 		return res.status(status.OK).json({ user, milestones });
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -222,8 +225,9 @@ router.get(
 
 			return res.status(status.OK).json(requests);
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -313,8 +317,9 @@ router.post(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -357,8 +362,9 @@ router.delete('/request/:id', getUser, async (req: Request, res: Response, next:
 
 		return res.status(status.NO_CONTENT).json();
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -391,8 +397,9 @@ router.get(
 
 			return res.status(status.OK).json(requests);
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -418,8 +425,9 @@ router.get(
 
 			return res.status(status.OK).json(sessions);
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -458,8 +466,9 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -499,8 +508,9 @@ router.get('/session/:id', getUser, async (req: Request, res: Response, next: Ne
 
 		return res.status(status.OK).json(session);
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -535,8 +545,9 @@ router.get(
 
 			return res.status(status.OK).json({ count: amount, sessions });
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -570,8 +581,9 @@ router.get('/sessions/past', getUser, async (req: Request, res: Response, next: 
 
 		return res.status(status.OK).json({ count: amount, sessions });
 	} catch (e) {
-		captureException(e);
-
+		if (!(e as any).code) {
+			captureException(e);
+		}
 		return next(e);
 	}
 });
@@ -622,8 +634,9 @@ router.get(
 				controller,
 			});
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -650,8 +663,9 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -769,8 +783,9 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -848,8 +863,9 @@ router.post(
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -949,8 +965,9 @@ router.post(
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -978,8 +995,9 @@ router.get(
 
 			return res.status(status.OK).json(solos);
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -1065,8 +1083,9 @@ router.post(
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
@@ -1117,8 +1136,9 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			captureException(e);
-
+			if (!(e as any).code) {
+				captureException(e);
+			}
 			return next(e);
 		}
 	},
