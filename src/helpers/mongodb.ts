@@ -58,12 +58,6 @@ export async function getUsersWithPrivacy(user: IUser, findOptions = {}) {
 			},
 		},
 		{
-			$unwind: {
-				path: '$absence',
-				preserveNullAndEmptyArrays: true,
-			},
-		},
-		{
 			$project: {
 				prefName: 0,
 				deleted: 0,

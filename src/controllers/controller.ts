@@ -324,164 +324,6 @@ router.get('/log', getUser, isStaff, async (req: Request, res: Response, next: N
 	}
 });
 
-router.get('/:cid', getUser, async (req: Request, res: Response, next: NextFunction) => {
-	try {
-		const user = await getUsersWithPrivacy(req.user, {
-			cid: Number(req.params['cid']),
-		});
-
-		if (!user || user.length === 0) {
-			throw {
-				code: status.NOT_FOUND,
-				message: 'Unable to find controller',
-			};
-		}
-
-		return res.status(status.OK).json(user[0]);
-	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
-		return next(e);
-	}
-});
-
-router.put(
-	'/:cid/rating',
-	internalAuth,
-	async (req: Request, res: Response, next: NextFunction) => {
-		if (!req.body.rating) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Rating is required',
-			};
-		}
-
-		try {
-			const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
-
-			if (!user) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Unable to find user',
-				};
-			}
-
-			if (user.rating !== req.body.rating) {
-				user.rating = req.body.rating;
-
-				await user.save();
-
-				await DossierModel.create({
-					by: -1,
-					affected: req.params['cid'],
-					action: `%a was set as Rating ${req.body.rating} by an external service.`,
-				});
-			}
-
-			return res.status(status.OK).json();
-		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
-			return next(e);
-		}
-	},
-);
-
-// @TODO: fix this to remove the ts-ignore and structure the data properly
-router.get('/stats/:cid', async (req: Request, res: Response, next: NextFunction) => {
-	try {
-		const controllerHours = await ControllerHoursModel.find({ cid: req.params['cid'] }).exec();
-
-		const hours = {
-			gtyear: {
-				del: 0,
-				gnd: 0,
-				twr: 0,
-				app: 0,
-				ctr: 0,
-			},
-			total: {
-				del: 0,
-				gnd: 0,
-				twr: 0,
-				app: 0,
-				ctr: 0,
-			},
-			sessionCount: controllerHours.length,
-			sessionAvg: 0,
-			months: [],
-		};
-		const pos = {
-			del: 'del',
-			gnd: 'gnd',
-			twr: 'twr',
-			dep: 'app',
-			app: 'app',
-			ctr: 'ctr',
-		};
-		const today = DateTime.utc();
-
-		const getMonthYearString = (date: DateTime<true> | DateTime<false>) =>
-			date.toFormat('LLL yyyy');
-
-		for (let i = 0; i < 12; i++) {
-			const theMonth = today.minus({ months: i });
-			const ms = getMonthYearString(theMonth);
-			// @ts-ignore
-			hours[ms] = {
-				del: 0,
-				gnd: 0,
-				twr: 0,
-				app: 0,
-				ctr: 0,
-			};
-
-			// @ts-ignore
-			hours.months.push(ms);
-		}
-
-		for (const sess of controllerHours) {
-			if (!sess.timeEnd) continue;
-
-			const thePos = sess.position.toLowerCase().match(/([a-z]{3})$/);
-
-			if (thePos && thePos[1]) {
-				const start = DateTime.fromJSDate(sess.timeStart).toUTC();
-				const end = DateTime.fromJSDate(sess.timeEnd).toUTC();
-
-				// @ts-ignore
-				const type = pos[thePos[1]];
-				const length = Number(end.diff(start)) / 1000;
-				let ms = getMonthYearString(start);
-
-				// @ts-ignore
-				if (!hours[ms]) {
-					ms = 'gtyear';
-				}
-
-				// @ts-ignore
-				hours[ms][type] += length;
-
-				// @ts-ignore
-				hours.total[type] += length;
-			}
-		}
-
-		hours.sessionAvg = Math.round(
-			Object.values(hours.total).reduce((acc, cv) => acc + cv) / hours.sessionCount,
-		);
-
-		return res.status(status.OK).json(hours);
-	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
-		return next(e);
-	}
-});
-
 //#region Visiting Application
 router.get(
 	'/visit',
@@ -770,6 +612,164 @@ router.delete(
 	},
 );
 //#endregion
+
+router.get('/:cid', getUser, async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const user = await getUsersWithPrivacy(req.user, {
+			cid: Number(req.params['cid']),
+		});
+
+		if (!user || user.length === 0) {
+			throw {
+				code: status.NOT_FOUND,
+				message: 'Unable to find controller',
+			};
+		}
+
+		return res.status(status.OK).json(user[0]);
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
+	}
+});
+
+router.put(
+	'/:cid/rating',
+	internalAuth,
+	async (req: Request, res: Response, next: NextFunction) => {
+		if (!req.body.rating) {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Rating is required',
+			};
+		}
+
+		try {
+			const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
+
+			if (!user) {
+				throw {
+					code: status.NOT_FOUND,
+					message: 'Unable to find user',
+				};
+			}
+
+			if (user.rating !== req.body.rating) {
+				user.rating = req.body.rating;
+
+				await user.save();
+
+				await DossierModel.create({
+					by: -1,
+					affected: req.params['cid'],
+					action: `%a was set as Rating ${req.body.rating} by an external service.`,
+				});
+			}
+
+			return res.status(status.OK).json();
+		} catch (e) {
+			if (!(e as any).code) {
+				captureException(e);
+			}
+			return next(e);
+		}
+	},
+);
+
+// @TODO: fix this to remove the ts-ignore and structure the data properly
+router.get('/stats/:cid', async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const controllerHours = await ControllerHoursModel.find({ cid: req.params['cid'] }).exec();
+
+		const hours = {
+			gtyear: {
+				del: 0,
+				gnd: 0,
+				twr: 0,
+				app: 0,
+				ctr: 0,
+			},
+			total: {
+				del: 0,
+				gnd: 0,
+				twr: 0,
+				app: 0,
+				ctr: 0,
+			},
+			sessionCount: controllerHours.length,
+			sessionAvg: 0,
+			months: [],
+		};
+		const pos = {
+			del: 'del',
+			gnd: 'gnd',
+			twr: 'twr',
+			dep: 'app',
+			app: 'app',
+			ctr: 'ctr',
+		};
+		const today = DateTime.utc();
+
+		const getMonthYearString = (date: DateTime<true> | DateTime<false>) =>
+			date.toFormat('LLL yyyy');
+
+		for (let i = 0; i < 12; i++) {
+			const theMonth = today.minus({ months: i });
+			const ms = getMonthYearString(theMonth);
+			// @ts-ignore
+			hours[ms] = {
+				del: 0,
+				gnd: 0,
+				twr: 0,
+				app: 0,
+				ctr: 0,
+			};
+
+			// @ts-ignore
+			hours.months.push(ms);
+		}
+
+		for (const sess of controllerHours) {
+			if (!sess.timeEnd) continue;
+
+			const thePos = sess.position.toLowerCase().match(/([a-z]{3})$/);
+
+			if (thePos && thePos[1]) {
+				const start = DateTime.fromJSDate(sess.timeStart).toUTC();
+				const end = DateTime.fromJSDate(sess.timeEnd).toUTC();
+
+				// @ts-ignore
+				const type = pos[thePos[1]];
+				const length = Number(end.diff(start)) / 1000;
+				let ms = getMonthYearString(start);
+
+				// @ts-ignore
+				if (!hours[ms]) {
+					ms = 'gtyear';
+				}
+
+				// @ts-ignore
+				hours[ms][type] += length;
+
+				// @ts-ignore
+				hours.total[type] += length;
+			}
+		}
+
+		hours.sessionAvg = Math.round(
+			Object.values(hours.total).reduce((acc, cv) => acc + cv) / hours.sessionCount,
+		);
+
+		return res.status(status.OK).json(hours);
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
+	}
+});
 
 router.post('/:cid', internalAuth, async (req: Request, res: Response, next: NextFunction) => {
 	try {

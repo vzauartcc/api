@@ -81,6 +81,244 @@ router.get('/archive', async (req: Request, res: Response, next: NextFunction) =
 	}
 });
 
+//#region Staffing Request
+router.get('/staffingRequest', async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const page = +(req.query['page'] as string) || 1;
+		const limit = +(req.query['limit'] as string) || 10;
+
+		const count = await StaffingRequestModel.countDocuments({ deleted: false }).exec();
+		let requests: any[] = [];
+
+		if (count > 0) {
+			requests = await StaffingRequestModel.find({ deleted: false })
+				.skip(limit * (page - 1))
+				.limit(limit)
+				.sort({ date: 'desc' })
+				.lean()
+				.exec();
+		}
+
+		return res.status(status.OK).json({ amount: count, requests });
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
+	}
+});
+
+router.get('/staffingRequest/:id', async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
+
+		if (!staffingRequest) {
+			throw {
+				code: status.NOT_FOUND,
+				message: 'Staffing request not found',
+			};
+		}
+		return res.status(status.OK).json(staffingRequest);
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
+	}
+});
+
+router.post('/staffingRequest', async (req: Request, res: Response, next: NextFunction) => {
+	// Submit staffing request
+	try {
+		if (
+			!req.body.vaName ||
+			!req.body.name ||
+			!req.body.email ||
+			!req.body.date ||
+			!req.body.pilots ||
+			!req.body.route ||
+			!req.body.description
+		) {
+			// Validation
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'You must fill out all required fields',
+			};
+		}
+
+		if (isNaN(req.body.pilots)) {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Pilots must be a number',
+			};
+		}
+
+		const count = await StaffingRequestModel.countDocuments({
+			accepted: false,
+			name: req.body.name,
+			email: req.body.email,
+		}).exec();
+
+		if (count >= 3) {
+			throw {
+				code: status.TOO_MANY_REQUESTS,
+				message: 'You have reached the maximum limit of staffing requests with a pending status.',
+			};
+		}
+
+		const newRequest = await StaffingRequestModel.create({
+			vaName: req.body.vaName,
+			name: req.body.name,
+			email: req.body.email,
+			date: req.body.date,
+			pilots: req.body.pilots,
+			route: req.body.route,
+			description: req.body.description,
+			accepted: false,
+		});
+
+		const newRequestID = newRequest.id; // Access the new object's ID
+
+		// Send an email notification to the specified email address
+		sendMail({
+			to: 'ec@zauartcc.org, aec@zauartcc.org',
+			subject: `New Staffing Request from ${req.body.vaName} | Chicago ARTCC`,
+			template: `staffingRequest`,
+			context: {
+				vaName: req.body.vaName,
+				name: req.body.name,
+				email: req.body.email,
+				date: req.body.date,
+				pilots: req.body.pilots,
+				route: req.body.route,
+				description: req.body.description,
+				slug: newRequestID,
+			},
+		});
+
+		return res.status(status.CREATED).json();
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
+	}
+});
+
+router.put(
+	'/staffingRequest/:id/accept',
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
+
+			if (!staffingRequest) {
+				throw {
+					code: status.NOT_FOUND,
+					message: 'Staffing request not found',
+				};
+			}
+
+			staffingRequest.accepted = req.body.accepted;
+
+			await staffingRequest.save();
+
+			return res.status(status.OK).json();
+		} catch (e) {
+			if (!(e as any).code) {
+				captureException(e);
+			}
+			return next(e);
+		}
+	},
+);
+
+router.put(
+	'/staffingRequest/:id',
+	getUser,
+	hasRole(['atm', 'datm', 'ec', 'wm']),
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
+
+			if (!staffingRequest) {
+				throw {
+					code: status.NOT_FOUND,
+					message: 'Staffing request not found',
+				};
+			}
+
+			staffingRequest.vaName = req.body.vaName;
+			staffingRequest.name = req.body.name;
+			staffingRequest.email = req.body.email;
+			staffingRequest.date = req.body.date;
+			staffingRequest.pilots = req.body.pilots;
+			staffingRequest.route = req.body.route;
+			staffingRequest.description = req.body.description;
+			staffingRequest.accepted = req.body.accepted;
+
+			await staffingRequest.save();
+
+			if (req.body.accepted) {
+				sendMail({
+					to: req.body.email,
+					subject: `Staffing Request for ${req.body.vaName} accepted | Chicago ARTCC`,
+					template: `staffingRequestAccepted`,
+					context: {
+						vaName: req.body.vaName,
+						name: req.body.name,
+						email: req.body.email,
+						date: req.body.date,
+						pilots: req.body.pilots,
+						route: req.body.route,
+						description: req.body.description,
+					},
+				});
+
+				await DossierModel.create({
+					by: req.user.cid,
+					affected: -1,
+					action: `%b approved a staffing request for ${req.body.vaName}.`,
+				});
+			}
+
+			return res.status(status.OK).json();
+		} catch (e) {
+			if (!(e as any).code) {
+				captureException(e);
+			}
+			return next(e);
+		}
+	},
+);
+
+router.delete(
+	'/staffingRequest/:id',
+	getUser,
+	hasRole(['atm', 'datm', 'ec', 'wm']),
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
+
+			if (!staffingRequest) {
+				throw {
+					code: status.NOT_FOUND,
+					message: 'Staffing request not found',
+				};
+			}
+
+			await staffingRequest.delete();
+
+			return res.status(status.NO_CONTENT).json();
+		} catch (e) {
+			if (!(e as any).code) {
+				captureException(e);
+			}
+			return next(e);
+		}
+	},
+);
+//#endregion
+
 router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const event = await EventModel.findOne({
@@ -98,7 +336,6 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
 		return next(e);
 	}
 });
-
 //#region Position Signups
 router.get('/:slug/positions', async (req: Request, res: Response, next: NextFunction) => {
 	try {
@@ -908,244 +1145,6 @@ router.put(
 		}
 	},
 );
-
-//#region Staffing Request
-router.get('/staffingRequest', async (req: Request, res: Response, next: NextFunction) => {
-	try {
-		const page = +(req.query['page'] as string) || 1;
-		const limit = +(req.query['limit'] as string) || 10;
-
-		const count = await StaffingRequestModel.countDocuments({ deleted: false }).exec();
-		let requests: any[] = [];
-
-		if (count > 0) {
-			requests = await StaffingRequestModel.find({ deleted: false })
-				.skip(limit * (page - 1))
-				.limit(limit)
-				.sort({ date: 'desc' })
-				.lean()
-				.exec();
-		}
-
-		return res.status(status.OK).json({ amount: count, requests });
-	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
-		return next(e);
-	}
-});
-
-router.get('/staffingRequest/:id', async (req: Request, res: Response, next: NextFunction) => {
-	try {
-		const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
-
-		if (!staffingRequest) {
-			throw {
-				code: status.NOT_FOUND,
-				message: 'Staffing request not found',
-			};
-		}
-		return res.status(status.OK).json(staffingRequest);
-	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
-		return next(e);
-	}
-});
-
-router.post('/staffingRequest', async (req: Request, res: Response, next: NextFunction) => {
-	// Submit staffing request
-	try {
-		if (
-			!req.body.vaName ||
-			!req.body.name ||
-			!req.body.email ||
-			!req.body.date ||
-			!req.body.pilots ||
-			!req.body.route ||
-			!req.body.description
-		) {
-			// Validation
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'You must fill out all required fields',
-			};
-		}
-
-		if (isNaN(req.body.pilots)) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Pilots must be a number',
-			};
-		}
-
-		const count = await StaffingRequestModel.countDocuments({
-			accepted: false,
-			name: req.body.name,
-			email: req.body.email,
-		}).exec();
-
-		if (count >= 3) {
-			throw {
-				code: status.TOO_MANY_REQUESTS,
-				message: 'You have reached the maximum limit of staffing requests with a pending status.',
-			};
-		}
-
-		const newRequest = await StaffingRequestModel.create({
-			vaName: req.body.vaName,
-			name: req.body.name,
-			email: req.body.email,
-			date: req.body.date,
-			pilots: req.body.pilots,
-			route: req.body.route,
-			description: req.body.description,
-			accepted: false,
-		});
-
-		const newRequestID = newRequest.id; // Access the new object's ID
-
-		// Send an email notification to the specified email address
-		sendMail({
-			to: 'ec@zauartcc.org, aec@zauartcc.org',
-			subject: `New Staffing Request from ${req.body.vaName} | Chicago ARTCC`,
-			template: `staffingRequest`,
-			context: {
-				vaName: req.body.vaName,
-				name: req.body.name,
-				email: req.body.email,
-				date: req.body.date,
-				pilots: req.body.pilots,
-				route: req.body.route,
-				description: req.body.description,
-				slug: newRequestID,
-			},
-		});
-
-		return res.status(status.CREATED).json();
-	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
-		return next(e);
-	}
-});
-
-router.put(
-	'/staffingRequest/:id/accept',
-	async (req: Request, res: Response, next: NextFunction) => {
-		try {
-			const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
-
-			if (!staffingRequest) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Staffing request not found',
-				};
-			}
-
-			staffingRequest.accepted = req.body.accepted;
-
-			await staffingRequest.save();
-
-			return res.status(status.OK).json();
-		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
-			return next(e);
-		}
-	},
-);
-
-router.put(
-	'/staffingRequest/:id',
-	getUser,
-	hasRole(['atm', 'datm', 'ec', 'wm']),
-	async (req: Request, res: Response, next: NextFunction) => {
-		try {
-			const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
-
-			if (!staffingRequest) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Staffing request not found',
-				};
-			}
-
-			staffingRequest.vaName = req.body.vaName;
-			staffingRequest.name = req.body.name;
-			staffingRequest.email = req.body.email;
-			staffingRequest.date = req.body.date;
-			staffingRequest.pilots = req.body.pilots;
-			staffingRequest.route = req.body.route;
-			staffingRequest.description = req.body.description;
-			staffingRequest.accepted = req.body.accepted;
-
-			await staffingRequest.save();
-
-			if (req.body.accepted) {
-				sendMail({
-					to: req.body.email,
-					subject: `Staffing Request for ${req.body.vaName} accepted | Chicago ARTCC`,
-					template: `staffingRequestAccepted`,
-					context: {
-						vaName: req.body.vaName,
-						name: req.body.name,
-						email: req.body.email,
-						date: req.body.date,
-						pilots: req.body.pilots,
-						route: req.body.route,
-						description: req.body.description,
-					},
-				});
-
-				await DossierModel.create({
-					by: req.user.cid,
-					affected: -1,
-					action: `%b approved a staffing request for ${req.body.vaName}.`,
-				});
-			}
-
-			return res.status(status.OK).json();
-		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
-			return next(e);
-		}
-	},
-);
-
-router.delete(
-	'/staffingRequest/:id',
-	getUser,
-	hasRole(['atm', 'datm', 'ec', 'wm']),
-	async (req: Request, res: Response, next: NextFunction) => {
-		try {
-			const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
-
-			if (!staffingRequest) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Staffing request not found',
-				};
-			}
-
-			await staffingRequest.delete();
-
-			return res.status(status.NO_CONTENT).json();
-		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
-			return next(e);
-		}
-	},
-);
-//#endregion
 
 export default router;
 
