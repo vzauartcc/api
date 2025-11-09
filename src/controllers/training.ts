@@ -670,8 +670,8 @@ router.put(
 				req.body.location === null ||
 				req.body.ots === null ||
 				req.body.studentNotes === null ||
-				(req.body.studentNotes && req.body.studentNotes.length > 3000) ||
-				(req.body.insNotes && req.body.insNotes.length > 3000)
+				(req.body.studentNotes && req.body.studentNotes.length > 10_000) ||
+				(req.body.insNotes && req.body.insNotes.length > 10_000)
 			) {
 				throw {
 					code: status.BAD_REQUEST,
@@ -795,8 +795,8 @@ router.post(
 				req.body.location === null ||
 				req.body.ots === null ||
 				req.body.studentNotes === null ||
-				(req.body.studentNotes && req.body.studentNotes.length > 3000) ||
-				(req.body.insNotes && req.body.insNotes.length > 3000)
+				(req.body.studentNotes && req.body.studentNotes.length > 10_000) ||
+				(req.body.insNotes && req.body.insNotes.length > 10_000)
 			) {
 				throw {
 					code: status.BAD_REQUEST,
@@ -872,8 +872,8 @@ router.post(
 				req.body.location === null ||
 				req.body.ots === null ||
 				req.body.studentNotes === null ||
-				(req.body.studentNotes && req.body.studentNotes.length > 3000) ||
-				(req.body.insNotes && req.body.insNotes.length > 3000)
+				(req.body.studentNotes && req.body.studentNotes.length > 10_000) ||
+				(req.body.insNotes && req.body.insNotes.length > 10_000)
 			) {
 				throw {
 					code: status.BAD_REQUEST,
