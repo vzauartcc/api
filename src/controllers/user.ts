@@ -248,6 +248,8 @@ router.post('/login', oAuth, async (req: Request, res: Response, next: NextFunct
 			sameSite: true,
 			domain: process.env['DOMAIN'],
 		}); // Expires in 30 days
+
+		return res.status(status.OK).json();
 	} catch (e) {
 		captureException(e);
 
@@ -265,6 +267,8 @@ router.get('/logout', async (req: Request, res: Response, next: NextFunction) =>
 		}
 
 		deleteAuthCookie(res);
+
+		return res.status(status.OK).json();
 	} catch (e) {
 		captureException(e);
 
@@ -376,7 +380,7 @@ router.put('/notifications/read/:id', async (req: Request, res: Response, next: 
 			read: true,
 		}).exec();
 
-		res.status(status.OK).json();
+		return res.status(status.OK).json();
 	} catch (e) {
 		captureException(e);
 

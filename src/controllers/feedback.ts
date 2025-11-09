@@ -101,6 +101,7 @@ router.get('/controllers', getUser, async (req: Request, res: Response, next: Ne
 			member: true,
 		});
 		const controllers = [];
+
 		for (const user of allUsers) {
 			controllers.push({
 				_id: user.id,
@@ -111,6 +112,7 @@ router.get('/controllers', getUser, async (req: Request, res: Response, next: Ne
 				vis: user.vis,
 			});
 		}
+
 		controllers.sort((a, b) => {
 			const nameA = a.fname.toUpperCase();
 			const nameB = b.fname.toUpperCase();
@@ -128,6 +130,7 @@ router.get('/controllers', getUser, async (req: Request, res: Response, next: Ne
 
 			return 0;
 		});
+
 		return res.status(status.OK).json(controllers);
 	} catch (e) {
 		captureException(e);

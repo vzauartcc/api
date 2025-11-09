@@ -129,7 +129,7 @@ app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
 		return next(err);
 	}
 
-	res.status(err.status || 500).json({
+	res.status(err.status || err.code || 500).json({
 		message: err.message || 'An internal server error occurred.',
 	});
 });

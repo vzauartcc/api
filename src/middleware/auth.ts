@@ -19,7 +19,7 @@ export async function userOrInternal(req: Request, res: Response, next: NextFunc
 export function hasRole(roles: string[]) {
 	return function (req: Request, res: Response, next: NextFunction) {
 		if (!req.user) {
-			return res.status(status.UNAUTHORIZED);
+			return res.status(status.UNAUTHORIZED).json();
 		}
 
 		const roleCodes = req.user.roleCodes;
@@ -30,7 +30,7 @@ export function hasRole(roles: string[]) {
 				`${req.user.cid} attempted to access an auth route without having necessary role.`,
 			);
 
-			return res.status(status.FORBIDDEN);
+			return res.status(status.FORBIDDEN).json();
 		}
 		return next();
 	};
@@ -38,7 +38,7 @@ export function hasRole(roles: string[]) {
 
 export function isSelf(req: Request, res: Response, next: NextFunction) {
 	if (!req.user || !req.params['id'] || req.user.cid.toString() !== req.params['id']) {
-		return res.status(status.FORBIDDEN);
+		return res.status(status.FORBIDDEN).json();
 	}
 
 	return next();
@@ -49,7 +49,7 @@ export function isInstructor(req: Request, res: Response, next: NextFunction) {
 		return next();
 	}
 
-	return res.status(status.FORBIDDEN);
+	return res.status(status.FORBIDDEN).json();
 }
 
 export function isStaff(req: Request, res: Response, next: NextFunction) {
@@ -57,7 +57,7 @@ export function isStaff(req: Request, res: Response, next: NextFunction) {
 		return next();
 	}
 
-	return res.status(status.FORBIDDEN);
+	return res.status(status.FORBIDDEN).json();
 }
 
 export function isSeniorStaff(req: Request, res: Response, next: NextFunction) {
@@ -65,7 +65,7 @@ export function isSeniorStaff(req: Request, res: Response, next: NextFunction) {
 		return next();
 	}
 
-	return res.status(status.FORBIDDEN);
+	return res.status(status.FORBIDDEN).json();
 }
 
 export function isManagement(req: Request, res: Response, next: NextFunction) {
@@ -73,5 +73,5 @@ export function isManagement(req: Request, res: Response, next: NextFunction) {
 		return next();
 	}
 
-	return res.status(status.FORBIDDEN);
+	return res.status(status.FORBIDDEN).json();
 }
