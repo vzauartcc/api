@@ -7,7 +7,7 @@ import { getUsersWithPrivacy } from '../helpers/mongodb.js';
 import { uploadToS3 } from '../helpers/s3.js';
 import { vatusaApi, type IVisitingStatus } from '../helpers/vatusa.js';
 import zau from '../helpers/zau.js';
-import { hasRole, isManagement, isStaff } from '../middleware/auth.js';
+import { hasRole, isManagement, isStaff, userOrInternal } from '../middleware/auth.js';
 import internalAuth from '../middleware/internalAuth.js';
 import getUser from '../middleware/user.js';
 import { AbsenceModel } from '../models/absence.js';
@@ -15,7 +15,7 @@ import { ControllerHoursModel } from '../models/controllerHours.js';
 import { DossierModel } from '../models/dossier.js';
 import { NotificationModel } from '../models/notification.js';
 import { RoleModel } from '../models/role.js';
-import { UserModel } from '../models/user.js';
+import { UserModel, type IUser } from '../models/user.js';
 import { VisitApplicationModel } from '../models/visitApplication.js';
 import status from '../types/status.js';
 
@@ -640,11 +640,18 @@ router.delete(
 );
 //#endregion
 
-router.get('/:cid', getUser, async (req: Request, res: Response, next: NextFunction) => {
+router.get('/:cid', userOrInternal, async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		const user = await getUsersWithPrivacy(req.user, {
-			cid: Number(req.params['cid']),
-		});
+		let user: IUser[] = [];
+		if (req.internal === true) {
+			user = await getUsersWithPrivacy({ isStaff: true, isInstructor: true, rating: 12 } as IUser, {
+				cid: Number(req.params['cid']),
+			});
+		} else {
+			user = await getUsersWithPrivacy(req.user, {
+				cid: Number(req.params['cid']),
+			});
+		}
 
 		if (!user || user.length === 0) {
 			throw {
