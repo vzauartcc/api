@@ -297,7 +297,7 @@ router.get('/sessions', getUser, async (req: Request, res: Response, next: NextF
 
 		const trainings = await TrainingSessionModel.find({
 			studentCid: req.user.cid,
-			startTime: zau.activity.period.startOfCurrent,
+			startTime: { $gt: zau.activity.period.startOfCurrent },
 		})
 			.sort({ startTime: -1 })
 			.lean()
