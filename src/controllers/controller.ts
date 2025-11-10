@@ -15,7 +15,7 @@ import { ControllerHoursModel } from '../models/controllerHours.js';
 import { DossierModel } from '../models/dossier.js';
 import { NotificationModel } from '../models/notification.js';
 import { RoleModel } from '../models/role.js';
-import { UserModel, type IUser } from '../models/user.js';
+import { UserModel, type ICertificationDate, type IUser } from '../models/user.js';
 import { VisitApplicationModel } from '../models/visitApplication.js';
 import status from '../types/status.js';
 
@@ -523,44 +523,10 @@ router.put(
 			user.vis = true;
 			user.oi = userOi;
 
-			if (user.rating >= 2 && !user.certCodes.includes('gnd')) {
-				user.certCodes.push('gnd');
-			}
-			if (user.rating >= 3 && !user.certCodes.includes('twr')) {
-				user.certCodes.push('twr');
-			}
-			if (user.rating >= 4 && !user.certCodes.includes('app')) {
-				user.certCodes.push('app');
-			}
+			const certDates = grantCerts(user.rating, user.certificationDate);
 
-			// Remove duplicates
-			user.certCodes = user.certCodes.filter((value, index, self) => {
-				return self.indexOf(value) === index;
-			});
-
-			// Handle certifications (certCodes and certificationDate)
-			const existingCertMap = new Map(user.certificationDate.map((cert) => [cert.code, cert]));
-			const updatedCertificationDate = [];
-
-			for (const [code, set] of Object.entries(user.certCodes)) {
-				if (set) {
-					if (existingCertMap.has(code)) {
-						// Keep the existing gainedDate if certification already exists
-						updatedCertificationDate.push({
-							code,
-							gainedDate: existingCertMap.get(code)!.gainedDate,
-						});
-					} else {
-						// If it's a new certification, add with today's date
-						updatedCertificationDate.push({
-							code,
-							gainedDate: new Date(), // Assign current date as gainedDate
-						});
-					}
-				}
-			}
-
-			user.certificationDate = updatedCertificationDate;
+			user.certCodes = certDates.map((c) => c.code);
+			user.certificationDate = certDates;
 
 			await user.save();
 
@@ -693,44 +659,10 @@ router.put(
 			if (user.rating !== req.body.rating) {
 				user.rating = req.body.rating;
 
-				if (user.rating >= 2 && !user.certCodes.includes('gnd')) {
-					user.certCodes.push('gnd');
-				}
-				if (user.rating >= 3 && !user.certCodes.includes('twr')) {
-					user.certCodes.push('twr');
-				}
-				if (user.rating >= 4 && !user.certCodes.includes('app')) {
-					user.certCodes.push('app');
-				}
+				const certDates = grantCerts(user.rating, user.certificationDate);
 
-				// Remove duplicates
-				user.certCodes = user.certCodes.filter((value, index, self) => {
-					return self.indexOf(value) === index;
-				});
-
-				// Handle certifications (certCodes and certificationDate)
-				const existingCertMap = new Map(user.certificationDate.map((cert) => [cert.code, cert]));
-				const updatedCertificationDate = [];
-
-				for (const [code, set] of Object.entries(user.certCodes)) {
-					if (set) {
-						if (existingCertMap.has(code)) {
-							// Keep the existing gainedDate if certification already exists
-							updatedCertificationDate.push({
-								code,
-								gainedDate: existingCertMap.get(code)!.gainedDate,
-							});
-						} else {
-							// If it's a new certification, add with today's date
-							updatedCertificationDate.push({
-								code,
-								gainedDate: new Date(), // Assign current date as gainedDate
-							});
-						}
-					}
-				}
-
-				user.certificationDate = updatedCertificationDate;
+				user.certCodes = certDates.map((c) => c.code);
+				user.certificationDate = certDates;
 
 				await user.save();
 
@@ -862,29 +794,8 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response, next: Nex
 		}
 
 		const rating = Number(req.body.rating);
-		let certCodes = [];
-		if (rating >= 2) {
-			certCodes.push('gnd');
-		}
-		if (rating >= 3) {
-			certCodes.push('twr');
-		}
-		if (rating >= 4) {
-			certCodes.push('app');
-		}
 
-		// Handle certifications (certCodes and certificationDate)
-		const updatedCertificationDate = [];
-
-		for (const [code, set] of Object.entries(certCodes)) {
-			if (set) {
-				// If it's a new certification, add with today's date
-				updatedCertificationDate.push({
-					code,
-					gainedDate: new Date(), // Assign current date as gainedDate
-				});
-			}
-		}
+		const certDates = grantCerts(rating, []);
 
 		const oi = await UserModel.find({ deletedAt: null, member: true }).select('oi').lean().exec();
 		const userOi = generateOperatingInitials(
@@ -906,8 +817,8 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response, next: Nex
 			...req.body,
 			oi: userOi,
 			avatar: `${req.body.cid}-default.png`,
-			certCodes,
-			certificationDate: updatedCertificationDate,
+			certCodes: certDates.map((c) => c.code),
+			certificationDate: certDates,
 		});
 
 		sendMail({
@@ -970,44 +881,10 @@ router.put(
 				user.joinDate = req.body.joinDate || new Date();
 				user.removalDate = null;
 
-				if (user.rating >= 2 && !user.certCodes.includes('gnd')) {
-					user.certCodes.push('gnd');
-				}
-				if (user.rating >= 3 && !user.certCodes.includes('twr')) {
-					user.certCodes.push('twr');
-				}
-				if (user.rating >= 4 && !user.certCodes.includes('app')) {
-					user.certCodes.push('app');
-				}
+				const certDates = grantCerts(user.rating, user.certificationDate);
 
-				// Remove duplicates
-				user.certCodes = user.certCodes.filter((value, index, self) => {
-					return self.indexOf(value) === index;
-				});
-
-				// Handle certifications (certCodes and certificationDate)
-				const existingCertMap = new Map(user.certificationDate.map((cert) => [cert.code, cert]));
-				const updatedCertificationDate = [];
-
-				for (const [code, set] of Object.entries(user.certCodes)) {
-					if (set) {
-						if (existingCertMap.has(code)) {
-							// Keep the existing gainedDate if certification already exists
-							updatedCertificationDate.push({
-								code,
-								gainedDate: existingCertMap.get(code)!.gainedDate,
-							});
-						} else {
-							// If it's a new certification, add with today's date
-							updatedCertificationDate.push({
-								code,
-								gainedDate: new Date(), // Assign current date as gainedDate
-							});
-						}
-					}
-				}
-
-				user.certificationDate = updatedCertificationDate;
+				user.certCodes = certDates.map((c) => c.code);
+				user.certificationDate = certDates;
 			} else {
 				user.history.push({
 					start: user.joinDate!,
@@ -1068,44 +945,11 @@ router.put('/:cid/visit', internalAuth, async (req: Request, res: Response, next
 		user.vis = req.body.vis;
 
 		if (req.body.vis === true) {
-			if (user.rating >= 2 && !user.certCodes.includes('gnd')) {
-				user.certCodes.push('gnd');
-			}
-			if (user.rating >= 3 && !user.certCodes.includes('twr')) {
-				user.certCodes.push('twr');
-			}
-			if (user.rating >= 4 && !user.certCodes.includes('app')) {
-				user.certCodes.push('app');
-			}
+			const certDates = grantCerts(user.rating, user.certificationDate);
 
-			// Remove duplicates
-			user.certCodes = user.certCodes.filter((value, index, self) => {
-				return self.indexOf(value) === index;
-			});
+			user.certCodes = certDates.map((c) => c.code);
 
-			// Handle certifications (certCodes and certificationDate)
-			const existingCertMap = new Map(user.certificationDate.map((cert) => [cert.code, cert]));
-			const updatedCertificationDate = [];
-
-			for (const [code, set] of Object.entries(user.certCodes)) {
-				if (set) {
-					if (existingCertMap.has(code)) {
-						// Keep the existing gainedDate if certification already exists
-						updatedCertificationDate.push({
-							code,
-							gainedDate: existingCertMap.get(code)!.gainedDate,
-						});
-					} else {
-						// If it's a new certification, add with today's date
-						updatedCertificationDate.push({
-							code,
-							gainedDate: new Date(), // Assign current date as gainedDate
-						});
-					}
-				}
-			}
-
-			user.certificationDate = updatedCertificationDate;
+			user.certificationDate = certDates;
 		}
 
 		await user.save();
@@ -1379,3 +1223,43 @@ const random = (str: string, len: number) => {
 	}
 	return ret;
 };
+
+function grantCerts(rating: number, certificationDate: ICertificationDate[]): ICertificationDate[] {
+	let certCodes = [...certificationDate.map((cert) => cert.code)];
+	if (rating >= 2) {
+		certCodes.push('gnd');
+	}
+	if (rating >= 3) {
+		certCodes.push('twr');
+	}
+	if (rating >= 4) {
+		certCodes.push('app');
+	}
+
+	// Remove duplicates
+	certCodes = certCodes.filter((value, index, self) => {
+		return self.indexOf(value) === index;
+	});
+
+	// Handle certifications (certCodes and certificationDate)
+	const existingCertMap = new Map(certificationDate.map((cert) => [cert.code, cert]));
+	const updatedCertificationDate = [];
+
+	for (const code of certCodes) {
+		if (existingCertMap.has(code)) {
+			// Keep the existing gainedDate if certification already exists
+			updatedCertificationDate.push({
+				code,
+				gainedDate: existingCertMap.get(code)!.gainedDate,
+			});
+		} else {
+			// If it's a new certification, add with today's date
+			updatedCertificationDate.push({
+				code,
+				gainedDate: new Date(), // Assign current date as gainedDate
+			});
+		}
+	}
+
+	return updatedCertificationDate;
+}
