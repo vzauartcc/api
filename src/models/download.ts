@@ -3,7 +3,7 @@ import type { ITimestamps } from './timestamps.js';
 
 interface IDownload extends Document, ITimestamps {
 	name: string;
-	description: string;
+	description?: string;
 	fileName: string;
 	category: string;
 	author: Types.ObjectId;
@@ -12,7 +12,7 @@ interface IDownload extends Document, ITimestamps {
 const DownloadSchema = new Schema<IDownload>(
 	{
 		name: { type: String, required: true },
-		description: { type: String, required: true },
+		description: { type: String },
 		fileName: { type: String, required: true },
 		category: { type: String, required: true },
 		author: { type: Schema.Types.ObjectId, ref: 'User', required: true },
