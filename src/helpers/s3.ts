@@ -1,4 +1,5 @@
 import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import type { Readable } from 'stream';
 
 let client: S3Client | null = null;
 
@@ -35,7 +36,7 @@ export function setupS3() {
 	});
 }
 
-export function uploadToS3(filename: string, tmpFile: any, mime: string, options = {}) {
+export function uploadToS3(filename: string, file: Readable, mimeType: string, options = {}) {
 	if (!client) {
 		throw new Error('S3 not set up.');
 	}
@@ -45,8 +46,8 @@ export function uploadToS3(filename: string, tmpFile: any, mime: string, options
 			...options,
 			Bucket: 'zauartcc',
 			Key: `${S3_PREFIX}/${filename}`,
-			Body: tmpFile,
-			ContentType: mime,
+			Body: file,
+			ContentType: mimeType,
 			ACL: 'public-read',
 		}),
 	);

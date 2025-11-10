@@ -1,7 +1,7 @@
 import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { fileTypeFromFile } from 'file-type';
-import fs from 'fs/promises';
+import * as fs from 'fs';
 import multer from 'multer';
 import { sendMail } from '../helpers/mailer.js';
 import { deleteFromS3, uploadToS3 } from '../helpers/s3.js';
@@ -26,6 +26,9 @@ const upload = multer({
 			cb(null, `${Date.now()}-${file.originalname}`);
 		},
 	}),
+	limits: {
+		fileSize: 30 * 1024 * 1024, // 30MiB
+	},
 });
 
 router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
@@ -817,19 +820,31 @@ router.post(
 					message: 'Banner type not supported',
 				};
 			}
-			if (req.file.size > 30 * 10240 * 10240) {
-				// 10MiB
+
+			const filePath = req.file.path;
+			let fileStream: fs.ReadStream | undefined;
+
+			try {
+				fileStream = fs.createReadStream(filePath);
+
+				await uploadToS3(`events/${req.file.filename}`, fileStream, req.file.mimetype, {
+					ContentDisposition: 'inline',
+				});
+			} catch (e) {
+				captureException(e);
+
 				throw {
-					code: status.BAD_REQUEST,
-					message: 'Banner too large',
+					code: 500,
+					message: 'Error streaming file to storage',
 				};
+			} finally {
+				try {
+					fileStream?.close();
+					fs.unlinkSync(filePath);
+				} catch (_err) {
+					// Do nothing, we don't care about this error
+				}
 			}
-
-			const tmpFile = await fs.readFile(req.file.path);
-
-			await uploadToS3(`events/${req.file.filename}`, tmpFile, req.file.mimetype, {
-				ContentDisposition: 'inline',
-			});
 
 			await EventModel.create({
 				name: req.body.name,
@@ -957,24 +972,35 @@ router.put(
 						message: 'File type not supported',
 					};
 				}
-				if (req.file.size > 30 * 10240 * 10240) {
-					// 30MiB
-					throw {
-						code: status.BAD_REQUEST,
-						message: 'File too large',
-					};
-				}
 
-				// 🚨 **Delete Old Banner from S3**
 				if (eventData.bannerUrl) {
 					deleteFromS3(`events/${eventData.bannerUrl}`);
 				}
 
-				const tmpFile = await fs.readFile(req.file.path);
+				const filePath = req.file.path;
+				let fileStream: fs.ReadStream | undefined;
 
-				await uploadToS3(`events/${req.file.filename}`, tmpFile, req.file.mimetype, {
-					ContentDisposition: 'inline',
-				});
+				try {
+					fileStream = fs.createReadStream(filePath);
+
+					await uploadToS3(`events/${req.file.filename}`, fileStream, req.file.mimetype, {
+						ContentDisposition: 'inline',
+					});
+				} catch (e) {
+					captureException(e);
+
+					throw {
+						code: status.INTERNAL_SERVER_ERROR,
+						message: 'Error streaming file to storage',
+					};
+				} finally {
+					try {
+						fileStream?.close();
+						fs.unlinkSync(filePath);
+					} catch (_err) {
+						// Do nothing, we don't care about this error
+					}
+				}
 
 				eventData.bannerUrl = req.file.filename;
 			}
