@@ -6,6 +6,7 @@ import { sendMail } from '../helpers/mailer.js';
 import { getUsersWithPrivacy } from '../helpers/mongodb.js';
 import { uploadToS3 } from '../helpers/s3.js';
 import { vatusaApi, type IVisitingStatus } from '../helpers/vatusa.js';
+import zau from '../helpers/zau.js';
 import { hasRole, isManagement, isStaff, userOrInternal } from '../middleware/auth.js';
 import internalAuth from '../middleware/internalAuth.js';
 import getUser from '../middleware/user.js';
@@ -14,7 +15,7 @@ import { ControllerHoursModel } from '../models/controllerHours.js';
 import { DossierModel } from '../models/dossier.js';
 import { NotificationModel } from '../models/notification.js';
 import { RoleModel } from '../models/role.js';
-import { UserModel, type IUser } from '../models/user.js';
+import { UserModel, type ICertificationDate, type IUser } from '../models/user.js';
 import { VisitApplicationModel } from '../models/visitApplication.js';
 import status from '../types/status.js';
 
@@ -522,18 +523,10 @@ router.put(
 			user.vis = true;
 			user.oi = userOi;
 
-			// Assign certCodes based on rating removed right now due to policy change. I will leave this here in case future policy is changed.
-			/*let certCodes = [];
-		if (user.rating >= 2) {
-		  certCodes.push('gnd', 'del');
-		}
-		if (user.rating >= 3) {
-		  certCodes.push('twr');
-		}
-		if (user.rating >= 4) {
-		  certCodes.push('app');
-		}
-		user.certCodes = certCodes;*/
+			const certDates = grantCerts(user.rating, user.certificationDate);
+
+			user.certCodes = certDates.map((c) => c.code);
+			user.certificationDate = certDates;
 
 			await user.save();
 
@@ -666,6 +659,11 @@ router.put(
 			if (user.rating !== req.body.rating) {
 				user.rating = req.body.rating;
 
+				const certDates = grantCerts(user.rating, user.certificationDate);
+
+				user.certCodes = certDates.map((c) => c.code);
+				user.certificationDate = certDates;
+
 				await user.save();
 
 				await DossierModel.create({
@@ -795,6 +793,10 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response, next: Nex
 			};
 		}
 
+		const rating = Number(req.body.rating);
+
+		const certDates = grantCerts(rating, []);
+
 		const oi = await UserModel.find({ deletedAt: null, member: true }).select('oi').lean().exec();
 		const userOi = generateOperatingInitials(
 			req.body.fname,
@@ -815,23 +817,9 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response, next: Nex
 			...req.body,
 			oi: userOi,
 			avatar: `${req.body.cid}-default.png`,
+			certCodes: certDates.map((c) => c.code),
+			certificationDate: certDates,
 		});
-
-		const ratings = [
-			'Unknown',
-			'OBS',
-			'S1',
-			'S2',
-			'S3',
-			'C1',
-			'C2',
-			'C3',
-			'I1',
-			'I2',
-			'I3',
-			'SUP',
-			'ADM',
-		];
 
 		sendMail({
 			to: 'atm@zauartcc.org, datm@zauartcc.org, ta@zauartcc.org',
@@ -841,7 +829,7 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response, next: Nex
 				name: `${req.body.fname} ${req.body.lname}`,
 				email: req.body.email,
 				cid: req.body.cid,
-				rating: ratings[req.body.rating],
+				rating: zau.ratingsShort[req.body.rating],
 				vis: req.body.vis,
 				type: req.body.vis ? 'visitor' : 'member',
 				home: req.body.vis ? req.body.homeFacility : 'ZAU',
@@ -888,9 +876,15 @@ router.put(
 					user.lname,
 					oi.map((oi) => oi.oi || '').filter((oi) => oi !== ''),
 				);
+				user.oi = assignedOi;
 
 				user.joinDate = req.body.joinDate || new Date();
 				user.removalDate = null;
+
+				const certDates = grantCerts(user.rating, user.certificationDate);
+
+				user.certCodes = certDates.map((c) => c.code);
+				user.certificationDate = certDates;
 			} else {
 				user.history.push({
 					start: user.joinDate!,
@@ -901,24 +895,9 @@ router.put(
 				user.removalDate = new Date();
 			}
 			user.member = req.body.member;
-			user.oi = assignedOi;
 
 			await user.save();
-			const ratings = [
-				'Unknown',
-				'OBS',
-				'S1',
-				'S2',
-				'S3',
-				'C1',
-				'C2',
-				'C3',
-				'I1',
-				'I2',
-				'I3',
-				'SUP',
-				'ADM',
-			];
+
 			if (req.body.member || req.body.vis) {
 				sendMail({
 					to: 'atm@zauartcc.org, datm@zauartcc.org, ta@zauartcc.org',
@@ -928,7 +907,7 @@ router.put(
 						name: `${user.name}`,
 						email: user.email,
 						cid: user.cid,
-						rating: ratings[user.rating],
+						rating: zau.ratingsShort[user.rating],
 						vis: user.vis,
 						type: user.vis ? 'visitor' : 'member',
 						home: 'NA',
@@ -964,6 +943,14 @@ router.put('/:cid/visit', internalAuth, async (req: Request, res: Response, next
 		}
 
 		user.vis = req.body.vis;
+
+		if (req.body.vis === true) {
+			const certDates = grantCerts(user.rating, user.certificationDate);
+
+			user.certCodes = certDates.map((c) => c.code);
+
+			user.certificationDate = certDates;
+		}
 
 		await user.save();
 
@@ -1236,3 +1223,43 @@ const random = (str: string, len: number) => {
 	}
 	return ret;
 };
+
+function grantCerts(rating: number, certificationDate: ICertificationDate[]): ICertificationDate[] {
+	let certCodes = [...certificationDate.map((cert) => cert.code)];
+	if (rating >= 2) {
+		certCodes.push('gnd');
+	}
+	if (rating >= 3) {
+		certCodes.push('twr');
+	}
+	if (rating >= 4) {
+		certCodes.push('app');
+	}
+
+	// Remove duplicates
+	certCodes = certCodes.filter((value, index, self) => {
+		return self.indexOf(value) === index;
+	});
+
+	// Handle certifications (certCodes and certificationDate)
+	const existingCertMap = new Map(certificationDate.map((cert) => [cert.code, cert]));
+	const updatedCertificationDate = [];
+
+	for (const code of certCodes) {
+		if (existingCertMap.has(code)) {
+			// Keep the existing gainedDate if certification already exists
+			updatedCertificationDate.push({
+				code,
+				gainedDate: existingCertMap.get(code)!.gainedDate,
+			});
+		} else {
+			// If it's a new certification, add with today's date
+			updatedCertificationDate.push({
+				code,
+				gainedDate: new Date(), // Assign current date as gainedDate
+			});
+		}
+	}
+
+	return updatedCertificationDate;
+}

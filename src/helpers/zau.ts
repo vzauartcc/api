@@ -78,6 +78,7 @@ const activity = {
 
 export default {
 	isProd: process.env['NODE_ENV'] === 'production',
+	isDev: process.env['NODE_ENV'] === 'development',
 	DATE_FORMAT: 'MM/dd/y',
 	activity,
 	atcPos: [

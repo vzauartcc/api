@@ -31,21 +31,6 @@ const months = [
 	'November',
 	'December',
 ];
-const ratings = [
-	'Suspended / Unknown',
-	'OBS',
-	'S1',
-	'S2',
-	'S3',
-	'C1',
-	'C2',
-	'C3',
-	'I1',
-	'I2',
-	'I3',
-	'SUP',
-	'ADM',
-];
 
 let testUserCID = 0;
 
@@ -134,7 +119,7 @@ router.get(
 			]).exec();
 
 			for (const item of ratingCounts) {
-				item.rating = ratings[item._id];
+				item.rating = zau.ratingsShort[item._id];
 			}
 
 			return res.status(status.OK).json({
