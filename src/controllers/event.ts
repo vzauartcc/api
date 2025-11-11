@@ -1,10 +1,11 @@
+import type { Progress } from '@aws-sdk/lib-storage';
 import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { fileTypeFromFile } from 'file-type';
 import * as fs from 'fs';
 import multer from 'multer';
 import { sendMail } from '../helpers/mailer.js';
-import { deleteFromS3, uploadToS3 } from '../helpers/s3.js';
+import { deleteFromS3, setUploadStatus, uploadToS3 } from '../helpers/s3.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
 import { DossierModel } from '../models/dossier.js';
@@ -821,17 +822,33 @@ router.post(
 				};
 			}
 
+			setUploadStatus(req.body.uploadId, 0);
+
+			res.status(status.ACCEPTED).json();
+
 			const filePath = req.file.path;
 			let fileStream: fs.ReadStream | undefined;
 
 			try {
 				fileStream = fs.createReadStream(filePath);
 
-				await uploadToS3(`events/${req.file.filename}`, fileStream, req.file.mimetype, {
-					ContentDisposition: 'inline',
-				});
+				await uploadToS3(
+					`events/${req.file.filename}`,
+					fileStream,
+					req.file.mimetype,
+					{
+						ContentDisposition: 'inline',
+					},
+					(progress: Progress) => {
+						const total = progress.total || 0;
+						const percent = total > 0 ? Math.round(((progress.loaded || 0) / total) * 100) : 0;
+						setUploadStatus(req.body.uploadId, percent);
+					},
+				);
 			} catch (e) {
 				captureException(e);
+
+				setUploadStatus(req.body.uploadId, -1);
 
 				throw {
 					code: 500,
@@ -977,17 +994,33 @@ router.put(
 					deleteFromS3(`events/${eventData.bannerUrl}`);
 				}
 
+				setUploadStatus(req.body.uploadId, 0);
+
+				res.status(status.ACCEPTED).json();
+
 				const filePath = req.file.path;
 				let fileStream: fs.ReadStream | undefined;
 
 				try {
 					fileStream = fs.createReadStream(filePath);
 
-					await uploadToS3(`events/${req.file.filename}`, fileStream, req.file.mimetype, {
-						ContentDisposition: 'inline',
-					});
+					await uploadToS3(
+						`events/${req.file.filename}`,
+						fileStream,
+						req.file.mimetype,
+						{
+							ContentDisposition: 'inline',
+						},
+						(progress: Progress) => {
+							const total = progress.total || 0;
+							const percent = total > 0 ? Math.round(((progress.loaded || 0) / total) * 100) : 0;
+							setUploadStatus(req.body.uploadId, percent);
+						},
+					);
 				} catch (e) {
 					captureException(e);
+
+					setUploadStatus(req.body.uploadId, -1);
 
 					throw {
 						code: status.INTERNAL_SERVER_ERROR,

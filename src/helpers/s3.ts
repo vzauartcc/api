@@ -1,7 +1,22 @@
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
 import type { Readable } from 'stream';
 
 let client: S3Client | null = null;
+
+const uploadMap = new Map<string, number>();
+const EXPIRATION_TIME = 5 * 60 * 1000;
+
+export const setUploadStatus = (id: string, progress: number) => {
+	uploadMap.set(id, progress);
+
+	setTimeout(() => {
+		if (uploadMap.has(id)) {
+			uploadMap.delete(id);
+		}
+	}, EXPIRATION_TIME);
+};
+export const getUploadStatus = (id: string) => uploadMap.get(id);
 
 function getS3Prefix() {
 	switch (process.env['S3_FOLDER_PREFIX']) {
@@ -36,21 +51,33 @@ export function setupS3() {
 	});
 }
 
-export function uploadToS3(filename: string, file: Readable, mimeType: string, options = {}) {
+export function uploadToS3(
+	filename: string,
+	file: Readable,
+	mimeType: string,
+	options = {},
+	progressHandler?: any,
+) {
 	if (!client) {
 		throw new Error('S3 not set up.');
 	}
 
-	return client.send(
-		new PutObjectCommand({
+	const upload = new Upload({
+		client: client,
+		params: {
 			...options,
 			Bucket: 'zauartcc',
 			Key: `${S3_PREFIX}/${filename}`,
 			Body: file,
 			ContentType: mimeType,
 			ACL: 'public-read',
-		}),
-	);
+		},
+		queueSize: 4,
+		partSize: 5242880, // 5MB
+	});
+	upload.on('httpUploadProgress', progressHandler);
+
+	return upload.done();
 }
 
 export function deleteFromS3(filename: string) {

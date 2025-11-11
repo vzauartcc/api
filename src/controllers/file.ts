@@ -1,8 +1,9 @@
+import type { Progress } from '@aws-sdk/lib-storage';
 import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import * as fs from 'fs';
 import multer from 'multer';
-import { deleteFromS3, uploadToS3 } from '../helpers/s3.js';
+import { deleteFromS3, getUploadStatus, setUploadStatus, uploadToS3 } from '../helpers/s3.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
 import { DocumentModel } from '../models/document.js';
@@ -24,6 +25,34 @@ const upload = multer({
 	limits: {
 		fileSize: 250 * 1024 * 1024, // 250MiB
 	},
+});
+
+router.get('/checkStatus/:id', async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		if (!req.params['id']) {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Missing id',
+			};
+		}
+
+		const progress = getUploadStatus(req.params['id']);
+
+		if (!progress) {
+			throw {
+				code: status.NOT_FOUND,
+				message: 'Not found',
+			};
+		}
+
+		return res.status(status.OK).json({ progress });
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+
+		return next(e);
+	}
 });
 
 //#region Downloads
@@ -83,15 +112,31 @@ router.post(
 				};
 			}
 
+			setUploadStatus(req.body.uploadId, 0);
+
+			res.status(status.ACCEPTED).json();
+
 			const filePath = req.file.path;
 			let fileStream: fs.ReadStream | undefined;
 
 			try {
 				fileStream = fs.createReadStream(filePath);
 
-				await uploadToS3(`downloads/${req.file.filename}`, fileStream, req.file.mimetype);
+				await uploadToS3(
+					`downloads/${req.file.filename}`,
+					fileStream,
+					req.file.mimetype,
+					{},
+					(progress: Progress) => {
+						const total = progress.total || 0;
+						const percent = total > 0 ? Math.round(((progress.loaded || 0) / total) * 100) : 0;
+						setUploadStatus(req.body.uploadId, percent);
+					},
+				);
 			} catch (e) {
 				captureException(e);
+
+				setUploadStatus(req.body.uploadId, -1);
 
 				throw {
 					code: 500,
@@ -153,15 +198,31 @@ router.put(
 					deleteFromS3(`downloads/${download.fileName}`);
 				}
 
+				setUploadStatus(req.body.uploadId, 0);
+
+				res.status(status.ACCEPTED).json();
+
 				const filePath = req.file.path;
 				let fileStream: fs.ReadStream | undefined;
 
 				try {
 					fileStream = fs.createReadStream(filePath);
 
-					await uploadToS3(`downloads/${req.file.filename}`, fileStream, req.file.mimetype);
+					await uploadToS3(
+						`downloads/${req.file.filename}`,
+						fileStream,
+						req.file.mimetype,
+						{},
+						(progress: Progress) => {
+							const total = progress.total || 0;
+							const percent = total > 0 ? Math.round(((progress.loaded || 0) / total) * 100) : 0;
+							setUploadStatus(req.body.uploadId, percent);
+						},
+					);
 				} catch (e) {
 					captureException(e);
+
+					setUploadStatus(req.body.uploadId, -1);
 
 					throw {
 						code: 500,
@@ -311,15 +372,31 @@ router.post(
 					throw { code: status.BAD_REQUEST, message: 'File required' };
 				}
 
+				setUploadStatus(req.body.uploadId, 0);
+
+				res.status(status.ACCEPTED).json();
+
 				const filePath = req.file.path;
 				let fileStream: fs.ReadStream | undefined;
 
 				try {
 					fileStream = fs.createReadStream(filePath);
 
-					await uploadToS3(`documents/${req.file.filename}`, fileStream, req.file.mimetype);
+					await uploadToS3(
+						`documents/${req.file.filename}`,
+						fileStream,
+						req.file.mimetype,
+						{},
+						(progress: Progress) => {
+							const total = progress.total || 0;
+							const percent = total > 0 ? Math.round(((progress.loaded || 0) / total) * 100) : 0;
+							setUploadStatus(req.body.uploadId, percent);
+						},
+					);
 				} catch (e) {
 					captureException(e);
+
+					setUploadStatus(req.body.uploadId, -1);
 
 					throw {
 						code: 500,
@@ -423,15 +500,31 @@ router.put(
 						await deleteFromS3(`documents/${document.fileName}`);
 					}
 
+					setUploadStatus(req.body.uploadId, 0);
+
+					res.status(status.ACCEPTED).json();
+
 					const filePath = req.file.path;
 					let fileStream: fs.ReadStream | undefined;
 
 					try {
 						fileStream = fs.createReadStream(filePath);
 
-						await uploadToS3(`documents/${req.file.filename}`, fileStream, req.file.mimetype);
+						await uploadToS3(
+							`documents/${req.file.filename}`,
+							fileStream,
+							req.file.mimetype,
+							{},
+							(progress: Progress) => {
+								const total = progress.total || 0;
+								const percent = total > 0 ? Math.round(((progress.loaded || 0) / total) * 100) : 0;
+								setUploadStatus(req.body.uploadId, percent);
+							},
+						);
 					} catch (e) {
 						captureException(e);
+
+						setUploadStatus(req.body.uploadId, -1);
 
 						throw {
 							code: 500,
