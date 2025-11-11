@@ -4,7 +4,7 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import { DateTime } from 'luxon';
 import { sendMail } from '../helpers/mailer.js';
 import { getUsersWithPrivacy } from '../helpers/mongodb.js';
-import { uploadToS3 } from '../helpers/s3.js';
+import { findInS3, uploadToS3 } from '../helpers/s3.js';
 import { vatusaApi, type IVisitingStatus } from '../helpers/vatusa.js';
 import zau from '../helpers/zau.js';
 import { hasRole, isManagement, isStaff, userOrInternal } from '../middleware/auth.js';
@@ -519,6 +519,17 @@ router.put(
 				captureMessage(`Unable to generate OIs for ${req.params['cid']}`);
 			}
 
+			if (user.oi !== userOi) {
+				const { data } = await axios.get(
+					`https://ui-avatars.com/api/?name=${oi}&size=256&background=122049&color=ffffff`,
+					{ responseType: 'arraybuffer' },
+				);
+
+				await uploadToS3(`avatars/${user.cid}-default.png`, data, 'image/png', {
+					ContentDisposition: 'inline',
+				});
+			}
+
 			user.member = true;
 			user.vis = true;
 			user.oi = userOi;
@@ -876,6 +887,17 @@ router.put(
 					user.lname,
 					oi.map((oi) => oi.oi || '').filter((oi) => oi !== ''),
 				);
+
+				if (assignedOi !== user.oi) {
+					const { data } = await axios.get(
+						`https://ui-avatars.com/api/?name=${oi}&size=256&background=122049&color=ffffff`,
+						{ responseType: 'arraybuffer' },
+					);
+
+					await uploadToS3(`avatars/${user.cid}-default.png`, data, 'image/png', {
+						ContentDisposition: 'inline',
+					});
+				}
 				user.oi = assignedOi;
 
 				user.joinDate = req.body.joinDate || new Date();
@@ -1026,14 +1048,17 @@ router.put(
 				}
 			}
 
-			const { data } = await axios.get(
-				`https://ui-avatars.com/api/?name=${oi}&size=256&background=122049&color=ffffff`,
-				{ responseType: 'arraybuffer' },
-			);
+			const exists = await findInS3(`avatars/${user.cid}-default.png`);
+			if (!exists || oi !== user.oi) {
+				const { data } = await axios.get(
+					`https://ui-avatars.com/api/?name=${oi}&size=256&background=122049&color=ffffff`,
+					{ responseType: 'arraybuffer' },
+				);
 
-			await uploadToS3(`avatars/${req.params['cid']}-default.png`, data, 'image/png', {
-				ContentDisposition: 'inline',
-			});
+				await uploadToS3(`avatars/${user.cid}-default.png`, data, 'image/png', {
+					ContentDisposition: 'inline',
+				});
+			}
 
 			// Use findOneAndUpdate to update the user document
 			await UserModel.findOneAndUpdate(
@@ -1048,7 +1073,6 @@ router.put(
 					certCodes: updatedCertificationDate.map((cert) => cert.code), // Update certCodes
 					certificationDate: updatedCertificationDate, // Update certificationDate with gainedDate
 				},
-				{ new: true }, // Return the updated document after applying changes
 			).exec();
 
 			// Log the update in the user's dossier
