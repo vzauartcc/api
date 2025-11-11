@@ -5,7 +5,7 @@ import type { IUser } from './user.js';
 interface IDocument extends Document, ITimestamps {
 	name: string;
 	category: string;
-	description: string;
+	description?: string;
 	content?: string;
 	slug: string;
 	author: number;
@@ -20,7 +20,7 @@ const DocumentSchema = new Schema<IDocument>(
 	{
 		name: { type: String, required: true },
 		category: { type: String, required: true },
-		description: { type: String, required: true },
+		description: { type: String },
 		content: { type: String },
 		slug: { type: String, required: true },
 		author: { type: Number, required: true, ref: 'User' },

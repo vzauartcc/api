@@ -474,175 +474,6 @@ router.delete(
 	},
 );
 
-//#region Fetching Sessions
-router.get('/session/:id', getUser, async (req: Request, res: Response, next: NextFunction) => {
-	try {
-		const isIns = ['ta', 'ins', 'mtr', 'ia', 'atm', 'datm'].some((r) =>
-			req.user.roleCodes.includes(r),
-		);
-
-		let session = null;
-		if (isIns) {
-			session = await TrainingSessionModel.findById(req.params['id'])
-				.populate('student', 'fname lname cid vis')
-				.populate('instructor', 'fname lname cid')
-				.populate('milestone', 'name code')
-				.lean()
-				.exec();
-		} else {
-			session = await TrainingSessionModel.findById(req.params['id'])
-				.select('-insNotes')
-				.populate('student', 'fname lname cid vis')
-				.populate('instructor', 'fname lname cid')
-				.populate('milestone', 'name code')
-				.lean()
-				.exec();
-		}
-
-		if (!session) {
-			throw {
-				code: status.NOT_FOUND,
-				message: 'Session not found',
-			};
-		}
-
-		return res.status(status.OK).json(session);
-	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
-		return next(e);
-	}
-});
-
-router.get(
-	'/sessions',
-	getUser,
-	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
-	async (req: Request, res: Response, next: NextFunction) => {
-		try {
-			const page = +(req.query['page'] as string) || 1;
-			const limit = +(req.query['limit'] as string) || 20;
-
-			const amount = await TrainingSessionModel.countDocuments({
-				submitted: true,
-				deleted: false,
-			}).exec();
-			const sessions = await TrainingSessionModel.find({
-				deleted: false,
-				submitted: true,
-			})
-				.skip(limit * (page - 1))
-				.limit(limit)
-				.sort({
-					startTime: 'desc',
-				})
-				.populate('student', 'fname lname cid vis')
-				.populate('instructor', 'fname lname')
-				.populate('milestone', 'name code')
-				.lean()
-				.exec();
-
-			return res.status(status.OK).json({ count: amount, sessions });
-		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
-			return next(e);
-		}
-	},
-);
-
-router.get('/sessions/past', getUser, async (req: Request, res: Response, next: NextFunction) => {
-	try {
-		const page = +(req.query['page'] as string) || 1;
-		const limit = +(req.query['limit'] as string) || 20;
-
-		const amount = await TrainingSessionModel.countDocuments({
-			studentCid: req.user.cid,
-			deleted: false,
-			submitted: true,
-		}).exec();
-		const sessions = await TrainingSessionModel.find({
-			studentCid: req.user.cid,
-			deleted: false,
-			submitted: true,
-		})
-			.skip(limit * (page - 1))
-			.limit(limit)
-			.sort({
-				startTime: 'desc',
-			})
-			.populate('instructor', 'fname lname cid')
-			.populate('student', 'fname lname')
-			.populate('milestone', 'name code')
-			.lean()
-			.exec();
-
-		return res.status(status.OK).json({ count: amount, sessions });
-	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
-		return next(e);
-	}
-});
-
-router.get(
-	'/sessions/:cid',
-	getUser,
-	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
-	async (req: Request, res: Response, next: NextFunction) => {
-		try {
-			const controller = await UserModel.findOne({ cid: req.params['cid'] })
-				.select('fname lname cid')
-				.lean()
-				.exec();
-			if (!controller) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'User not found',
-				};
-			}
-
-			const page = +(req.query['page'] as string) || 1;
-			const limit = +(req.query['limit'] as string) || 20;
-
-			const amount = await TrainingSessionModel.countDocuments({
-				studentCid: req.params['cid'],
-				submitted: true,
-				deleted: false,
-			}).exec();
-			const sessions = await TrainingSessionModel.find({
-				studentCid: req.params['cid'],
-				deleted: false,
-				submitted: true,
-			})
-				.skip(limit * (page - 1))
-				.limit(limit)
-				.sort({
-					createdAt: 'desc',
-				})
-				.populate('instructor', 'fname lname')
-				.populate('milestone', 'name code')
-				.lean()
-				.exec();
-
-			return res.status(status.OK).json({
-				count: amount,
-				sessions,
-				controller,
-			});
-		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
-			return next(e);
-		}
-	},
-);
-//#endregion
-
 //#region Editing Sessions
 router.put(
 	'/session/save/:id',
@@ -736,20 +567,23 @@ router.put(
 			const duration = `${('00' + hours).slice(-2)}:${('00' + minutes).slice(-2)}`;
 
 			if (!session.vatusaId || session.vatusaId === 0) {
+				let vatusaRes = { data: { id: 0 } };
 				// Send the training record to vatusa
-				const vatusaRes = await vatusaApi.post(`/user/${session.studentCid}/training/record`, {
-					instructor_id: session.instructorCid,
-					session_date: DateTime.fromISO(req.body.startTime).toFormat('y-MM-dd HH:mm'),
-					position: req.body.position,
-					duration: duration,
-					movements: req.body.movements,
-					score: req.body.progress,
-					notes: req.body.studentNotes,
-					ots_status: req.body.ots,
-					location: req.body.location,
-					is_cbt: false,
-					solo_granted: false,
-				});
+				if (!zau.isDev) {
+					vatusaRes = await vatusaApi.post(`/user/${session.studentCid}/training/record`, {
+						instructor_id: session.instructorCid,
+						session_date: DateTime.fromISO(req.body.startTime).toFormat('y-MM-dd HH:mm'),
+						position: req.body.position,
+						duration: duration,
+						movements: req.body.movements,
+						score: req.body.progress,
+						notes: req.body.studentNotes,
+						ots_status: req.body.ots,
+						location: req.body.location,
+						is_cbt: false,
+						solo_granted: false,
+					});
+				}
 
 				// store the vatusa id for updating it later
 				session.vatusaId = vatusaRes.data.id;
@@ -923,19 +757,23 @@ router.post(
 
 			const duration = `${('00' + hours).slice(-2)}:${('00' + minutes).slice(-2)}`;
 
-			const vatusaRes = await vatusaApi.post(`/user/${req.body.student}/training/record`, {
-				instructor_id: req.user.cid,
-				session_date: DateTime.fromJSDate(start).toFormat('y-MM-dd HH:mm'),
-				position: req.body.position,
-				duration: duration,
-				movements: req.body.movements,
-				score: req.body.progress,
-				notes: req.body.studentNotes,
-				ots_status: req.body.ots,
-				location: req.body.location,
-				is_cbt: false,
-				solo_granted: false,
-			});
+			let vatusaRes = { data: { id: 0 } };
+
+			if (!zau.isDev) {
+				vatusaRes = await vatusaApi.post(`/user/${req.body.student}/training/record`, {
+					instructor_id: req.user.cid,
+					session_date: DateTime.fromJSDate(start).toFormat('y-MM-dd HH:mm'),
+					position: req.body.position,
+					duration: duration,
+					movements: req.body.movements,
+					score: req.body.progress,
+					notes: req.body.studentNotes,
+					ots_status: req.body.ots,
+					location: req.body.location,
+					is_cbt: false,
+					solo_granted: false,
+				});
+			}
 
 			const doc = await TrainingSessionModel.create({
 				studentCid: req.body.student,
@@ -964,6 +802,175 @@ router.post(
 			});
 
 			return res.status(status.CREATED).json();
+		} catch (e) {
+			if (!(e as any).code) {
+				captureException(e);
+			}
+			return next(e);
+		}
+	},
+);
+//#endregion
+
+//#region Fetching Sessions
+router.get('/session/:id', getUser, async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const isIns = ['ta', 'ins', 'mtr', 'ia', 'atm', 'datm'].some((r) =>
+			req.user.roleCodes.includes(r),
+		);
+
+		let session = null;
+		if (isIns) {
+			session = await TrainingSessionModel.findById(req.params['id'])
+				.populate('student', 'fname lname cid vis')
+				.populate('instructor', 'fname lname cid')
+				.populate('milestone', 'name code')
+				.lean()
+				.exec();
+		} else {
+			session = await TrainingSessionModel.findById(req.params['id'])
+				.select('-insNotes')
+				.populate('student', 'fname lname cid vis')
+				.populate('instructor', 'fname lname cid')
+				.populate('milestone', 'name code')
+				.lean()
+				.exec();
+		}
+
+		if (!session) {
+			throw {
+				code: status.NOT_FOUND,
+				message: 'Session not found',
+			};
+		}
+
+		return res.status(status.OK).json(session);
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
+	}
+});
+
+router.get(
+	'/sessions',
+	getUser,
+	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const page = +(req.query['page'] as string) || 1;
+			const limit = +(req.query['limit'] as string) || 20;
+
+			const amount = await TrainingSessionModel.countDocuments({
+				submitted: true,
+				deleted: false,
+			}).exec();
+			const sessions = await TrainingSessionModel.find({
+				deleted: false,
+				submitted: true,
+			})
+				.skip(limit * (page - 1))
+				.limit(limit)
+				.sort({
+					startTime: 'desc',
+				})
+				.populate('student', 'fname lname cid vis')
+				.populate('instructor', 'fname lname')
+				.populate('milestone', 'name code')
+				.lean()
+				.exec();
+
+			return res.status(status.OK).json({ count: amount, sessions });
+		} catch (e) {
+			if (!(e as any).code) {
+				captureException(e);
+			}
+			return next(e);
+		}
+	},
+);
+
+router.get('/sessions/past', getUser, async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const page = +(req.query['page'] as string) || 1;
+		const limit = +(req.query['limit'] as string) || 20;
+
+		const amount = await TrainingSessionModel.countDocuments({
+			studentCid: req.user.cid,
+			deleted: false,
+			submitted: true,
+		}).exec();
+		const sessions = await TrainingSessionModel.find({
+			studentCid: req.user.cid,
+			deleted: false,
+			submitted: true,
+		})
+			.skip(limit * (page - 1))
+			.limit(limit)
+			.sort({
+				startTime: 'desc',
+			})
+			.populate('instructor', 'fname lname cid')
+			.populate('student', 'fname lname')
+			.populate('milestone', 'name code')
+			.lean()
+			.exec();
+
+		return res.status(status.OK).json({ count: amount, sessions });
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
+	}
+});
+
+router.get(
+	'/sessions/:cid',
+	getUser,
+	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const controller = await UserModel.findOne({ cid: req.params['cid'] })
+				.select('fname lname cid')
+				.lean()
+				.exec();
+			if (!controller) {
+				throw {
+					code: status.NOT_FOUND,
+					message: 'User not found',
+				};
+			}
+
+			const page = +(req.query['page'] as string) || 1;
+			const limit = +(req.query['limit'] as string) || 20;
+
+			const amount = await TrainingSessionModel.countDocuments({
+				studentCid: req.params['cid'],
+				submitted: true,
+				deleted: false,
+			}).exec();
+			const sessions = await TrainingSessionModel.find({
+				studentCid: req.params['cid'],
+				deleted: false,
+				submitted: true,
+			})
+				.skip(limit * (page - 1))
+				.limit(limit)
+				.sort({
+					createdAt: 'desc',
+				})
+				.populate('instructor', 'fname lname')
+				.populate('milestone', 'name code')
+				.lean()
+				.exec();
+
+			return res.status(status.OK).json({
+				count: amount,
+				sessions,
+				controller,
+			});
 		} catch (e) {
 			if (!(e as any).code) {
 				captureException(e);

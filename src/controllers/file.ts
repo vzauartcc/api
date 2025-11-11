@@ -1,8 +1,9 @@
+import type { Progress } from '@aws-sdk/lib-storage';
 import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import fs from 'fs/promises';
+import * as fs from 'fs';
 import multer from 'multer';
-import { deleteFromS3, uploadToS3 } from '../helpers/s3.js';
+import { deleteFromS3, getUploadStatus, setUploadStatus, uploadToS3 } from '../helpers/s3.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
 import { DocumentModel } from '../models/document.js';
@@ -21,6 +22,37 @@ const upload = multer({
 			cb(null, `${Date.now()}-${file.originalname}`);
 		},
 	}),
+	limits: {
+		fileSize: 250 * 1024 * 1024, // 250MiB
+	},
+});
+
+router.get('/checkStatus/:id', async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		if (!req.params['id']) {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Missing id',
+			};
+		}
+
+		const progress = getUploadStatus(req.params['id']);
+
+		if (!progress) {
+			throw {
+				code: status.NOT_FOUND,
+				message: 'Not found',
+			};
+		}
+
+		return res.status(status.OK).json({ progress });
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+
+		return next(e);
+	}
 });
 
 //#region Downloads
@@ -80,16 +112,44 @@ router.post(
 				};
 			}
 
-			if (req.file.size > 100 * 1024 * 1024) {
-				// 100MiB
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'File too large',
-				};
-			}
-			const tmpFile = await fs.readFile(req.file.path);
+			setUploadStatus(req.body.uploadId, 0);
 
-			await uploadToS3(`downloads/${req.file.filename}`, tmpFile, req.file.mimetype);
+			res.status(status.ACCEPTED).json();
+
+			const filePath = req.file.path;
+			let fileStream: fs.ReadStream | undefined;
+
+			try {
+				fileStream = fs.createReadStream(filePath);
+
+				await uploadToS3(
+					`downloads/${req.file.filename}`,
+					fileStream,
+					req.file.mimetype,
+					{},
+					(progress: Progress) => {
+						const total = progress.total || 0;
+						const percent = total > 0 ? Math.round(((progress.loaded || 0) / total) * 100) : 0;
+						setUploadStatus(req.body.uploadId, percent);
+					},
+				);
+			} catch (e) {
+				captureException(e);
+
+				setUploadStatus(req.body.uploadId, -1);
+
+				throw {
+					code: 500,
+					message: 'Error streaming file to storage',
+				};
+			} finally {
+				try {
+					fileStream?.close();
+					fs.unlinkSync(filePath);
+				} catch (_err) {
+					// Do nothing, we don't care about this error
+				}
+			}
 
 			await DownloadModel.create({
 				name: req.body.name,
@@ -128,37 +188,63 @@ router.put(
 			}
 
 			if (!req.file) {
-				// ✅ No updated file, just update metadata
 				await DownloadModel.findByIdAndUpdate(req.params['id'], {
 					name: req.body.name,
 					description: req.body.description,
 					category: req.body.category,
 				}).exec();
 			} else {
-				// ✅ File size check (100MiB limit)
-				if (req.file.size > 100 * 1024 * 1024) {
-					throw { code: status.BAD_REQUEST, message: 'File too large' };
-				}
-
-				// 🚨 **Step 1: Delete Old File from S3 (if it exists)**
 				if (download.fileName) {
 					deleteFromS3(`downloads/${download.fileName}`);
 				}
 
-				// 🚀 **Step 2: Upload New File to S3**
-				const tmpFile = await fs.readFile(req.file.path);
-				await uploadToS3(`downloads/${req.file.filename}`, tmpFile, req.file.mimetype);
+				setUploadStatus(req.body.uploadId, 0);
 
-				// ✅ **Step 3: Update Database with New File Name**
+				res.status(status.ACCEPTED).json();
+
+				const filePath = req.file.path;
+				let fileStream: fs.ReadStream | undefined;
+
+				try {
+					fileStream = fs.createReadStream(filePath);
+
+					await uploadToS3(
+						`downloads/${req.file.filename}`,
+						fileStream,
+						req.file.mimetype,
+						{},
+						(progress: Progress) => {
+							const total = progress.total || 0;
+							const percent = total > 0 ? Math.round(((progress.loaded || 0) / total) * 100) : 0;
+							setUploadStatus(req.body.uploadId, percent);
+						},
+					);
+				} catch (e) {
+					captureException(e);
+
+					setUploadStatus(req.body.uploadId, -1);
+
+					throw {
+						code: 500,
+						message: 'Error streaming file to storage',
+					};
+				} finally {
+					try {
+						fileStream?.close();
+						fs.unlinkSync(filePath);
+					} catch (_err) {
+						// Do nothing, we don't care about this error
+					}
+				}
+
 				await DownloadModel.findByIdAndUpdate(req.params['id'], {
 					name: req.body.name,
 					description: req.body.description,
 					category: req.body.category,
-					fileName: req.file.filename, // ✅ Save the new file reference
+					fileName: req.file.filename,
 				}).exec();
 			}
 
-			// ✅ Log the update in dossier
 			await DossierModel.create({
 				by: req.user.cid,
 				affected: -1,
@@ -181,21 +267,17 @@ router.delete(
 	hasRole(['atm', 'datm', 'ta', 'fe', 'wm']),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			// 🚀 **Step 1: Fetch the file info from the database**
 			const download = await DownloadModel.findById(req.params['id']).lean().exec();
 			if (!download) {
 				return res.status(status.NOT_FOUND).json({ error: 'File not found' });
 			}
 
-			// 🗑️ **Step 2: Delete the file from S3 if it exists**
 			if (download.fileName) {
 				await deleteFromS3(`downloads/${download.fileName}`);
 			}
 
-			// ❌ **Step 3: Delete the database entry**
 			await DownloadModel.findByIdAndDelete(req.params['id']).exec();
 
-			// ✅ Log deletion in dossier
 			await DossierModel.create({
 				by: req.user.cid,
 				affected: -1,
@@ -289,17 +371,45 @@ router.post(
 				if (!req.file) {
 					throw { code: status.BAD_REQUEST, message: 'File required' };
 				}
-				if (req.file.size > 100 * 1024 * 1024) {
-					// 100MiB
+
+				setUploadStatus(req.body.uploadId, 0);
+
+				res.status(status.ACCEPTED).json();
+
+				const filePath = req.file.path;
+				let fileStream: fs.ReadStream | undefined;
+
+				try {
+					fileStream = fs.createReadStream(filePath);
+
+					await uploadToS3(
+						`documents/${req.file.filename}`,
+						fileStream,
+						req.file.mimetype,
+						{},
+						(progress: Progress) => {
+							const total = progress.total || 0;
+							const percent = total > 0 ? Math.round(((progress.loaded || 0) / total) * 100) : 0;
+							setUploadStatus(req.body.uploadId, percent);
+						},
+					);
+				} catch (e) {
+					captureException(e);
+
+					setUploadStatus(req.body.uploadId, -1);
+
 					throw {
-						code: status.BAD_REQUEST,
-						message: 'File too large',
+						code: 500,
+						message: 'Error streaming file to storage',
 					};
+				} finally {
+					try {
+						fileStream?.close();
+						fs.unlinkSync(filePath);
+					} catch (_err) {
+						// Do nothing, we don't care about this error
+					}
 				}
-
-				const tmpFile = await fs.readFile(req.file.path);
-
-				await uploadToS3(`documents/${req.file.filename}`, tmpFile, req.file.mimetype);
 
 				await DocumentModel.create({
 					name,
@@ -376,7 +486,6 @@ router.put(
 				await document.save();
 			} else {
 				if (!req.file) {
-					// ✅ No new file, just update metadata
 					await DocumentModel.findOneAndUpdate(
 						{ slug: req.params['slug'] },
 						{
@@ -387,21 +496,49 @@ router.put(
 						},
 					).exec();
 				} else {
-					// ✅ File size check (100MiB limit)
-					if (req.file.size > 100 * 1024 * 1024) {
-						throw { code: status.BAD_REQUEST, message: 'File too large.' };
-					}
-
-					// 🚨 **Step 1: Delete Old File from S3 (if it exists)**
 					if (document.fileName) {
 						await deleteFromS3(`documents/${document.fileName}`);
 					}
 
-					// 🚀 **Step 2: Upload New File to S3**
-					const tmpFile = await fs.readFile(req.file.path);
-					await uploadToS3(`documents/${req.file.filename}`, tmpFile, req.file.mimetype);
+					setUploadStatus(req.body.uploadId, 0);
 
-					// ✅ **Step 3: Update Database with New File Name**
+					res.status(status.ACCEPTED).json();
+
+					const filePath = req.file.path;
+					let fileStream: fs.ReadStream | undefined;
+
+					try {
+						fileStream = fs.createReadStream(filePath);
+
+						await uploadToS3(
+							`documents/${req.file.filename}`,
+							fileStream,
+							req.file.mimetype,
+							{},
+							(progress: Progress) => {
+								const total = progress.total || 0;
+								const percent = total > 0 ? Math.round(((progress.loaded || 0) / total) * 100) : 0;
+								setUploadStatus(req.body.uploadId, percent);
+							},
+						);
+					} catch (e) {
+						captureException(e);
+
+						setUploadStatus(req.body.uploadId, -1);
+
+						throw {
+							code: 500,
+							message: 'Error streaming file to storage',
+						};
+					} finally {
+						try {
+							fileStream?.close();
+							fs.unlinkSync(filePath);
+						} catch (_err) {
+							// Do nothing, we don't care about this error
+						}
+					}
+
 					await DocumentModel.findOneAndUpdate(
 						{ slug: req.params['slug'] },
 						{
@@ -415,7 +552,6 @@ router.put(
 				}
 			}
 
-			// ✅ Log update in dossier
 			await DossierModel.create({
 				by: req.user.cid,
 				affected: -1,
@@ -438,7 +574,6 @@ router.delete(
 	hasRole(['atm', 'datm', 'ta', 'fe', 'wm']),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			// 🚀 **Step 1: Fetch the document from the database**
 			const doc = await DocumentModel.findById(req.params['id']).lean().exec();
 			if (!doc) {
 				throw {
@@ -447,15 +582,12 @@ router.delete(
 				};
 			}
 
-			// 🗑️ **Step 2: Delete the file from S3 if it exists**
 			if (doc.fileName) {
 				deleteFromS3(`documents/${doc.fileName}`);
 			}
 
-			// ❌ **Step 3: Delete the database entry**
 			await DocumentModel.findByIdAndDelete(req.params['id']).exec();
 
-			// ✅ Log deletion in dossier
 			await DossierModel.create({
 				by: req.user.cid,
 				affected: -1,

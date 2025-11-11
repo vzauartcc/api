@@ -129,6 +129,14 @@ app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
 		return next(err);
 	}
 
+	if (err.status && typeof err.status !== 'number') {
+		err.status = 500;
+	}
+
+	if (err.code && typeof err.code !== 'number') {
+		err.code = 500;
+	}
+
 	res.status(err.status || err.code || 500).json({
 		message: err.message || 'An internal server error occurred.',
 	});
