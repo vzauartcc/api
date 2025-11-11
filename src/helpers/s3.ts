@@ -1,6 +1,8 @@
-import { DeleteObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, HeadObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import type { Readable } from 'stream';
+
+const BUCKET = 'zauartcc';
 
 let client: S3Client | null = null;
 
@@ -66,7 +68,7 @@ export function uploadToS3(
 		client: client,
 		params: {
 			...options,
-			Bucket: 'zauartcc',
+			Bucket: BUCKET,
 			Key: `${S3_PREFIX}/${filename}`,
 			Body: file,
 			ContentType: mimeType,
@@ -75,7 +77,10 @@ export function uploadToS3(
 		queueSize: 4,
 		partSize: 5242880, // 5MB
 	});
-	upload.on('httpUploadProgress', progressHandler);
+
+	if (progressHandler) {
+		upload.on('httpUploadProgress', progressHandler);
+	}
 
 	return upload.done();
 }
@@ -87,8 +92,31 @@ export function deleteFromS3(filename: string) {
 
 	return client.send(
 		new DeleteObjectCommand({
-			Bucket: 'zauartcc',
+			Bucket: BUCKET,
 			Key: `${S3_PREFIX}/${filename}`,
 		}),
 	);
+}
+
+export async function findInS3(filename: string) {
+	if (!client) {
+		throw new Error('S3 not set up.');
+	}
+
+	const command = new HeadObjectCommand({
+		Bucket: BUCKET,
+		Key: `${S3_PREFIX}/${filename}`,
+	});
+
+	try {
+		await client.send(command);
+
+		return true;
+	} catch (e) {
+		if ((e as any).name === 'NotFound') {
+			return false;
+		}
+
+		throw e;
+	}
 }
