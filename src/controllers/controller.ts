@@ -1,4 +1,4 @@
-import { captureException, captureMessage } from '@sentry/node';
+import { captureException } from '@sentry/node';
 import axios from 'axios';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
@@ -501,33 +501,12 @@ router.put(
 				};
 			}
 
-			const oi = await UserModel.find({ deletedAt: null, member: true }).select('oi').lean().exec();
-			if (!oi || oi.length === 0) {
+			const userOi = await checkOI(user);
+			if (!userOi) {
 				throw {
-					code: 500,
+					code: status.INTERNAL_SERVER_ERROR,
 					message: 'Unable to generate Operating Initials',
 				};
-			}
-
-			const userOi = generateOperatingInitials(
-				user.fname,
-				user.lname,
-				oi.map((oi) => oi.oi || '').filter((oi) => oi !== ''),
-			);
-
-			if (userOi === '') {
-				captureMessage(`Unable to generate OIs for ${req.params['cid']}`);
-			}
-
-			if (user.oi !== userOi) {
-				const { data } = await axios.get(
-					`https://ui-avatars.com/api/?name=${oi}&size=256&background=122049&color=ffffff`,
-					{ responseType: 'arraybuffer' },
-				);
-
-				await uploadToS3(`avatars/${user.cid}-default.png`, data, 'image/png', {
-					ContentDisposition: 'inline',
-				});
 			}
 
 			user.member = true;
@@ -808,21 +787,13 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response, next: Nex
 
 		const certDates = grantCerts(rating, []);
 
-		const oi = await UserModel.find({ deletedAt: null, member: true }).select('oi').lean().exec();
-		const userOi = generateOperatingInitials(
-			req.body.fname,
-			req.body.lname,
-			oi.map((oi) => oi.oi || '').filter((oi) => oi !== ''),
-		);
-
-		const { data } = await axios.get(
-			`https://ui-avatars.com/api/?name=${userOi}&size=256&background=122049&color=ffffff`,
-			{ responseType: 'arraybuffer' },
-		);
-
-		await uploadToS3(`avatars/${req.body.cid}-default.png`, data, 'image/png', {
-			ContentDisposition: 'inline',
-		});
+		const userOi = await checkOI({ fname: req.body.fname, lname: req.body.lname, oi: '' } as IUser);
+		if (!userOi) {
+			throw {
+				code: status.INTERNAL_SERVER_ERROR,
+				message: 'Unable to generate Operating Initials',
+			};
+		}
 
 		await UserModel.create({
 			...req.body,
@@ -876,29 +847,17 @@ router.put(
 				};
 			}
 
-			let assignedOi: string | null = null;
 			if (req.body.member === true) {
-				const oi = await UserModel.find({ deletedAt: null, member: true })
-					.select('oi')
-					.lean()
-					.exec();
-				assignedOi = generateOperatingInitials(
-					user.fname,
-					user.lname,
-					oi.map((oi) => oi.oi || '').filter((oi) => oi !== ''),
-				);
+				const userOi = await checkOI(user);
 
-				if (assignedOi !== user.oi) {
-					const { data } = await axios.get(
-						`https://ui-avatars.com/api/?name=${oi}&size=256&background=122049&color=ffffff`,
-						{ responseType: 'arraybuffer' },
-					);
-
-					await uploadToS3(`avatars/${user.cid}-default.png`, data, 'image/png', {
-						ContentDisposition: 'inline',
-					});
+				if (!userOi) {
+					throw {
+						code: status.INTERNAL_SERVER_ERROR,
+						message: 'Unable to generate Operating Initials',
+					};
 				}
-				user.oi = assignedOi;
+
+				user.oi = userOi;
 
 				user.joinDate = req.body.joinDate || new Date();
 				user.removalDate = null;
@@ -915,6 +874,7 @@ router.put(
 				});
 				user.joinDate = null;
 				user.removalDate = new Date();
+				user.oi = '';
 			}
 			user.member = req.body.member;
 
@@ -970,8 +930,17 @@ router.put('/:cid/visit', internalAuth, async (req: Request, res: Response, next
 			const certDates = grantCerts(user.rating, user.certificationDate);
 
 			user.certCodes = certDates.map((c) => c.code);
-
 			user.certificationDate = certDates;
+
+			const userOi = await checkOI(user);
+			if (!userOi) {
+				throw {
+					code: status.INTERNAL_SERVER_ERROR,
+					message: 'Unable to generate Operating Initials',
+				};
+			}
+
+			user.oi = userOi;
 		}
 
 		await user.save();
@@ -1004,6 +973,16 @@ router.put(
 				};
 			}
 
+			// Find the existing user
+			const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
+
+			if (!user) {
+				throw {
+					code: status.NOT_FOUND,
+					message: 'User not found',
+				};
+			}
+
 			const { fname, lname, email, oi, roles, certs, vis } = req.body.form;
 			const toApply = {
 				roles: [] as string[],
@@ -1014,16 +993,6 @@ router.put(
 				if (set) {
 					toApply.roles.push(code);
 				}
-			}
-
-			// Find the existing user
-			const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
-
-			if (!user) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'User not found',
-				};
 			}
 
 			// Handle certifications (certCodes and certificationDate)
@@ -1048,32 +1017,18 @@ router.put(
 				}
 			}
 
-			const exists = await findInS3(`avatars/${user.cid}-default.png`);
-			if (!exists || oi !== user.oi) {
-				const { data } = await axios.get(
-					`https://ui-avatars.com/api/?name=${oi}&size=256&background=122049&color=ffffff`,
-					{ responseType: 'arraybuffer' },
-				);
+			await uploadAvatar(user, oi);
 
-				await uploadToS3(`avatars/${user.cid}-default.png`, data, 'image/png', {
-					ContentDisposition: 'inline',
-				});
-			}
+			user.fname = fname;
+			user.lname = lname;
+			user.email = email;
+			user.oi = oi;
+			user.vis = vis;
+			user.roleCodes = toApply.roles;
+			user.certCodes = updatedCertificationDate.map((c) => c.code);
+			user.certificationDate = updatedCertificationDate;
 
-			// Use findOneAndUpdate to update the user document
-			await UserModel.findOneAndUpdate(
-				{ cid: req.params['cid'] }, // Find the user by their CID
-				{
-					fname,
-					lname,
-					email,
-					oi,
-					vis,
-					roleCodes: toApply.roles, // Update roles
-					certCodes: updatedCertificationDate.map((cert) => cert.code), // Update certCodes
-					certificationDate: updatedCertificationDate, // Update certificationDate with gainedDate
-				},
-			).exec();
+			await user.save();
 
 			// Log the update in the user's dossier
 			await DossierModel.create({
@@ -1108,9 +1063,8 @@ router.put(
 				};
 			}
 
-			// Remove the user's certCodes and certificationDate
-			user.certCodes = []; // Clear certCodes
-			user.certificationDate = []; // Clear certificationDate (remove all certifications and gained dates)
+			user.certCodes = [];
+			user.certificationDate = [];
 
 			await user.save();
 
@@ -1172,6 +1126,7 @@ router.delete(
 				reason: req.body.reason,
 			});
 			user.joinDate = null;
+			user.oi = '';
 
 			await user.save();
 
@@ -1192,6 +1147,64 @@ router.delete(
 );
 
 export default router;
+
+async function checkOI(user: IUser) {
+	try {
+		if (!user) return '';
+
+		const oi = await UserModel.find({ deletedAt: null, member: true })
+			.select('oi cid')
+			.lean()
+			.exec();
+
+		if (user.oi) {
+			// OIs are only in the database once
+			if (oi.filter((o) => o.oi === user.oi).length === 0) {
+				uploadAvatar(user, user.oi);
+				return user.oi;
+			} else {
+				// OIs are matched to the user
+				if (oi.some((u) => u.oi === user.oi && u.cid === user.cid)) {
+					uploadAvatar(user, user.oi);
+					return user.oi;
+				}
+			}
+		}
+
+		const assignedOi = generateOperatingInitials(
+			user.fname,
+			user.lname,
+			oi.map((oi) => oi.oi || '').filter((oi) => oi !== ''),
+		);
+
+		const { data } = await axios.get(
+			`https://ui-avatars.com/api/?name=${oi}&size=256&background=122049&color=ffffff`,
+			{ responseType: 'arraybuffer' },
+		);
+
+		await uploadToS3(`avatars/${user.cid}-default.png`, data, 'image/png', {
+			ContentDisposition: 'inline',
+		});
+
+		return assignedOi;
+	} catch (e) {
+		throw { code: status.INTERNAL_SERVER_ERROR, message: e };
+	}
+}
+
+async function uploadAvatar(user: IUser, oi: string) {
+	const exists = await findInS3(`avatars/${user.cid}-default.png`);
+	if (!exists || oi !== user.oi) {
+		const { data } = await axios.get(
+			`https://ui-avatars.com/api/?name=${oi}&size=256&background=122049&color=ffffff`,
+			{ responseType: 'arraybuffer' },
+		);
+
+		await uploadToS3(`avatars/${user.cid}-default.png`, data, 'image/png', {
+			ContentDisposition: 'inline',
+		});
+	}
+}
 
 function generateOperatingInitials(fname: string, lname: string, usedOi: string[]): string {
 	let operatingInitials = '';
