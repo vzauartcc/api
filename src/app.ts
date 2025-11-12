@@ -7,6 +7,7 @@ import express from 'express';
 import helmet from 'helmet';
 import { Redis } from 'ioredis';
 import mongoose from 'mongoose';
+import cache from 'ts-cache-mongoose';
 import controllerRouter from './controllers/controller.js';
 import discordRouter from './controllers/discord.js';
 import eventRouter from './controllers/event.js';
@@ -20,6 +21,7 @@ import statsRouter from './controllers/stats.js';
 import trainingRouter from './controllers/training.js';
 import userRouter from './controllers/user.js';
 import vatusaRouter from './controllers/vatusa.js';
+import { parseRedisConnectionString } from './helpers/redis.js';
 import { setupS3 } from './helpers/s3.js';
 import { soloExpiringNotifications, syncVatusaSoloEndorsements } from './tasks/solo.js';
 import { syncVatusaTrainingRecords } from './tasks/trainingRecords.js';
@@ -46,7 +48,7 @@ if (!REDIS_URI) {
 }
 
 console.log('Connecting to redis. . . .');
-app.redis = new Redis(REDIS_URI, { family: 4 });
+app.redis = new Redis(REDIS_URI, { family: 4, connectionName: 'api' });
 app.redis.on('error', (err) => {
 	throw new Error(`Redis error: ${err}`);
 });
@@ -72,15 +74,6 @@ app.use(
 
 app.use(helmet());
 
-// console.log('Setting Access Control headers. . . .');
-// app.use((_req: Request, res: Response, next: NextFunction) => {
-// 	res.setHeader('Access-Control-Allow-Origin', '*');
-// 	res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-// 	res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
-// 	res.setHeader('Access-Control-Allow-Credentials', 'true');
-// 	next();
-// });
-
 console.log('Connecting to S3 bucket. . . .');
 setupS3();
 
@@ -101,6 +94,21 @@ db.once('open', () => console.log('Successfully connected to MongoDB'));
 db.on('error', (err) => {
 	console.error('Mongoose error:', err);
 });
+
+// Set up MongoDB cache in Redis
+const cacheInstance = cache.init(mongoose, {
+	defaultTTL: '60 seconds',
+	engine: 'redis',
+	engineOptions: {
+		...parseRedisConnectionString(REDIS_URI),
+		connectionName: 'mongodb-cache',
+		family: 4,
+	},
+});
+
+export const getCacheInstance = () => {
+	return cacheInstance;
+};
 
 console.log('Setting up routes. . . .');
 app.use('/online', onlineRouter);
