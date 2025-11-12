@@ -23,7 +23,7 @@ const router = Router();
 
 router.get('/', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		const allUsers = await getUsersWithPrivacy(req.user);
+		const allUsers = await getUsersWithPrivacy(req.user, { member: true });
 
 		const home = allUsers.filter((user) => user.vis === false);
 		const visiting = allUsers.filter((user) => user.vis === true);
