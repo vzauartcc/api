@@ -71,6 +71,13 @@ export async function getUsersWithPrivacy(user: IUser, findOptions = {}) {
 				ratingsArrayL: 0,
 			},
 		},
+		{
+			$sort: {
+				lname: 1,
+				fname: 1,
+				oi: 1,
+			},
+		},
 	])
 		.cache('1 minute', cacheKey)
 		.exec();
