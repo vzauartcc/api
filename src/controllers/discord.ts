@@ -1,6 +1,7 @@
 import { captureException } from '@sentry/node';
 import Discord from 'discord-oauth2';
 import { Router, type NextFunction, type Request, type Response } from 'express';
+import { getCacheInstance } from '../app.js';
 import discord from '../helpers/discord.js';
 import internalAuth from '../middleware/internalAuth.js';
 import getUser from '../middleware/user.js';
@@ -14,6 +15,7 @@ router.get('/users', internalAuth, async (_req: Request, res: Response, next: Ne
 	try {
 		const users = await UserModel.find({ discordInfo: { $ne: null } })
 			.select('fname lname cid discordInfo roleCodes oi rating member vis')
+			.cache('10 minutes', `discord-users`)
 			.exec();
 
 		return res.status(status.OK).json(users);
@@ -57,7 +59,9 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 		}
 
 		const { cid, code } = req.body;
-		const user = await UserModel.findOne({ cid }).exec();
+		const user = await UserModel.findOne({ cid })
+			.cache('10 minutes', `user-${req.params['cid']}`)
+			.exec();
 
 		if (!user) {
 			throw {
@@ -116,6 +120,9 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 			.catch((err) => console.error('Error sending task', err));
 
 		await user.save();
+		await getCacheInstance().clear(`user-${user.cid}`);
+		await getCacheInstance().clear(`users`);
+		await getCacheInstance().clear(`discord-users`);
 
 		await DossierModel.create({
 			by: user.cid,
@@ -135,6 +142,9 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 router.delete('/user', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		await UserModel.updateOne({ cid: req.user.cid }, { $unset: { discord: '', discordInfo: '' } });
+		await getCacheInstance().clear(`user-${req.user.cid}`);
+		await getCacheInstance().clear(`users`);
+		await getCacheInstance().clear(`discord-users`);
 
 		res.status(status.OK).json();
 	} catch (e) {

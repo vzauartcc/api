@@ -1,6 +1,7 @@
 import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { body, validationResult } from 'express-validator';
+import { getCacheInstance } from '../app.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
 import { ExamModel, type IExam } from '../models/exam.js';
@@ -97,7 +98,9 @@ router.post(
 				questionSubsetSize: req.body.questionSubsetSize,
 				createdBy: req.user._id,
 			});
+
 			await newExam.save();
+			await getCacheInstance().clear('exams');
 
 			return res.status(status.CREATED).json({ examId: newExam.id });
 		} catch (e) {
@@ -133,6 +136,7 @@ router.patch(
 				},
 				{ new: true },
 			).exec(); // { new: true } option returns the document after update
+			await getCacheInstance().clear(`exam-${examId}`);
 
 			if (!updatedExam) {
 				throw {
@@ -170,7 +174,9 @@ router.post(
 				user: userId,
 				status: 'in_progress',
 				endTime: { $gt: now }, // Check if the attempt is still within the time limit
-			}).exec();
+			})
+				.cache('1 minute', `exam-attempt-${examId}-${userId}`)
+				.exec();
 
 			if (existingAttempt) {
 				// Calculate remaining time for the existing attempt
@@ -184,7 +190,7 @@ router.post(
 			}
 
 			// Fetch the exam details
-			const exam = await ExamModel.findById(examId).exec();
+			const exam = await ExamModel.findById(examId).cache('1 minute', `exam-${examId}`).exec();
 			if (!exam) {
 				throw {
 					code: status.NOT_FOUND,
@@ -197,6 +203,7 @@ router.post(
 				.sort({
 					createdAt: -1,
 				})
+				.cache('1 minute', `exam-attempt-${examId}-${userId}`)
 				.exec(); // Assuming createdAt is a field that tracks when the attempt was made
 
 			if (latestAttempt) {
@@ -222,7 +229,7 @@ router.post(
 			// Fetch questions for the test type and randomly select the required subset
 			// @TODO: figure out what testType was suppose to be
 			// const allQuestions = await QuestionModel.find({ testType: exam.testType }).exec();
-			const allQuestions = await QuestionModel.find({}).exec();
+			const allQuestions = await QuestionModel.find({}).cache().exec();
 			const questionSubsetSize = exam.questionSubsetSize || 30; // Default to 30 if not specified
 			const selectedQuestions = selectRandomSubset(allQuestions, questionSubsetSize);
 			const questions = selectedQuestions.sort(() => 0.5 - Math.random());
@@ -243,6 +250,7 @@ router.post(
 			});
 
 			await newAttempt.save();
+			await getCacheInstance().clear(`exam-attempt-${examId}-${userId}`);
 			// Send back the time remaining along with attempt details
 			const timeRemaining = newAttempt.endTime.getTime() - Date.now();
 
@@ -268,7 +276,10 @@ router.post(
 			const examId = req.params['examId'];
 			const userId = req.user._id;
 
-			const exam = await ExamModel.findById(examId).populate('questions').exec();
+			const exam = await ExamModel.findById(examId)
+				.populate('questions')
+				.cache('1 minute', `exam-attempt-${examId}-${req.user._id}`)
+				.exec();
 			if (!exam) {
 				throw {
 					code: status.NOT_FOUND,
@@ -313,6 +324,7 @@ router.post(
 				status: 'completed',
 			});
 			await examAttempt.save();
+			await getCacheInstance().clear(`exam-attempt-${examId}-${req.user._id}`);
 
 			// Respond with score and detailed results
 			return res.status(status.CREATED).json({
@@ -345,6 +357,7 @@ router.get(
 			const exams = (await ExamModel.find()
 				.populate('createdBy', 'fname lname')
 				.lean()
+				.cache('1 minute', `exams`)
 				.exec()) as unknown as IExamPopulated[];
 
 			// Transform exams to include questions count (assuming questions are embedded)
@@ -376,6 +389,7 @@ router.get(
 		try {
 			const exam = await ExamModel.findById(req.params['id'])
 				.populate('createdBy', 'fname lname')
+				.cache('1 minute', `exam-${req.params['id']}`)
 				.exec();
 			if (!exam) {
 				throw {
@@ -402,7 +416,9 @@ router.get(
 			const examAttempt = await ExamAttemptModel.findOne({
 				exam: req.params['id'],
 				user: req.user._id, // Ensure results are fetched for the logged-in user
-			}).exec();
+			})
+				.cache()
+				.exec();
 
 			if (!examAttempt) {
 				throw {
@@ -435,7 +451,9 @@ router.patch(
 				exam: examId,
 				user: userId,
 				status: 'in_progress', // Assuming you want to update an in-progress attempt
-			}).exec();
+			})
+				.cache('1 minute', `exam-attempt-${examId}-${userId}`)
+				.exec();
 
 			if (!attempt) {
 				throw {
@@ -449,6 +467,7 @@ router.patch(
 			if (response) {
 				response.timeSpent += additionalTimeSpent; // Add the additional time to the current time spent
 				await attempt.save(); // Save the updated attempt
+				await getCacheInstance().clear(`exam-attempt-${examId}-${userId}`);
 
 				return res.status(status.OK).json({ message: 'Time spent updated successfully.' });
 			} else {
@@ -486,7 +505,9 @@ router.delete(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			// Attempt to find and delete the exam by ID
-			const deletedExam = await ExamModel.findById(req.params['id']).exec();
+			const deletedExam = await ExamModel.findById(req.params['id'])
+				.cache('1 minute', `exam-${req.params['id']}`)
+				.exec();
 
 			// If no exam was found and deleted, return a 404 error
 			if (!deletedExam) {
@@ -497,6 +518,8 @@ router.delete(
 			}
 
 			await deletedExam.delete();
+			await getCacheInstance().clear('exams');
+			await getCacheInstance().clear(`exam-${deletedExam.id}`);
 
 			return res.status(status.NO_CONTENT).json();
 			// Respond with success message

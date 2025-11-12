@@ -3,6 +3,7 @@ import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import * as fs from 'fs';
 import multer from 'multer';
+import { getCacheInstance } from '../app.js';
 import { deleteFromS3, getUploadStatus, setUploadStatus, uploadToS3 } from '../helpers/s3.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
@@ -61,6 +62,7 @@ router.get('/downloads', async (_req: Request, res: Response, next: NextFunction
 		const downloads = await DownloadModel.find({ deletedAt: null })
 			.sort({ category: 'asc', name: 'asc' })
 			.lean()
+			.cache('5 minutes', 'downloads')
 			.exec();
 
 		return res.status(status.OK).json(downloads);
@@ -74,7 +76,10 @@ router.get('/downloads', async (_req: Request, res: Response, next: NextFunction
 
 router.get('/downloads/:id', async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		const download = await DownloadModel.findById(req.params['id']).lean().exec();
+		const download = await DownloadModel.findById(req.params['id'])
+			.lean()
+			.cache('5 minutes', `download-${req.params['id']}`)
+			.exec();
 
 		if (!download) {
 			throw {
@@ -159,6 +164,8 @@ router.post(
 				author: req.body.author,
 			});
 
+			await getCacheInstance().clear('downloads');
+
 			await DossierModel.create({
 				by: req.user.cid,
 				affected: -1,
@@ -182,7 +189,9 @@ router.put(
 	hasRole(['atm', 'datm', 'ta', 'fe', 'wm']),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const download = await DownloadModel.findById(req.params['id']).exec();
+			const download = await DownloadModel.findById(req.params['id'])
+				.cache('5 minutes', `download-${req.params['id']}`)
+				.exec();
 			if (!download) {
 				throw { code: status.NOT_FOUND, message: 'Download not found' };
 			}
@@ -245,6 +254,7 @@ router.put(
 				}).exec();
 			}
 
+			await getCacheInstance().clear(`download-${req.params['id']}`);
 			await DossierModel.create({
 				by: req.user.cid,
 				affected: -1,
@@ -267,7 +277,10 @@ router.delete(
 	hasRole(['atm', 'datm', 'ta', 'fe', 'wm']),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const download = await DownloadModel.findById(req.params['id']).lean().exec();
+			const download = await DownloadModel.findById(req.params['id'])
+				.lean()
+				.cache('5 minutes', `download-${req.params['id']}`)
+				.exec();
 			if (!download) {
 				return res.status(status.NOT_FOUND).json({ error: 'File not found' });
 			}
@@ -277,6 +290,7 @@ router.delete(
 			}
 
 			await DownloadModel.findByIdAndDelete(req.params['id']).exec();
+			await getCacheInstance().clear('downloads');
 
 			await DossierModel.create({
 				by: req.user.cid,
@@ -303,6 +317,7 @@ router.get('/documents', async (_req: Request, res: Response, next: NextFunction
 			.sort({ category: 'asc' })
 			.sort({ name: 'asc' })
 			.lean()
+			.cache('5 minutes', 'documents')
 			.exec();
 
 		return res.status(status.OK).json(documents);
@@ -318,6 +333,7 @@ router.get('/documents/:slug', async (req: Request, res: Response, next: NextFun
 	try {
 		const document = await DocumentModel.findOne({ slug: req.params['slug'], deletedAt: null })
 			.lean()
+			.cache('5 minutes', `documents-${req.params['slug']}`)
 			.exec();
 
 		if (!document) {
@@ -431,6 +447,7 @@ router.post(
 					type: 'doc',
 				});
 			}
+			await getCacheInstance().clear('documents');
 
 			await DossierModel.create({
 				by: req.user.cid,
@@ -455,7 +472,9 @@ router.put(
 	hasRole(['atm', 'datm', 'ta', 'fe', 'wm']),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const document = await DocumentModel.findOne({ slug: req.params['slug'] }).exec();
+			const document = await DocumentModel.findOne({ slug: req.params['slug'] })
+				.cache('5 minutes', `documents-${req.params['slug']}`)
+				.exec();
 			if (!document) {
 				throw {
 					code: status.NOT_FOUND,
@@ -552,6 +571,8 @@ router.put(
 				}
 			}
 
+			await getCacheInstance().clear(`document-${req.params['slug']}`);
+
 			await DossierModel.create({
 				by: req.user.cid,
 				affected: -1,
@@ -587,6 +608,7 @@ router.delete(
 			}
 
 			await DocumentModel.findByIdAndDelete(req.params['id']).exec();
+			await getCacheInstance().clear('documents');
 
 			await DossierModel.create({
 				by: req.user.cid,

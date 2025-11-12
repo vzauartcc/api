@@ -22,6 +22,9 @@ export async function getUsersWithPrivacy(user: IUser, findOptions = {}) {
 				},
 			};
 
+	const cacheKey =
+		Object.keys(findOptions).length === 0 ? 'users' : `user-${JSON.stringify(findOptions)}`;
+
 	let results = await UserModel.aggregate([
 		{ $match: findOptions },
 		{
@@ -68,6 +71,9 @@ export async function getUsersWithPrivacy(user: IUser, findOptions = {}) {
 				ratingsArrayL: 0,
 			},
 		},
-	]).exec();
+	])
+		.cache('1 minute', cacheKey)
+		.exec();
+
 	return await UserModel.populate(results, 'roles certifications');
 }

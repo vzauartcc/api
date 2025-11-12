@@ -4,6 +4,7 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import { fileTypeFromFile } from 'file-type';
 import * as fs from 'fs';
 import multer from 'multer';
+import { getCacheInstance } from '../app.js';
 import { sendMail } from '../helpers/mailer.js';
 import { deleteFromS3, setUploadStatus, uploadToS3 } from '../helpers/s3.js';
 import { hasRole } from '../middleware/auth.js';
@@ -42,6 +43,7 @@ router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 		})
 			.sort({ eventStart: 'asc' })
 			.lean()
+			.cache('10 minutes', `events`)
 			.exec();
 
 		return res.status(status.OK).json(events);
@@ -63,7 +65,9 @@ router.get('/archive', async (req: Request, res: Response, next: NextFunction) =
 				$lt: new Date(new Date().toUTCString()),
 			},
 			deleted: false,
-		}).exec();
+		})
+			.cache('10 minutes')
+			.exec();
 		const events = await EventModel.find({
 			eventEnd: {
 				$lt: new Date(new Date().toUTCString()),
@@ -74,6 +78,7 @@ router.get('/archive', async (req: Request, res: Response, next: NextFunction) =
 			.limit(limit)
 			.sort({ eventStart: 'desc' })
 			.lean()
+			.cache('10 minutes')
 			.exec();
 
 		return res.status(status.OK).json({ amount: count, events });
@@ -91,7 +96,9 @@ router.get('/staffingRequest', async (req: Request, res: Response, next: NextFun
 		const page = +(req.query['page'] as string) || 1;
 		const limit = +(req.query['limit'] as string) || 10;
 
-		const count = await StaffingRequestModel.countDocuments({ deleted: false }).exec();
+		const count = await StaffingRequestModel.countDocuments({ deleted: false })
+			.cache('5 minutes', 'count-staffing-requests')
+			.exec();
 		let requests: any[] = [];
 
 		if (count > 0) {
@@ -100,6 +107,7 @@ router.get('/staffingRequest', async (req: Request, res: Response, next: NextFun
 				.limit(limit)
 				.sort({ date: 'desc' })
 				.lean()
+				.cache()
 				.exec();
 		}
 
@@ -114,7 +122,9 @@ router.get('/staffingRequest', async (req: Request, res: Response, next: NextFun
 
 router.get('/staffingRequest/:id', async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
+		const staffingRequest = await StaffingRequestModel.findById(req.params['id'])
+			.cache('10 minutes', `staffing-request-${req.params['id']}`)
+			.exec();
 
 		if (!staffingRequest) {
 			throw {
@@ -161,7 +171,9 @@ router.post('/staffingRequest', async (req: Request, res: Response, next: NextFu
 			accepted: false,
 			name: req.body.name,
 			email: req.body.email,
-		}).exec();
+		})
+			.cache('5 minutes', `staffing-requests-submitted-${req.body.email}`)
+			.exec();
 
 		if (count >= 3) {
 			throw {
@@ -180,6 +192,9 @@ router.post('/staffingRequest', async (req: Request, res: Response, next: NextFu
 			description: req.body.description,
 			accepted: false,
 		});
+
+		await getCacheInstance().clear(`staffing-requests-submitted-${req.body.email}`);
+		await getCacheInstance().clear(`count-staffing-requests`);
 
 		const newRequestID = newRequest.id; // Access the new object's ID
 
@@ -213,7 +228,9 @@ router.put(
 	'/staffingRequest/:id/accept',
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
+			const staffingRequest = await StaffingRequestModel.findById(req.params['id'])
+				.cache('1 minute', `staffing-request-${req.params['id']}`)
+				.exec();
 
 			if (!staffingRequest) {
 				throw {
@@ -225,6 +242,7 @@ router.put(
 			staffingRequest.accepted = req.body.accepted;
 
 			await staffingRequest.save();
+			await getCacheInstance().clear(`staffing-request-${staffingRequest.id}`);
 
 			return res.status(status.OK).json();
 		} catch (e) {
@@ -242,7 +260,9 @@ router.put(
 	hasRole(['atm', 'datm', 'ec', 'wm']),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
+			const staffingRequest = await StaffingRequestModel.findById(req.params['id'])
+				.cache('1 minute', `staffing-request-${req.params['id']}`)
+				.exec();
 
 			if (!staffingRequest) {
 				throw {
@@ -261,6 +281,7 @@ router.put(
 			staffingRequest.accepted = req.body.accepted;
 
 			await staffingRequest.save();
+			await getCacheInstance().clear(`staffing-request-${staffingRequest.id}`);
 
 			if (req.body.accepted) {
 				sendMail({
@@ -301,7 +322,9 @@ router.delete(
 	hasRole(['atm', 'datm', 'ec', 'wm']),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const staffingRequest = await StaffingRequestModel.findById(req.params['id']).exec();
+			const staffingRequest = await StaffingRequestModel.findById(req.params['id'])
+				.cache('1 minute', `staffing-request-${req.params['id']}`)
+				.exec();
 
 			if (!staffingRequest) {
 				throw {
@@ -311,6 +334,7 @@ router.delete(
 			}
 
 			await staffingRequest.delete();
+			await getCacheInstance().clear(`staffing-request-${staffingRequest.id}`);
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
@@ -330,6 +354,7 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
 			deleted: false,
 		})
 			.lean()
+			.cache('1 minute', `event-${req.params['slug']}`)
 			.exec();
 
 		return res.status(status.OK).json(event);
@@ -354,6 +379,7 @@ router.get('/:slug/positions', async (req: Request, res: Response, next: NextFun
 			.populate('positions.user', 'cid fname lname roleCodes')
 			.populate('signups.user', 'fname lname cid vis rating certCodes')
 			.lean({ virtuals: true })
+			.cache('1 minute', `event-${req.params['slug']}`)
 			.exec();
 
 		return res.status(status.OK).json(event);
@@ -405,6 +431,8 @@ router.put('/:slug/signup', getUser, async (req: Request, res: Response, next: N
 			},
 		).exec();
 
+		await getCacheInstance().clear(`event-${req.params['slug']}`);
+
 		if (!event) {
 			throw {
 				code: status.NOT_FOUND,
@@ -439,6 +467,8 @@ router.delete('/:slug/signup', getUser, async (req: Request, res: Response, next
 				},
 			},
 		).exec();
+
+		await getCacheInstance().clear(`event-${req.params['slug']}`);
 
 		if (!event) {
 			throw {
@@ -478,6 +508,8 @@ router.delete(
 					},
 				},
 			).exec();
+
+			await getCacheInstance().clear(`event-${req.params['slug']}`);
 
 			if (!signup) {
 				throw {
@@ -521,7 +553,9 @@ router.put(
 	hasRole(['atm', 'datm', 'ec', 'wm']),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
+			const user = await UserModel.findOne({ cid: req.params['cid'] })
+				.cache('1 minute', `user-${req.params['cid']}`)
+				.exec();
 			if (!user) {
 				throw {
 					code: status.NOT_FOUND,
@@ -529,7 +563,9 @@ router.put(
 				};
 			}
 
-			const event = await EventModel.findOne({ url: req.params['slug'] }).exec();
+			const event = await EventModel.findOne({ url: req.params['slug'] })
+				.cache('1 minute', `event-${req.params['slug']}`)
+				.exec();
 
 			if (!event) {
 				throw {
@@ -560,6 +596,8 @@ router.put(
 					},
 				},
 			).exec();
+
+			await getCacheInstance().clear(`event-${req.params['slug']}`);
 
 			await DossierModel.create({
 				by: req.user.cid,
@@ -596,6 +634,8 @@ router.put(
 					new: true,
 				},
 			).exec();
+
+			await getCacheInstance().clear(`event-${req.params['slug']}`);
 
 			if (!eventData) {
 				throw {
@@ -647,7 +687,7 @@ router.post(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const url = req.body.url;
-			const eventData = await EventModel.findOne({ url: url }).exec();
+			const eventData = await EventModel.findOne({ url: url }).cache().exec();
 			if (!eventData) {
 				throw {
 					code: status.NOT_FOUND,
@@ -898,7 +938,9 @@ router.put(
 	upload.single('banner'),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const eventData = await EventModel.findOne({ url: req.params['slug'] }).exec();
+			const eventData = await EventModel.findOne({ url: req.params['slug'] })
+				.cache('1 minute', `event-${req.params['slug']}`)
+				.exec();
 			if (!eventData) {
 				throw {
 					code: status.NOT_FOUND,
@@ -1039,6 +1081,7 @@ router.put(
 			}
 
 			await eventData.save();
+			await getCacheInstance().clear(`event-${req.params['slug']}`);
 
 			await DossierModel.create({
 				by: req.user.cid,
@@ -1062,7 +1105,9 @@ router.delete(
 	hasRole(['atm', 'datm', 'ec', 'wm']),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const deleteEvent = await EventModel.findOne({ url: req.params['slug'] }).exec();
+			const deleteEvent = await EventModel.findOne({ url: req.params['slug'] })
+				.cache('1 minute', `event-${req.params['slug']}`)
+				.exec();
 
 			if (!deleteEvent) {
 				throw {
@@ -1077,6 +1122,7 @@ router.delete(
 			}
 
 			await deleteEvent.delete();
+			await getCacheInstance().clear(`event-${req.params['slug']}`);
 
 			await DossierModel.create({
 				by: req.user.cid,
@@ -1133,6 +1179,7 @@ router.put(
 
 			const eventData = await EventModel.findOne({ url: req.params['slug'] }, 'name url signups')
 				.populate('signups.user', 'fname lname email cid')
+				.cache('1 minute', `event-${req.params['slug']}`)
 				.exec();
 			if (!eventData) {
 				throw {
@@ -1187,6 +1234,8 @@ router.put(
 					},
 				},
 			).exec();
+
+			await getCacheInstance().clear(`event-${req.params['slug']}`);
 
 			if (!event) {
 				throw {

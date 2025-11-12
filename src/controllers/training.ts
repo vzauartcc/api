@@ -1,6 +1,7 @@
 import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
+import { getCacheInstance } from '../app.js';
 import discord from '../helpers/discord.js';
 import { sendMail } from '../helpers/mailer.js';
 import { vatusaApi } from '../helpers/vatusa.js';
@@ -36,6 +37,7 @@ router.get(
 				.populate('milestone', 'code name')
 				.sort({ startTime: 'asc' })
 				.lean()
+				.cache('10 minutes', 'training-requests')
 				.exec();
 
 			return res.status(status.OK).json(upcoming);
@@ -122,15 +124,18 @@ router.post('/request/new', getUser, async (req: Request, res: Response, next: N
 			milestoneCode: req.body.milestone,
 			remarks: req.body.remarks,
 		});
+		await getCacheInstance().clear('training-requests');
 
 		const student = await UserModel.findOne({ cid: req.user.cid })
 			.select('fname lname')
 			.lean()
+			.cache('10 minutes', `training-user-${req.user.cid}`)
 			.exec();
 		const milestone = await TrainingRequestMilestoneModel.findOne({
 			code: req.body.milestone,
 		})
 			.lean()
+			.cache('1 day', `milestone-${req.body.milestone}`)
 			.exec();
 
 		if (!student || !milestone) {
@@ -183,11 +188,13 @@ router.get('/milestones', getUser, async (req: Request, res: Response, next: Nex
 			.select('trainingMilestones rating')
 			.populate('trainingMilestones', 'code name rating')
 			.lean()
+			.cache('10 minutes', `milestone-users-${req.user.cid}`)
 			.exec();
 
 		const milestones = await TrainingRequestMilestoneModel.find()
 			.sort({ rating: 'asc', code: 'asc' })
 			.lean()
+			.cache('1 day', `milestones`)
 			.exec();
 
 		return res.status(status.OK).json({ user, milestones });
@@ -221,6 +228,7 @@ router.get(
 			})
 				.select('startTime')
 				.lean()
+				.cache('10 minutes', 'open-requests')
 				.exec();
 
 			return res.status(status.OK).json(requests);
@@ -254,6 +262,8 @@ router.post(
 				.lean()
 				.exec();
 
+			await getCacheInstance().clear('open-requests');
+
 			if (!request) {
 				throw {
 					code: status.NOT_FOUND,
@@ -273,10 +283,12 @@ router.post(
 			const student = await UserModel.findOne({ cid: request.studentCid })
 				.select('fname lname email')
 				.lean()
+				.cache('10 minutes', `take-${request.studentCid}`)
 				.exec();
 			const instructor = await UserModel.findOne({ cid: req.user.cid })
 				.select('fname lname email')
 				.lean()
+				.cache('10 minutes', `take-${req.user.cid}`)
 				.exec();
 
 			if (!student || !instructor) {
@@ -327,7 +339,9 @@ router.post(
 
 router.delete('/request/:id', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		const request = await TrainingRequestModel.findById(req.params['id']).exec();
+		const request = await TrainingRequestModel.findById(req.params['id'])
+			.cache('10 minutes', `request-${req.params['id']}`)
+			.exec();
 
 		if (!request) {
 			throw {
@@ -343,6 +357,9 @@ router.delete('/request/:id', getUser, async (req: Request, res: Response, next:
 		}
 
 		await request.delete();
+		await getCacheInstance().clear('open-requests');
+		await getCacheInstance().clear('training-requests');
+		await getCacheInstance().clear(`request-${req.params['id']}`);
 
 		if (isSelf) {
 			await NotificationModel.create({
@@ -393,6 +410,7 @@ router.get(
 				.populate('student', 'fname lname rating vis')
 				.populate('milestone', 'name code')
 				.lean()
+				.cache()
 				.exec();
 
 			return res.status(status.OK).json(requests);
@@ -421,6 +439,7 @@ router.get(
 				.populate('student', 'fname lname cid vis')
 				.populate('milestone', 'name code')
 				.lean()
+				.cache('10 minutes', `instructor-sessions-${req.user.cid}`)
 				.exec();
 
 			return res.status(status.OK).json(sessions);
@@ -446,7 +465,9 @@ router.delete(
 				};
 			}
 
-			const session = await TrainingSessionModel.findById(req.params['id']);
+			const session = await TrainingSessionModel.findById(req.params['id'])
+				.cache('10 minutes', `session-${req.params['id']}`)
+				.exec();
 
 			if (!session) {
 				throw {
@@ -463,6 +484,10 @@ router.delete(
 			}
 
 			await session.delete();
+			await getCacheInstance().clear(`student-session-${req.params['id']}`);
+			await getCacheInstance().clear(`instructor-session-${req.params['id']}`);
+			await getCacheInstance().clear(`session-${req.params['id']}`);
+			await getCacheInstance().clear(`instructor-sessions-${req.user.cid}`);
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
@@ -491,6 +516,11 @@ router.put(
 					message: 'Session not found',
 				};
 			}
+
+			await getCacheInstance().clear(`student-session-${req.params['id']}`);
+			await getCacheInstance().clear(`instructor-session-${req.params['id']}`);
+			await getCacheInstance().clear(`session-${req.params['id']}`);
+			await getCacheInstance().clear(`instructor-sessions-${req.user.cid}`);
 
 			return res.status(status.OK).json();
 		} catch (e) {
@@ -531,10 +561,9 @@ router.put(
 				};
 			}
 
-			const session = await TrainingSessionModel.findByIdAndUpdate(
-				req.params['id'],
-				req.body,
-			).exec();
+			const session = await TrainingSessionModel.findById(req.params['id'])
+				.cache('10 minutes', `session-${req.params['id']}`)
+				.exec();
 
 			if (!session) {
 				throw {
@@ -601,6 +630,11 @@ router.put(
 					location: req.body.location,
 				});
 			}
+
+			await getCacheInstance().clear(`student-session-${req.params['id']}`);
+			await getCacheInstance().clear(`instructor-session-${req.params['id']}`);
+			await getCacheInstance().clear(`session-${req.params['id']}`);
+			await getCacheInstance().clear(`instructor-sessions-${req.user.cid}`);
 
 			const instructor = await UserModel.findOne({ cid: session.instructorCid })
 				.select('fname lname')
@@ -694,6 +728,8 @@ router.post(
 				insNotes: req.body.insNotes,
 				submitted: false,
 			});
+
+			await getCacheInstance().clear(`instructor-sessions-${req.user.cid}`);
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
@@ -793,6 +829,8 @@ router.post(
 				vatusaId: vatusaRes.data.id,
 			});
 
+			await getCacheInstance().clear(`instructor-sessions-${req.user.cid}`);
+
 			await NotificationModel.create({
 				recipient: doc.studentCid,
 				read: false,
@@ -826,6 +864,7 @@ router.get('/session/:id', getUser, async (req: Request, res: Response, next: Ne
 				.populate('instructor', 'fname lname cid')
 				.populate('milestone', 'name code')
 				.lean()
+				.cache('10 minutes', `instructor-session-${req.params['id']}`)
 				.exec();
 		} else {
 			session = await TrainingSessionModel.findById(req.params['id'])
@@ -834,6 +873,7 @@ router.get('/session/:id', getUser, async (req: Request, res: Response, next: Ne
 				.populate('instructor', 'fname lname cid')
 				.populate('milestone', 'name code')
 				.lean()
+				.cache('10 minutes', `student-session-${req.params['id']}`)
 				.exec();
 		}
 
@@ -865,7 +905,9 @@ router.get(
 			const amount = await TrainingSessionModel.countDocuments({
 				submitted: true,
 				deleted: false,
-			}).exec();
+			})
+				.cache('10 minutes', 'session-count')
+				.exec();
 			const sessions = await TrainingSessionModel.find({
 				deleted: false,
 				submitted: true,
@@ -879,6 +921,7 @@ router.get(
 				.populate('instructor', 'fname lname')
 				.populate('milestone', 'name code')
 				.lean()
+				.cache()
 				.exec();
 
 			return res.status(status.OK).json({ count: amount, sessions });
@@ -900,7 +943,9 @@ router.get('/sessions/past', getUser, async (req: Request, res: Response, next: 
 			studentCid: req.user.cid,
 			deleted: false,
 			submitted: true,
-		}).exec();
+		})
+			.cache('10 minutes', `past-sessions-${req.user.cid}`)
+			.exec();
 		const sessions = await TrainingSessionModel.find({
 			studentCid: req.user.cid,
 			deleted: false,
@@ -915,6 +960,7 @@ router.get('/sessions/past', getUser, async (req: Request, res: Response, next: 
 			.populate('student', 'fname lname')
 			.populate('milestone', 'name code')
 			.lean()
+			.cache()
 			.exec();
 
 		return res.status(status.OK).json({ count: amount, sessions });
@@ -935,6 +981,7 @@ router.get(
 			const controller = await UserModel.findOne({ cid: req.params['cid'] })
 				.select('fname lname cid')
 				.lean()
+				.cache()
 				.exec();
 			if (!controller) {
 				throw {
@@ -950,7 +997,9 @@ router.get(
 				studentCid: req.params['cid'],
 				submitted: true,
 				deleted: false,
-			}).exec();
+			})
+				.cache()
+				.exec();
 			const sessions = await TrainingSessionModel.find({
 				studentCid: req.params['cid'],
 				deleted: false,
@@ -964,6 +1013,7 @@ router.get(
 				.populate('instructor', 'fname lname')
 				.populate('milestone', 'name code')
 				.lean()
+				.cache()
 				.exec();
 
 			return res.status(status.OK).json({
@@ -998,6 +1048,7 @@ router.get(
 				.sort({ expires: 'desc' })
 				.limit(50)
 				.lean({ virtuals: true })
+				.cache('10 minutes', 'solos')
 				.exec();
 
 			return res.status(status.OK).json(solos);
@@ -1055,6 +1106,8 @@ router.post(
 				vatusaId: vatusaId,
 				expires: endDate,
 			});
+
+			await getCacheInstance().clear('solos');
 
 			NotificationModel.create({
 				recipient: req.body.student,
@@ -1114,7 +1167,9 @@ router.delete(
 			const solo = await SoloEndorsementModel.findOne({
 				id: req.params['id'],
 				deleted: false,
-			}).exec();
+			})
+				.cache('10 minutes', `solo-${req.params['id']}`)
+				.exec();
 			if (!solo) {
 				throw {
 					code: status.NOT_FOUND,
@@ -1123,6 +1178,7 @@ router.delete(
 			}
 
 			await solo.delete();
+			await getCacheInstance().clear('solos');
 
 			if (zau.isProd) {
 				try {

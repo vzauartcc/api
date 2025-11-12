@@ -3,6 +3,7 @@ import axios from 'axios';
 import { randomUUID } from 'crypto';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
+import { getCacheInstance } from '../app.js';
 import { uploadToS3 } from '../helpers/s3.js';
 import zau from '../helpers/zau.js';
 import { userOrInternal } from '../middleware/auth.js';
@@ -15,6 +16,7 @@ import { NotificationModel } from '../models/notification.js';
 import { TrainingSessionModel } from '../models/trainingSession.js';
 import { UserModel } from '../models/user.js';
 import status from '../types/status.js';
+import { clearUserCache } from './controller.js';
 
 const router = Router();
 
@@ -32,6 +34,7 @@ router.get('/', userOrInternal, async (req: Request, res: Response, next: NextFu
 					},
 				])
 				.lean({ virtuals: true })
+				.cache('10 minutes', 'users-users-internal')
 				.exec();
 		} else {
 			let select = '-discordInfo -idsToken';
@@ -65,6 +68,7 @@ router.get('/', userOrInternal, async (req: Request, res: Response, next: NextFu
 					},
 				])
 				.lean({ virtuals: true })
+				.cache('10 minutes', 'users-users-user')
 				.exec();
 		}
 
@@ -104,6 +108,7 @@ router.get('/self', async (req: Request, res: Response, next: NextFunction) => {
 			.select('-createdAt -updatedAt')
 			.populate('roles absence')
 			.lean({ virtuals: true })
+			.cache('10 minutes', `users-user-${decoded.cid}`)
 			.exec();
 
 		if (!user) {
@@ -243,6 +248,7 @@ router.post('/login', oAuth, async (req: Request, res: Response, next: NextFunct
 		}
 
 		await user.save();
+		clearUserCache(user.cid);
 
 		const apiToken = jwt.sign({ cid: userData.cid }, process.env['JWT_SECRET']!, {
 			expiresIn: '30d',
@@ -293,6 +299,7 @@ router.get('/sessions', getUser, async (req: Request, res: Response, next: NextF
 		})
 			.sort({ timeStart: -1 })
 			.lean()
+			.cache('10 minutes')
 			.exec();
 
 		const trainings = await TrainingSessionModel.find({
@@ -301,6 +308,7 @@ router.get('/sessions', getUser, async (req: Request, res: Response, next: NextF
 		})
 			.sort({ startTime: -1 })
 			.lean()
+			.cache('10 minutes')
 			.exec();
 
 		return res.status(status.OK).json({
@@ -327,12 +335,16 @@ router.get('/notifications', getUser, async (req: Request, res: Response, next: 
 			deleted: false,
 			recipient: req.user.cid,
 			read: false,
-		}).exec();
+		})
+			.cache('10 minutes', `notifications-unread-${req.user.cid}`)
+			.exec();
 
 		const amount = await NotificationModel.countDocuments({
 			deleted: false,
 			recipient: req.user.cid,
-		}).exec();
+		})
+			.cache('10 minutes', `notifications-count-${req.user.cid}`)
+			.exec();
 
 		const notif = await NotificationModel.find({
 			recipient: req.user.cid,
@@ -342,6 +354,7 @@ router.get('/notifications', getUser, async (req: Request, res: Response, next: 
 			.limit(limit)
 			.sort({ createdAt: 'desc' })
 			.lean()
+			.cache()
 			.exec();
 
 		return res.status(status.OK).json({
@@ -369,6 +382,8 @@ router.put(
 				},
 			).exec();
 
+			await getCacheInstance().clear(`notifications-unread-${req.user.cid}`);
+
 			return res.status(status.OK).json();
 		} catch (e) {
 			if (!(e as any).code) {
@@ -391,6 +406,8 @@ router.put('/notifications/read/:id', async (req: Request, res: Response, next: 
 			read: true,
 		}).exec();
 
+		await getCacheInstance().clear(`notifications-unread-${req.user.cid}`);
+
 		return res.status(status.OK).json();
 	} catch (e) {
 		if (!(e as any).code) {
@@ -406,6 +423,9 @@ router.delete(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			await NotificationModel.deleteMany({ recipient: req.user.cid }).exec();
+
+			await getCacheInstance().clear(`notifications-count-${req.user.cid}`);
+			await getCacheInstance().clear(`notifications-unread-${req.user.cid}`);
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {

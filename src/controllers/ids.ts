@@ -23,6 +23,7 @@ router.post('/checktoken', async (req: Request, res: Response, next: NextFunctio
 		const user = await UserModel.findOne({ idsToken: idsToken })
 			.select('-email -idsToken')
 			.lean()
+			.cache('10 minutes', `ids-${idsToken}`)
 			.exec();
 		if (!user) {
 			throw {

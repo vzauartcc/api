@@ -1,5 +1,6 @@
 import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
+import { getCacheInstance } from '../app.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
 import { DossierModel } from '../models/dossier.js';
@@ -13,13 +14,16 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 		const page = +(req.query['page'] as string) || 1;
 		const limit = +(req.query['limit'] as string) || 20;
 
-		const amount = await NewsModel.countDocuments({ deleted: false }).exec();
+		const amount = await NewsModel.countDocuments({ deleted: false })
+			.cache('5 minutes', 'news-count')
+			.exec();
 		const news = await NewsModel.find({ deleted: false })
 			.sort({ createdAt: 'desc' })
 			.skip(limit * (page - 1))
 			.limit(limit)
 			.populate('user', ['fname', 'lname'])
 			.lean()
+			.cache()
 			.exec();
 
 		return res.status(status.OK).json({ amount, news });
@@ -59,6 +63,7 @@ router.post(
 				uriSlug,
 				createdBy,
 			});
+			await getCacheInstance().clear('news-count');
 
 			if (!news) {
 				throw {
@@ -88,6 +93,7 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
 		const newsItem = await NewsModel.findOne({ uriSlug: req.params['slug'] })
 			.populate('user', 'fname lname')
 			.lean()
+			.cache('10 minutes', `news-${req.params['slug']}`)
 			.exec();
 
 		if (!newsItem) {
@@ -113,7 +119,9 @@ router.put(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const { title, content } = req.body;
-			const newsItem = await NewsModel.findOne({ uriSlug: req.params['slug'] }).exec();
+			const newsItem = await NewsModel.findOne({ uriSlug: req.params['slug'] })
+				.cache('10 minutes', `news-${req.params['slug']}`)
+				.exec();
 			if (!newsItem) {
 				throw {
 					code: status.NOT_FOUND,
@@ -135,6 +143,7 @@ router.put(
 
 			newsItem.content = content;
 			await newsItem.save();
+			await getCacheInstance().clear(`news-${req.params['slug']}`);
 
 			await DossierModel.create({
 				by: req.user.cid,
@@ -158,7 +167,9 @@ router.delete(
 	hasRole(['atm', 'datm', 'ta', 'ec', 'fe', 'wm']),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const newsItem = await NewsModel.findOne({ uriSlug: req.params['slug'] }).exec();
+			const newsItem = await NewsModel.findOne({ uriSlug: req.params['slug'] })
+				.cache('10 minutes', `news-${req.params['slug']}`)
+				.exec();
 			if (!newsItem) {
 				throw {
 					code: status.NOT_FOUND,
@@ -167,6 +178,8 @@ router.delete(
 			}
 
 			const deleted = await newsItem.delete();
+			await getCacheInstance().clear(`news-${req.params['slug']}`);
+			await getCacheInstance().clear(`news-count`);
 
 			if (!deleted) {
 				throw {
