@@ -195,9 +195,10 @@ router.get(
 			await TrainingRequestModel.populate(lastRequest, { path: 'milestone' });
 			const allHomeControllers = await UserModel.find({ member: true, rating: { $lt: 12 } })
 				.select('-email -idsToken -discordInfo')
+				.lean({ virtuals: true })
 				.cache('10 minutes')
 				.exec();
-			const allCids = allHomeControllers.map((c: IUser) => c.cid);
+			const allCids = allHomeControllers.map((c) => c.cid);
 			lastTraining = lastTraining.filter(
 				(train) => train.student?.rating < 12 && train.student?.member && !train.student?.vis,
 			);

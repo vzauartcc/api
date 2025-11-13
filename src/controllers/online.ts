@@ -79,6 +79,7 @@ router.get('/top', async (_req: Request, res: Response, next: NextFunction) => {
 			],
 		})
 			.populate('user', 'fname lname cid')
+			.lean({ virtuals: true })
 			.cache('5 minutes')
 			.exec();
 

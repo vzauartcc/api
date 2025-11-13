@@ -23,6 +23,7 @@ import userRouter from './controllers/user.js';
 import vatusaRouter from './controllers/vatusa.js';
 import { parseRedisConnectionString } from './helpers/redis.js';
 import { setupS3 } from './helpers/s3.js';
+import zau from './helpers/zau.js';
 import { soloExpiringNotifications, syncVatusaSoloEndorsements } from './tasks/solo.js';
 import { syncVatusaTrainingRecords } from './tasks/trainingRecords.js';
 
@@ -104,6 +105,7 @@ const cacheInstance = cache.init(mongoose, {
 		connectionName: 'mongodb-cache',
 		family: 4,
 	},
+	debug: zau.isDev,
 });
 
 export const getCacheInstance = () => {
