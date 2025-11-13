@@ -47,6 +47,7 @@ export async function isUserValid(req: Request) {
 				},
 			])
 			.lean({ virtuals: true })
+			.cache('10 minutes', `auth-${decoded.cid}`)
 			.exec();
 
 		if (!user) {
