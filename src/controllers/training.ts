@@ -639,6 +639,7 @@ router.put(
 			const instructor = await UserModel.findOne({ cid: session.instructorCid })
 				.select('fname lname')
 				.lean()
+				.cache('10 minutes', `training-user-${req.user.cid}`)
 				.exec();
 
 			NotificationModel.create({

@@ -207,7 +207,9 @@ router.post('/login', oAuth, async (req: Request, res: Response, next: NextFunct
 			};
 		}
 
-		let user = await UserModel.findOne({ cid: userData.cid }).exec();
+		let user = await UserModel.findOne({ cid: userData.cid })
+			.cache('10 minutes', `user-${userData.cid}`)
+			.exec();
 
 		if (!user) {
 			user = await UserModel.create({

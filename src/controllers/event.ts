@@ -706,7 +706,10 @@ router.post(
 						};
 					} else {
 						try {
-							const res1 = await UserModel.findOne({ cid: position.takenBy }).lean().exec();
+							const res1 = await UserModel.findOne({ cid: position.takenBy })
+								.lean()
+								.cache('10 minutes', `user-${position.takenBy}`)
+								.exec();
 							if (!res1) {
 								throw {
 									code: status.INTERNAL_SERVER_ERROR,
