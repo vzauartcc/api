@@ -483,7 +483,7 @@ router.delete('/:slug/signup', getUser, async (req: Request, res: Response, next
 			action: `%b deleted their signup for the event *${event.name}*.`,
 		});
 
-		return res.status(status.NO_CONTENT);
+		return res.status(status.NO_CONTENT).json();
 	} catch (e) {
 		if (!(e as any).code) {
 			captureException(e);
@@ -537,7 +537,7 @@ router.delete(
 				action: `%b manually deleted the event signup for %a for the event *${signup.name}*.`,
 			});
 
-			return res.status(status.NO_CONTENT);
+			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
 			if (!(e as any).code) {
 				captureException(e);
@@ -815,9 +815,13 @@ router.post(
 							{ returnOriginal: false },
 						).exec();
 					} else {
-						return res.status(404).json({ message: 'Event could not be sent', status: 404 });
+						return res
+							.status(status.NOT_FOUND)
+							.json({ message: 'Event could not be sent', status: status.NOT_FOUND });
 					}
-					return res.status(200).json({ message: 'Event sent successfully', status: 200 });
+					return res
+						.status(status.OK)
+						.json({ message: 'Event sent successfully', status: status.OK });
 				})
 				.catch((error) => {
 					console.log(error);
@@ -894,7 +898,7 @@ router.post(
 				setUploadStatus(req.body.uploadId, -1);
 
 				throw {
-					code: 500,
+					code: status.INTERNAL_SERVER_ERROR,
 					message: 'Error streaming file to storage',
 				};
 			} finally {

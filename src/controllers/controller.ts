@@ -223,14 +223,14 @@ router.post(
 				req.body.reason === ''
 			) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'You must fill out all required fields',
 				};
 			}
 
 			if (new Date(req.body.expirationDate) < new Date()) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'Expiration date must be in the future',
 				};
 			}
@@ -276,7 +276,7 @@ router.delete(
 		try {
 			if (!req.params['id']) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'Invalid request',
 				};
 			}
@@ -284,7 +284,7 @@ router.delete(
 			const absence = await AbsenceModel.findOne({ _id: req.params['id'] }).cache().exec();
 			if (!absence) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'Unable to locate absence.',
 				};
 			}
@@ -327,7 +327,7 @@ router.get('/log', getUser, isStaff, async (req: Request, res: Response, next: N
 			.cache()
 			.exec();
 
-		return res.status(200).json({ amount, dossier });
+		return res.status(status.OK).json({ amount, dossier });
 	} catch (e) {
 		if (!(e as any).code) {
 			captureException(e);

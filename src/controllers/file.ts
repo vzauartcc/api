@@ -144,7 +144,7 @@ router.post(
 				setUploadStatus(req.body.uploadId, -1);
 
 				throw {
-					code: 500,
+					code: status.INTERNAL_SERVER_ERROR,
 					message: 'Error streaming file to storage',
 				};
 			} finally {
@@ -234,7 +234,7 @@ router.put(
 					setUploadStatus(req.body.uploadId, -1);
 
 					throw {
-						code: 500,
+						code: status.INTERNAL_SERVER_ERROR,
 						message: 'Error streaming file to storage',
 					};
 				} finally {
@@ -415,7 +415,7 @@ router.post(
 					setUploadStatus(req.body.uploadId, -1);
 
 					throw {
-						code: 500,
+						code: status.INTERNAL_SERVER_ERROR,
 						message: 'Error streaming file to storage',
 					};
 				} finally {
@@ -546,7 +546,7 @@ router.put(
 						setUploadStatus(req.body.uploadId, -1);
 
 						throw {
-							code: 500,
+							code: status.INTERNAL_SERVER_ERROR,
 							message: 'Error streaming file to storage',
 						};
 					} finally {

@@ -60,7 +60,7 @@ router.get('/aircraft/feed', (req: Request, res: Response, next: NextFunction) =
 	try {
 		const sub = new Redis(process.env['REDIS_URI']!);
 
-		res.writeHead(200, {
+		res.writeHead(status.OK, {
 			'Content-Type': 'text/event-stream',
 			'Cache-Control': 'no-cache',
 			Connection: 'keep-alive',
@@ -111,7 +111,7 @@ router.get('/atis', (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const sub = new Redis(process.env['REDIS_URI']!);
 
-		res.writeHead(200, {
+		res.writeHead(status.OK, {
 			'Content-Type': 'text/event-stream',
 			'Cache-Control': 'no-cache',
 			Connection: 'keep-alive',
