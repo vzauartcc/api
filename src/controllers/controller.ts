@@ -69,7 +69,7 @@ router.get('/staff', async (_req: Request, res: Response, next: NextFunction) =>
 			.select('fname lname cid roleCodes')
 			.sort({ lname: 'asc', fname: 'asc' })
 			.lean<IUserLean[]>()
-			.cache('5 minutes')
+			.cache('10 minutes')
 			.exec();
 
 		if (!users) {
@@ -97,7 +97,7 @@ router.get('/staff', async (_req: Request, res: Response, next: NextFunction) =>
 			},
 			ec: {
 				title: 'Events Team',
-				code: 'ec',
+				code: 'events',
 				users: [],
 			},
 			wm: {
@@ -107,22 +107,22 @@ router.get('/staff', async (_req: Request, res: Response, next: NextFunction) =>
 			},
 			fe: {
 				title: 'Facility Engineering Team',
-				code: 'fe',
+				code: 'facilities',
 				users: [],
 			},
 			ins: {
 				title: 'Instructors',
-				code: 'instructors',
+				code: 'training',
 				users: [],
 			},
 			ia: {
 				title: 'Instructor Assistants',
-				code: 'ia',
+				code: 'training',
 				users: [],
 			},
 			mtr: {
 				title: 'Mentors',
-				code: 'instructors',
+				code: 'training',
 				users: [],
 			},
 		};
