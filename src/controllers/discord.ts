@@ -7,6 +7,7 @@ import getUser from '../middleware/user.js';
 import { DossierModel } from '../models/dossier.js';
 import { UserModel } from '../models/user.js';
 import status from '../types/status.js';
+import { clearUserCache } from './controller.js';
 
 const router = Router();
 
@@ -14,6 +15,7 @@ router.get('/users', internalAuth, async (_req: Request, res: Response, next: Ne
 	try {
 		const users = await UserModel.find({ discordInfo: { $ne: null } })
 			.select('fname lname cid discordInfo roleCodes oi rating member vis')
+			.cache('10 minutes', `discord-users`)
 			.exec();
 
 		return res.status(status.OK).json(users);
@@ -57,7 +59,9 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 		}
 
 		const { cid, code } = req.body;
-		const user = await UserModel.findOne({ cid }).exec();
+		const user = await UserModel.findOne({ cid })
+			.cache('10 minutes', `user-${req.params['cid']}`)
+			.exec();
 
 		if (!user) {
 			throw {
@@ -116,6 +120,7 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 			.catch((err) => console.error('Error sending task', err));
 
 		await user.save();
+		clearUserCache(user.cid);
 
 		await DossierModel.create({
 			by: user.cid,
@@ -135,6 +140,7 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 router.delete('/user', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		await UserModel.updateOne({ cid: req.user.cid }, { $unset: { discord: '', discordInfo: '' } });
+		clearUserCache(req.user.cid);
 
 		res.status(status.OK).json();
 	} catch (e) {

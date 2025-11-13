@@ -48,12 +48,16 @@ router.get(
 				{ $match: { timeStart: { $gt: thisMonth, $lt: nextMonth } } },
 				{ $project: { length: { $subtract: ['$timeEnd', '$timeStart'] } } },
 				{ $group: { _id: null, total: { $sum: '$length' } } },
-			]).exec();
+			])
+				.cache('10 minutes')
+				.exec();
 
 			const sessionCount = await ControllerHoursModel.aggregate([
 				{ $match: { timeStart: { $gt: thisMonth, $lt: nextMonth } } },
 				{ $group: { _id: null, total: { $sum: 1 } } },
-			]).exec();
+			])
+				.cache('10 minutes')
+				.exec();
 
 			const feedback = await FeedbackModel.aggregate([
 				{ $match: { approved: true } },
@@ -71,7 +75,9 @@ router.get(
 				},
 				{ $sort: { year: -1, month: -1 } },
 				{ $limit: 12 },
-			]).exec();
+			])
+				.cache('10 minutes')
+				.exec();
 
 			const hours = await ControllerHoursModel.aggregate([
 				{
@@ -100,7 +106,9 @@ router.get(
 				},
 				{ $sort: { year: -1, month: -1 } },
 				{ $limit: 12 },
-			]).exec();
+			])
+				.cache('10 minutes')
+				.exec();
 
 			for (const item of feedback) {
 				item.month = months[item.month];
@@ -110,13 +118,19 @@ router.get(
 				item.total = Math.round(item.total / 1000);
 			}
 
-			const homeCount = await UserModel.countDocuments({ member: true, vis: false }).exec();
-			const visitorCount = await UserModel.countDocuments({ member: true, vis: true }).exec();
+			const homeCount = await UserModel.countDocuments({ member: true, vis: false })
+				.cache('10 minutes')
+				.exec();
+			const visitorCount = await UserModel.countDocuments({ member: true, vis: true })
+				.cache('10 minutes')
+				.exec();
 			const ratingCounts = await UserModel.aggregate([
 				{ $match: { member: true } },
 				{ $group: { _id: '$rating', count: { $sum: 1 } } },
 				{ $sort: { _id: -1 } },
-			]).exec();
+			])
+				.cache('10 minutes')
+				.exec();
 
 			for (const item of ratingCounts) {
 				item.rating = zau.ratingsShort[item._id];
@@ -158,7 +172,9 @@ router.get(
 					},
 				},
 				{ $sort: { lastSession: 1 } },
-			]).exec();
+			])
+				.cache('10 minutes')
+				.exec();
 
 			let lastRequest = await TrainingRequestModel.aggregate([
 				{
@@ -170,15 +186,19 @@ router.get(
 					},
 				},
 				{ $sort: { lastSession: 1 } },
-			]).exec();
+			])
+				.cache('10 minutes')
+				.exec();
 
 			await TrainingSessionModel.populate(lastTraining, { path: 'student' });
 			await TrainingSessionModel.populate(lastTraining, { path: 'milestone' });
 			await TrainingRequestModel.populate(lastRequest, { path: 'milestone' });
 			const allHomeControllers = await UserModel.find({ member: true, rating: { $lt: 12 } })
 				.select('-email -idsToken -discordInfo')
+				.lean({ virtuals: true })
+				.cache('10 minutes')
 				.exec();
-			const allCids = allHomeControllers.map((c: IUser) => c.cid);
+			const allCids = allHomeControllers.map((c) => c.cid);
 			lastTraining = lastTraining.filter(
 				(train) => train.student?.rating < 12 && train.student?.member && !train.student?.vis,
 			);
@@ -309,6 +329,7 @@ router.get(
 					select: 'expirationDate',
 				})
 				.lean({ virtuals: true })
+				.cache('10 minutes')
 				.exec();
 
 			//console.log(`Fetched ${users.length} users`);
@@ -333,7 +354,9 @@ router.get(
 					},
 					{ $match: { position: { $exists: true, $not: /_OBS$/ } } },
 					{ $group: { _id: '$cid', totalTime: { $sum: '$totalTime' } } },
-				]).exec(),
+				])
+					.cache('10 minutes')
+					.exec(),
 				TrainingRequestModel.aggregate([
 					{
 						$match: {
@@ -341,7 +364,9 @@ router.get(
 						},
 					},
 					{ $group: { _id: '$studentCid', totalRequests: { $sum: 1 } } },
-				]).exec(),
+				])
+					.cache('10 minutes')
+					.exec(),
 				TrainingSessionModel.aggregate([
 					{
 						$match: {
@@ -349,7 +374,9 @@ router.get(
 						},
 					},
 					{ $group: { _id: '$studentCid', totalSessions: { $sum: 1 } } },
-				]).exec(),
+				])
+					.cache('10 minutes')
+					.exec(),
 				ControllerHoursModel.aggregate([
 					{
 						$match: {
@@ -367,7 +394,9 @@ router.get(
 					},
 					{ $match: { position: { $exists: true, $regex: /_OBS$/ } } },
 					{ $group: { _id: '$cid', totalTime: { $sum: '$totalTime' } } },
-				]).exec(),
+				])
+					.cache('10 minutes')
+					.exec(),
 			]);
 
 			// Convert activity data into lookup objects for quick access

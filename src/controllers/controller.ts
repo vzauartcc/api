@@ -2,6 +2,7 @@ import { captureException } from '@sentry/node';
 import axios from 'axios';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
+import { getCacheInstance } from '../app.js';
 import { sendMail } from '../helpers/mailer.js';
 import { getUsersWithPrivacy } from '../helpers/mongodb.js';
 import { findInS3, uploadToS3 } from '../helpers/s3.js';
@@ -68,6 +69,7 @@ router.get('/staff', async (_req: Request, res: Response, next: NextFunction) =>
 			.select('fname lname cid roleCodes')
 			.sort({ lname: 'asc', fname: 'asc' })
 			.lean<IUserLean[]>()
+			.cache('5 minutes')
 			.exec();
 
 		if (!users) {
@@ -143,7 +145,7 @@ router.get('/staff', async (_req: Request, res: Response, next: NextFunction) =>
 
 router.get('/role', async (_req: Request, res: Response, next: NextFunction) => {
 	try {
-		const roles = await RoleModel.find().lean().exec();
+		const roles = await RoleModel.find().lean().cache('5 minutes').exec();
 
 		return res.status(status.OK).json(roles);
 	} catch (e) {
@@ -156,7 +158,11 @@ router.get('/role', async (_req: Request, res: Response, next: NextFunction) => 
 
 router.get('/oi', async (_req: Request, res: Response, next: NextFunction) => {
 	try {
-		const oi = await UserModel.find({ deletedAt: null, member: true }).select('oi').lean().exec();
+		const oi = await UserModel.find({ deletedAt: null, member: true })
+			.select('oi')
+			.lean()
+			.cache('5 minutes', 'operating-initials')
+			.exec();
 
 		if (!oi) {
 			throw {
@@ -192,6 +198,7 @@ router.get(
 					expirationDate: 'asc',
 				})
 				.lean()
+				.cache('10 minutes', 'absences')
 				.exec();
 
 			return res.status(status.OK).json(absences);
@@ -216,19 +223,20 @@ router.post(
 				req.body.reason === ''
 			) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'You must fill out all required fields',
 				};
 			}
 
 			if (new Date(req.body.expirationDate) < new Date()) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'Expiration date must be in the future',
 				};
 			}
 
 			await AbsenceModel.create(req.body);
+			await getCacheInstance().clear('absences');
 
 			await NotificationModel.create({
 				recipient: req.body.controller,
@@ -268,20 +276,21 @@ router.delete(
 		try {
 			if (!req.params['id']) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'Invalid request',
 				};
 			}
 
-			const absence = await AbsenceModel.findOne({ _id: req.params['id'] }).exec();
+			const absence = await AbsenceModel.findOne({ _id: req.params['id'] }).cache().exec();
 			if (!absence) {
 				throw {
-					code: 400,
+					code: status.BAD_REQUEST,
 					message: 'Unable to locate absence.',
 				};
 			}
 
 			await absence.delete();
+			await getCacheInstance().clear('absences');
 
 			await DossierModel.create({
 				by: req.user.cid,
@@ -303,7 +312,7 @@ router.delete(
 router.get('/log', getUser, isStaff, async (req: Request, res: Response, next: NextFunction) => {
 	const page = +(req.query['page'] as string) || 1;
 	const limit = +(req.query['limit'] as string) || 20;
-	const amount = await DossierModel.countDocuments();
+	const amount = await DossierModel.countDocuments().cache('5 minutes').exec();
 
 	try {
 		const dossier = await DossierModel.find()
@@ -314,9 +323,11 @@ router.get('/log', getUser, isStaff, async (req: Request, res: Response, next: N
 			.limit(limit)
 			.populate('userBy', 'fname lname cid')
 			.populate('userAffected', 'fname lname cid')
-			.lean();
+			.lean()
+			.cache()
+			.exec();
 
-		return res.status(200).json({ amount, dossier });
+		return res.status(status.OK).json({ amount, dossier });
 	} catch (e) {
 		if (!(e as any).code) {
 			captureException(e);
@@ -336,6 +347,7 @@ router.get(
 				deleted: false,
 			})
 				.lean()
+				.cache('10 minutes', 'visit-applications')
 				.exec();
 
 			let retval = [];
@@ -395,13 +407,6 @@ router.get(
 
 router.post('/visit', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		if (!req.user) {
-			throw {
-				code: status.UNAUTHORIZED,
-				message: 'Unable to verify user',
-			};
-		}
-
 		const userData = {
 			cid: req.user.cid,
 			fname: req.user.fname,
@@ -413,6 +418,7 @@ router.post('/visit', getUser, async (req: Request, res: Response, next: NextFun
 		};
 
 		await VisitApplicationModel.create(userData);
+		await getCacheInstance().clear('visit-applications');
 
 		sendMail({
 			to: req.body.email,
@@ -448,7 +454,9 @@ router.get('/visit/status', getUser, async (req: Request, res: Response, next: N
 		const count = await VisitApplicationModel.countDocuments({
 			cid: req.user.cid,
 			deleted: false,
-		}).exec();
+		})
+			.cache('5 minutes')
+			.exec();
 
 		const { data: vatusaData } = await vatusaApi.get(`/user/${req.user.cid}/transfer/checklist`);
 
@@ -481,7 +489,9 @@ router.put(
 	hasRole(['atm', 'datm']),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const application = await VisitApplicationModel.findOne({ cid: req.params['cid'] }).exec();
+			const application = await VisitApplicationModel.findOne({ cid: req.params['cid'] })
+				.cache()
+				.exec();
 			if (!application) {
 				throw {
 					code: status.NOT_FOUND,
@@ -492,8 +502,11 @@ router.put(
 			await vatusaApi.post(`/facility/ZAU/roster/manageVisitor/${req.params['cid']}`);
 
 			await application.delete();
+			await getCacheInstance().clear('visit-applications');
 
-			const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
+			const user = await UserModel.findOne({ cid: req.params['cid'] })
+				.cache('10 minutes', `user-${req.params['cid']}`)
+				.exec();
 			if (!user) {
 				throw {
 					code: status.NOT_FOUND,
@@ -519,6 +532,7 @@ router.put(
 			user.certificationDate = certDates;
 
 			await user.save();
+			clearUserCache(user.cid);
 
 			sendMail({
 				to: user.email,
@@ -551,7 +565,9 @@ router.delete(
 	hasRole(['atm', 'datm']),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const application = await VisitApplicationModel.findOne({ cid: req.params['cid'] }).exec();
+			const application = await VisitApplicationModel.findOne({ cid: req.params['cid'] })
+				.cache()
+				.exec();
 			if (!application) {
 				throw {
 					code: status.NOT_FOUND,
@@ -560,8 +576,11 @@ router.delete(
 			}
 
 			await application.delete();
+			await getCacheInstance().clear('visit-applications');
 
-			const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
+			const user = await UserModel.findOne({ cid: req.params['cid'] })
+				.cache('10 minutes', `user-${req.params['cid']}`)
+				.exec();
 			if (!user) {
 				throw {
 					code: status.NOT_FOUND,
@@ -637,7 +656,9 @@ router.put(
 		}
 
 		try {
-			const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
+			const user = await UserModel.findOne({ cid: req.params['cid'] })
+				.cache('10 minutes', `user-${req.params['cid']}`)
+				.exec();
 
 			if (!user) {
 				throw {
@@ -655,6 +676,7 @@ router.put(
 				user.certificationDate = certDates;
 
 				await user.save();
+				clearUserCache(user.cid);
 
 				await DossierModel.create({
 					by: -1,
@@ -676,7 +698,9 @@ router.put(
 // @TODO: fix this to remove the ts-ignore and structure the data properly
 router.get('/stats/:cid', async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		const controllerHours = await ControllerHoursModel.find({ cid: req.params['cid'] }).exec();
+		const controllerHours = await ControllerHoursModel.find({ cid: req.params['cid'] })
+			.cache('5 minutes')
+			.exec();
 
 		const hours = {
 			gtyear: {
@@ -768,7 +792,9 @@ router.get('/stats/:cid', async (req: Request, res: Response, next: NextFunction
 
 router.post('/:cid', internalAuth, async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
+		const user = await UserModel.findOne({ cid: req.params['cid'] })
+			.cache('10 minutes', `user-${req.params['cid']}`)
+			.exec();
 		if (user) {
 			throw {
 				code: status.CONFLICT,
@@ -802,6 +828,7 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response, next: Nex
 			certCodes: certDates.map((c) => c.code),
 			certificationDate: certDates,
 		});
+		await getCacheInstance().clear('users');
 
 		sendMail({
 			to: 'atm@zauartcc.org, datm@zauartcc.org, ta@zauartcc.org',
@@ -838,7 +865,9 @@ router.put(
 	internalAuth,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
+			const user = await UserModel.findOne({ cid: req.params['cid'] })
+				.cache('10 minutes', `user-${req.params['cid']}`)
+				.exec();
 
 			if (!user) {
 				throw {
@@ -879,6 +908,7 @@ router.put(
 			user.member = req.body.member;
 
 			await user.save();
+			clearUserCache(user.cid);
 
 			if (req.body.member || req.body.vis) {
 				sendMail({
@@ -915,7 +945,9 @@ router.put(
 
 router.put('/:cid/visit', internalAuth, async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
+		const user = await UserModel.findOne({ cid: req.params['cid'] })
+			.cache('10 minutes', `user-${req.params['cid']}`)
+			.exec();
 
 		if (!user) {
 			throw {
@@ -944,6 +976,7 @@ router.put('/:cid/visit', internalAuth, async (req: Request, res: Response, next
 		}
 
 		await user.save();
+		clearUserCache(user.cid);
 
 		await DossierModel.create({
 			by: -1,
@@ -974,7 +1007,9 @@ router.put(
 			}
 
 			// Find the existing user
-			const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
+			const user = await UserModel.findOne({ cid: req.params['cid'] })
+				.cache('10 minutes', `user-${req.params['cid']}`)
+				.exec();
 
 			if (!user) {
 				throw {
@@ -1029,8 +1064,8 @@ router.put(
 			user.certificationDate = updatedCertificationDate;
 
 			await user.save();
+			clearUserCache(user.cid);
 
-			// Log the update in the user's dossier
 			await DossierModel.create({
 				by: req.user.cid,
 				affected: req.params['cid'],
@@ -1053,8 +1088,9 @@ router.put(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			// Find the user by CID
-			const cid = req.params['cid'];
-			const user = await UserModel.findOne({ cid }).exec();
+			const user = await UserModel.findOne({ cid: req.params['cid'] })
+				.cache('10 minutes', `user-${req.params['cid']}`)
+				.exec();
 
 			if (!user) {
 				throw {
@@ -1067,6 +1103,7 @@ router.put(
 			user.certificationDate = [];
 
 			await user.save();
+			clearUserCache(user.cid);
 
 			return res.status(status.OK).json({ message: 'Certs removed successfully' });
 		} catch (e) {
@@ -1093,7 +1130,9 @@ router.delete(
 				};
 			}
 
-			const user = await UserModel.findOne({ cid: req.params['cid'] });
+			const user = await UserModel.findOne({ cid: req.params['cid'] })
+				.cache('10 minutes', `user-${req.params['cid']}`)
+				.exec();
 
 			if (!user) {
 				throw {
@@ -1129,6 +1168,7 @@ router.delete(
 			user.oi = '';
 
 			await user.save();
+			clearUserCache(user.cid);
 
 			await DossierModel.create({
 				by: req.user.cid,
@@ -1155,6 +1195,7 @@ async function checkOI(user: IUser) {
 		const oi = await UserModel.find({ deletedAt: null, member: true })
 			.select('oi cid')
 			.lean()
+			.cache('5 minutes', 'operating-initials')
 			.exec();
 
 		if (user.oi) {
@@ -1186,6 +1227,7 @@ async function checkOI(user: IUser) {
 			ContentDisposition: 'inline',
 		});
 
+		await getCacheInstance().clear('operating-initials');
 		return assignedOi;
 	} catch (e) {
 		throw { code: status.INTERNAL_SERVER_ERROR, message: e };
@@ -1299,4 +1341,14 @@ function grantCerts(rating: number, certificationDate: ICertificationDate[]): IC
 	}
 
 	return updatedCertificationDate;
+}
+
+export async function clearUserCache(id: number) {
+	await getCacheInstance().clear('users');
+	await getCacheInstance().clear('discord-users');
+	await getCacheInstance().clear('user-users-user');
+	await getCacheInstance().clear('user-users-internal');
+	await getCacheInstance().clear(`user-${id}`);
+	await getCacheInstance().clear(`auth-${id}`);
+	await getCacheInstance().clear(`users-user-${id}`);
 }

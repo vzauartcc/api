@@ -1,5 +1,6 @@
 import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
+import { getCacheInstance } from '../app.js';
 import { getUsersWithPrivacy } from '../helpers/mongodb.js';
 import { hasRole } from '../middleware/auth.js';
 import getUser from '../middleware/user.js';
@@ -21,7 +22,9 @@ router.get(
 
 			const amount = await FeedbackModel.countDocuments({
 				$or: [{ approved: true }, { deleted: true }],
-			}).exec();
+			})
+				.cache('5 minutes', 'feedback-count')
+				.exec();
 			const feedback = await FeedbackModel.find({
 				$or: [{ approved: true }, { deleted: true }],
 			})
@@ -30,6 +33,7 @@ router.get(
 				.sort({ createdAt: 'desc' })
 				.populate('controller', 'fname lname cid')
 				.lean()
+				.cache()
 				.exec();
 
 			return res.status(status.OK).json({ amount, feedback });
@@ -79,6 +83,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 			anonymous: req.body.anon,
 			approved: false,
 		});
+		await getCacheInstance().clear('feedback-count');
 
 		await DossierModel.create({
 			by: req.body.cid,
@@ -153,6 +158,7 @@ router.get(
 				.populate('controller', 'fname lname cid')
 				.sort({ createdAt: 'desc' })
 				.lean()
+				.cache('1 minute', 'feedback-unapproved')
 				.exec();
 
 			return res.status(status.OK).json(feedback);
@@ -188,6 +194,10 @@ router.put(
 				};
 			}
 
+			await getCacheInstance().clear(`feedback-${approved.id}`);
+			await getCacheInstance().clear('feedback-unapproved');
+			await getCacheInstance().clear('feedback-count');
+
 			await NotificationModel.create({
 				recipient: approved.controller!.cid,
 				read: false,
@@ -219,7 +229,9 @@ router.put(
 	async (req: Request, res: Response, next: NextFunction) => {
 		// Reject feedback
 		try {
-			const feedback = await FeedbackModel.findOne({ _id: req.params['id'] }).exec();
+			const feedback = await FeedbackModel.findOne({ _id: req.params['id'] })
+				.cache('1 minute', `feedback-${req.params['id']}`)
+				.exec();
 			if (!feedback) {
 				throw {
 					code: status.NOT_FOUND,
@@ -228,6 +240,9 @@ router.put(
 			}
 
 			await feedback.delete();
+			await getCacheInstance().clear(`feedback-${feedback.id}`);
+			await getCacheInstance().clear('feedback-unapproved');
+			await getCacheInstance().clear('feedback-count');
 
 			await DossierModel.create({
 				by: req.user.cid,
@@ -253,7 +268,9 @@ router.get('/own', getUser, async (req: Request, res: Response, next: NextFuncti
 		const amount = await FeedbackModel.countDocuments({
 			approved: true,
 			controllerCid: req.user.cid,
-		}).exec();
+		})
+			.cache()
+			.exec();
 		const feedback = await FeedbackModel.aggregate([
 			{
 				$match: {
@@ -275,7 +292,9 @@ router.get('/own', getUser, async (req: Request, res: Response, next: NextFuncti
 			{ $sort: { createdAt: -1 } },
 			{ $skip: limit * (page - 1) },
 			{ $limit: limit },
-		]).exec();
+		])
+			.cache()
+			.exec();
 
 		return res.status(status.OK).json({ feedback, amount });
 	} catch (e) {
