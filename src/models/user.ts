@@ -162,14 +162,14 @@ UserSchema.virtual('isSeniorStaff').get(function (this: IUser) {
 UserSchema.virtual('isStaff').get(function (this: IUser) {
 	if (!this.roleCodes) return false;
 
-	const search = ['atm', 'datm', 'ec', 'fe', 'wm'];
+	const search = ['atm', 'datm', 'ta', 'ec', 'fe', 'wm'];
 	return this.roleCodes.some((r) => search.includes(r));
 });
 
 UserSchema.virtual('isInstructor').get(function (this: IUser) {
 	if (!this.roleCodes) return false;
 
-	const search = ['atm', 'datm', 'ins', 'mtr', 'ia'];
+	const search = ['atm', 'datm', 'ta', 'ins', 'mtr', 'ia'];
 	return this.roleCodes.some((r) => search.includes(r));
 });
 
