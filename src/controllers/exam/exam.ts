@@ -1,14 +1,14 @@
 import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { getCacheInstance } from '../app.js';
-import { hasRole } from '../middleware/auth.js';
-import getUser from '../middleware/user.js';
-import { ExamModel, type IExam } from '../models/exam.js';
-import { ExamAttemptModel } from '../models/examAttempt.js';
-import { QuestionModel, type IQuestion } from '../models/examQuestion.js';
-import type { IUser } from '../models/user.js';
-import status from '../types/status.js';
+import { getCacheInstance } from '../../app.js';
+import { isInstructor, isSeniorStaff } from '../../middleware/auth.js';
+import getUser from '../../middleware/user.js';
+import { ExamModel, type IExam } from '../../models/exam.js';
+import { ExamAttemptModel } from '../../models/examAttempt.js';
+import { QuestionModel, type IQuestion } from '../../models/examQuestion.js';
+import type { IUser } from '../../models/user.js';
+import status from '../../types/status.js';
 
 const router = Router();
 
@@ -68,9 +68,9 @@ const createExamValidation = [
 
 // Create Exam
 router.post(
-	'/exams',
+	'/',
 	getUser,
-	hasRole(['atm', 'datm', 'ta']),
+	isSeniorStaff,
 	createExamValidation,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
@@ -114,9 +114,9 @@ router.post(
 
 // Update Exam
 router.patch(
-	'/exams/:examId',
+	'/:examId',
 	getUser,
-	hasRole(['atm', 'datm', 'ta']),
+	isSeniorStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		const { examId } = req.params; // Get the exam ID from the URL parameter
 		const { title, description, questions, timeLimit, questionSubsetSize } = req.body; // Extract updated fields from the request body
@@ -137,6 +137,7 @@ router.patch(
 				{ new: true },
 			).exec(); // { new: true } option returns the document after update
 			await getCacheInstance().clear(`exam-${examId}`);
+			await getCacheInstance().clear(`exams`);
 
 			if (!updatedExam) {
 				throw {
@@ -159,188 +160,178 @@ router.patch(
 );
 
 // Start Exam Attempt
-router.post(
-	'/exams/:examId/start',
-	getUser,
-	async (req: Request, res: Response, next: NextFunction) => {
-		try {
-			const { examId } = req.params;
-			const userId = req.user._id;
+router.post('/:examId/start', getUser, async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const { examId } = req.params;
+		const userId = req.user._id;
 
-			// Prevent starting another attempt if one is already in progress and not timed out
-			const now = new Date();
-			const existingAttempt = await ExamAttemptModel.findOne({
-				exam: examId,
-				user: userId,
-				status: 'in_progress',
-				endTime: { $gt: now }, // Check if the attempt is still within the time limit
+		// Prevent starting another attempt if one is already in progress and not timed out
+		const now = new Date();
+		const existingAttempt = await ExamAttemptModel.findOne({
+			exam: examId,
+			user: userId,
+			status: 'in_progress',
+			endTime: { $gt: now }, // Check if the attempt is still within the time limit
+		})
+			.cache('1 minute', `exam-attempt-${examId}-${userId}`)
+			.exec();
+
+		if (existingAttempt) {
+			// Calculate remaining time for the existing attempt
+			const timeRemaining = existingAttempt.endTime.getTime() - now.getTime();
+
+			return res.status(status.OK).json({
+				message: 'Existing exam attempt resumed.',
+				attemptId: existingAttempt._id,
+				timeRemaining,
+			});
+		}
+
+		// Fetch the exam details
+		const exam = await ExamModel.findById(examId).cache('1 minute', `exam-${examId}`).exec();
+		if (!exam) {
+			throw {
+				code: status.NOT_FOUND,
+				message: 'Exam not found',
+			};
+		}
+
+		// Find the most recent attempt for this exam and user
+		const latestAttempt = await ExamAttemptModel.findOne({ exam: examId, user: userId })
+			.sort({
+				createdAt: -1,
 			})
-				.cache('1 minute', `exam-attempt-${examId}-${userId}`)
-				.exec();
+			.cache('1 minute', `exam-attempt-${examId}-${userId}`)
+			.exec(); // Assuming createdAt is a field that tracks when the attempt was made
 
-			if (existingAttempt) {
-				// Calculate remaining time for the existing attempt
-				const timeRemaining = existingAttempt.endTime.getTime() - now.getTime();
-
-				return res.status(status.OK).json({
-					message: 'Existing exam attempt resumed.',
-					attemptId: existingAttempt._id,
-					timeRemaining,
-				});
-			}
-
-			// Fetch the exam details
-			const exam = await ExamModel.findById(examId).cache('1 minute', `exam-${examId}`).exec();
-			if (!exam) {
+		if (latestAttempt) {
+			// Check if the maximum attempts have been reached
+			if (latestAttempt.attemptNumber >= 3) {
 				throw {
-					code: status.NOT_FOUND,
-					message: 'Exam not found',
+					code: status.TOO_MANY_REQUESTS,
+					message: 'Maximum attempts reached',
 				};
 			}
 
-			// Find the most recent attempt for this exam and user
-			const latestAttempt = await ExamAttemptModel.findOne({ exam: examId, user: userId })
-				.sort({
-					createdAt: -1,
-				})
-				.cache('1 minute', `exam-attempt-${examId}-${userId}`)
-				.exec(); // Assuming createdAt is a field that tracks when the attempt was made
-
-			if (latestAttempt) {
-				// Check if the maximum attempts have been reached
-				if (latestAttempt.attemptNumber >= 3) {
-					throw {
-						code: status.TOO_MANY_REQUESTS,
-						message: 'Maximum attempts reached',
-					};
-				}
-
-				// Check if 24 hours have passed since the last attempt
-				const hoursSinceLastAttempt =
-					(now.getTime() - latestAttempt.lastAttemptTime.getTime()) / (1000 * 60 * 60);
-				if (hoursSinceLastAttempt < 24) {
-					throw {
-						code: status.BAD_REQUEST,
-						message: '24-hour waiting period has not elapsed since your last attempt',
-					};
-				}
+			// Check if 24 hours have passed since the last attempt
+			const hoursSinceLastAttempt =
+				(now.getTime() - latestAttempt.lastAttemptTime.getTime()) / (1000 * 60 * 60);
+			if (hoursSinceLastAttempt < 24) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: '24-hour waiting period has not elapsed since your last attempt',
+				};
 			}
-
-			// Fetch questions for the test type and randomly select the required subset
-			// @TODO: figure out what testType was suppose to be
-			// const allQuestions = await QuestionModel.find({ testType: exam.testType }).exec();
-			const allQuestions = await QuestionModel.find({}).cache().exec();
-			const questionSubsetSize = exam.questionSubsetSize || 30; // Default to 30 if not specified
-			const selectedQuestions = selectRandomSubset(allQuestions, questionSubsetSize);
-			const questions = selectedQuestions.sort(() => 0.5 - Math.random());
-
-			// Create the exam attempt
-			const newAttempt = new ExamAttemptModel({
-				exam: examId,
-				user: userId,
-				questionsOrder: questions.map((q) => q!._id),
-				responses: questions.map((q) => ({
-					question: q!._id,
-					selectedOption: null,
-					isCorrect: null,
-				})),
-				startTime: new Date(),
-				endTime: new Date(new Date().getTime() + exam.timeLimit * 60000), // Calculate end time based on timeLimit
-				status: 'in_progress',
-			});
-
-			await newAttempt.save();
-			await getCacheInstance().clear(`exam-attempt-${examId}-${userId}`);
-			// Send back the time remaining along with attempt details
-			const timeRemaining = newAttempt.endTime.getTime() - Date.now();
-
-			return res
-				.status(status.CREATED)
-				.json({ message: 'Exam started successfully', attemptId: newAttempt.id, timeRemaining });
-		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
-			return next(e);
 		}
-	},
-);
+
+		// Fetch questions for the test type and randomly select the required subset
+		// @TODO: figure out what testType was suppose to be
+		// const allQuestions = await QuestionModel.find({ testType: exam.testType }).exec();
+		const allQuestions = await QuestionModel.find({}).cache().exec();
+		const questionSubsetSize = exam.questionSubsetSize || 30; // Default to 30 if not specified
+		const selectedQuestions = selectRandomSubset(allQuestions, questionSubsetSize);
+		const questions = selectedQuestions.sort(() => 0.5 - Math.random());
+
+		// Create the exam attempt
+		const newAttempt = new ExamAttemptModel({
+			exam: examId,
+			user: userId,
+			questionsOrder: questions.map((q) => q!._id),
+			responses: questions.map((q) => ({
+				question: q!._id,
+				selectedOption: null,
+				isCorrect: null,
+			})),
+			startTime: new Date(),
+			endTime: new Date(new Date().getTime() + exam.timeLimit * 60000), // Calculate end time based on timeLimit
+			status: 'in_progress',
+		});
+
+		await newAttempt.save();
+		await getCacheInstance().clear(`exam-attempt-${examId}-${userId}`);
+		// Send back the time remaining along with attempt details
+		const timeRemaining = newAttempt.endTime.getTime() - Date.now();
+
+		return res
+			.status(status.CREATED)
+			.json({ message: 'Exam started successfully', attemptId: newAttempt.id, timeRemaining });
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
+	}
+});
 
 // Submit Exam Attempt
-router.post(
-	'/exams/:examId/submit',
-	getUser,
-	async (req: Request, res: Response, next: NextFunction) => {
-		try {
-			const { responses } = req.body; // Expected format: [{ questionId, selectedOption }]
-			const examId = req.params['examId'];
-			const userId = req.user._id;
+router.post('/:examId/submit', getUser, async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const { responses } = req.body; // Expected format: [{ questionId, selectedOption }]
+		const examId = req.params['examId'];
+		const userId = req.user._id;
 
-			const exam = await ExamModel.findById(examId)
-				.populate('questions')
-				.cache('1 minute', `exam-attempt-${examId}-${req.user._id}`)
-				.exec();
-			if (!exam) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Exam not found',
-				};
-			}
-
-			// Initialize exam attempt
-			let correctAnswers = 0;
-			const questions = exam.questions; // Assuming this is an array of questions with correct options
-
-			// Validate and score responses
-			const scoredResponses = responses.map(
-				(response: { questionId: any; selectedOption: any }) => {
-					const question = questions.find((q) => q.id!.equals(response.questionId));
-					if (!question) {
-						return { ...response, isCorrect: false };
-					}
-
-					const isCorrect = question.options.some(
-						(option) => option!.id.equals(response.selectedOption) && option!.isCorrect,
-					);
-					if (isCorrect) correctAnswers++;
-					return { ...response, isCorrect };
-				},
-			);
-
-			// Calculate score
-			const score = (correctAnswers / questions.length) * 100;
-			const passingScore = 80; // Define the passing score threshold
-			const passed = score >= passingScore; // Correctly
-
-			// Record the attempt
-			const examAttempt = new ExamAttemptModel({
-				exam: examId,
-				user: userId,
-				responses: scoredResponses,
-				score,
-				startTime: req.body.startTime, // Assuming startTime was passed in the request
-				endTime: new Date(), // Mark the end time of the attempt
-				passed,
-				status: 'completed',
-			});
-			await examAttempt.save();
-			await getCacheInstance().clear(`exam-attempt-${examId}-${req.user._id}`);
-
-			// Respond with score and detailed results
-			return res.status(status.CREATED).json({
-				message: 'Exam submitted successfully',
-				score,
-				passed,
-				responses: scoredResponses,
-			});
-		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
-			return next(e);
+		const exam = await ExamModel.findById(examId)
+			.populate('questions')
+			.cache('1 minute', `exam-attempt-${examId}-${req.user._id}`)
+			.exec();
+		if (!exam) {
+			throw {
+				code: status.NOT_FOUND,
+				message: 'Exam not found',
+			};
 		}
-	},
-);
+
+		// Initialize exam attempt
+		let correctAnswers = 0;
+		const questions = exam.questions; // Assuming this is an array of questions with correct options
+
+		// Validate and score responses
+		const scoredResponses = responses.map((response: { questionId: any; selectedOption: any }) => {
+			const question = questions.find((q) => q.id!.equals(response.questionId));
+			if (!question) {
+				return { ...response, isCorrect: false };
+			}
+
+			const isCorrect = question.options.some(
+				(option) => option!.id.equals(response.selectedOption) && option!.isCorrect,
+			);
+			if (isCorrect) correctAnswers++;
+			return { ...response, isCorrect };
+		});
+
+		// Calculate score
+		const score = (correctAnswers / questions.length) * 100;
+		const passingScore = 80; // Define the passing score threshold
+		const passed = score >= passingScore; // Correctly
+
+		// Record the attempt
+		const examAttempt = new ExamAttemptModel({
+			exam: examId,
+			user: userId,
+			responses: scoredResponses,
+			score,
+			startTime: req.body.startTime, // Assuming startTime was passed in the request
+			endTime: new Date(), // Mark the end time of the attempt
+			passed,
+			status: 'completed',
+		});
+		await examAttempt.save();
+		await getCacheInstance().clear(`exam-attempt-${examId}-${req.user._id}`);
+
+		// Respond with score and detailed results
+		return res.status(status.CREATED).json({
+			message: 'Exam submitted successfully',
+			score,
+			passed,
+			responses: scoredResponses,
+		});
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
+	}
+});
 
 type PopulatedCreator = Pick<IUser, 'fname' | 'lname'>;
 interface IExamPopulated extends Omit<IExam, 'createdBy'> {
@@ -348,9 +339,9 @@ interface IExamPopulated extends Omit<IExam, 'createdBy'> {
 }
 
 router.get(
-	'/exams',
+	'/',
 	getUser,
-	hasRole(['atm', 'datm', 'ta']),
+	isSeniorStaff,
 	async (_req: Request, res: Response, next: NextFunction) => {
 		try {
 			// Fetch all exams, populate createdBy, and exclude questions
@@ -382,13 +373,14 @@ router.get(
 );
 
 router.get(
-	'/exams/:id',
+	'/:id',
 	getUser,
-	hasRole(['atm', 'datm', 'ta']),
+	isSeniorStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const exam = await ExamModel.findById(req.params['id'])
 				.populate('createdBy', 'fname lname')
+				.lean()
 				.cache('1 minute', `exam-${req.params['id']}`)
 				.exec();
 			if (!exam) {
@@ -408,37 +400,34 @@ router.get(
 	},
 );
 
-router.get(
-	'/exams/:id/results',
-	getUser,
-	async (req: Request, res: Response, next: NextFunction) => {
-		try {
-			const examAttempt = await ExamAttemptModel.findOne({
-				exam: req.params['id'],
-				user: req.user._id, // Ensure results are fetched for the logged-in user
-			})
-				.cache()
-				.exec();
+router.get('/:id/results', getUser, async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const examAttempt = await ExamAttemptModel.findOne({
+			exam: req.params['id'],
+			user: req.user._id, // Ensure results are fetched for the logged-in user
+		})
+			.lean()
+			.cache()
+			.exec();
 
-			if (!examAttempt) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Results not found',
-				};
-			}
-
-			return res.status(status.OK).json(examAttempt);
-		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
-			return next(e);
+		if (!examAttempt) {
+			throw {
+				code: status.NOT_FOUND,
+				message: 'Results not found',
+			};
 		}
-	},
-);
+
+		return res.status(status.OK).json(examAttempt);
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
+	}
+});
 
 router.patch(
-	'/exams/:examId/questions/:questionId/time',
+	'/:examId/questions/:questionId/time',
 	getUser,
 	async (req: Request, res: Response, next: NextFunction) => {
 		const { examId, questionId } = req.params;
@@ -485,9 +474,9 @@ router.patch(
 );
 
 router.put(
-	'/exams/:examId/resetAttempts',
+	'/:examId/resetAttempts',
 	getUser,
-	hasRole(['atm', 'datm', 'ta', 'ins']),
+	isInstructor,
 	/* eslint-disable no-unused-vars */
 	async (_req: Request, _res: Response, _next: NextFunction) => {
 		// const { examId } = req.params;
@@ -499,9 +488,9 @@ router.put(
 );
 
 router.delete(
-	'/exams/:id',
+	'/:id',
 	getUser,
-	hasRole(['atm', 'datm', 'ta']),
+	isSeniorStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			// Attempt to find and delete the exam by ID

@@ -3,16 +3,16 @@ import axios from 'axios';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
 import type { FlattenMaps } from 'mongoose';
-import zau from '../helpers/zau.js';
-import { hasRole } from '../middleware/auth.js';
-import internalAuth from '../middleware/internalAuth.js';
-import getUser from '../middleware/user.js';
-import { ControllerHoursModel } from '../models/controllerHours.js';
-import { FeedbackModel } from '../models/feedback.js';
-import { TrainingRequestModel } from '../models/trainingRequest.js';
-import { TrainingSessionModel } from '../models/trainingSession.js';
-import { UserModel, type IUser } from '../models/user.js';
-import status from '../types/status.js';
+import zau from '../../helpers/zau.js';
+import { hasRole, isStaff, isTrainingStaff } from '../../middleware/auth.js';
+import internalAuth from '../../middleware/internalAuth.js';
+import getUser from '../../middleware/user.js';
+import { ControllerHoursModel } from '../../models/controllerHours.js';
+import { FeedbackModel } from '../../models/feedback.js';
+import { TrainingRequestModel } from '../../models/trainingRequest.js';
+import { TrainingSessionModel } from '../../models/trainingSession.js';
+import { UserModel, type IUser } from '../../models/user.js';
+import status from '../../types/status.js';
 
 const router = Router();
 
@@ -35,131 +35,126 @@ const months = [
 let testUserCID = 0;
 
 //#region Dashboards
-router.get(
-	'/admin',
-	getUser,
-	hasRole(['atm', 'datm', 'ta', 'fe', 'ec', 'wm']),
-	async (_req: Request, res: Response, next: NextFunction) => {
-		try {
-			const d = new Date();
-			const thisMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
-			const nextMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1));
-			const totalTime = await ControllerHoursModel.aggregate([
-				{ $match: { timeStart: { $gt: thisMonth, $lt: nextMonth } } },
-				{ $project: { length: { $subtract: ['$timeEnd', '$timeStart'] } } },
-				{ $group: { _id: null, total: { $sum: '$length' } } },
-			])
-				.cache('10 minutes')
-				.exec();
+router.get('/admin', getUser, isStaff, async (_req: Request, res: Response, next: NextFunction) => {
+	try {
+		const d = new Date();
+		const thisMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+		const nextMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1));
+		const totalTime = await ControllerHoursModel.aggregate([
+			{ $match: { timeStart: { $gt: thisMonth, $lt: nextMonth } } },
+			{ $project: { length: { $subtract: ['$timeEnd', '$timeStart'] } } },
+			{ $group: { _id: null, total: { $sum: '$length' } } },
+		])
+			.cache('10 minutes')
+			.exec();
 
-			const sessionCount = await ControllerHoursModel.aggregate([
-				{ $match: { timeStart: { $gt: thisMonth, $lt: nextMonth } } },
-				{ $group: { _id: null, total: { $sum: 1 } } },
-			])
-				.cache('10 minutes')
-				.exec();
+		const sessionCount = await ControllerHoursModel.aggregate([
+			{ $match: { timeStart: { $gt: thisMonth, $lt: nextMonth } } },
+			{ $group: { _id: null, total: { $sum: 1 } } },
+		])
+			.cache('10 minutes')
+			.exec();
 
-			const feedback = await FeedbackModel.aggregate([
-				{ $match: { approved: true } },
-				{ $project: { month: { $month: '$createdAt' }, year: { $year: '$createdAt' } } },
-				{
-					$group: {
-						_id: {
-							month: '$month',
-							year: '$year',
-						},
-						total: { $sum: 1 },
-						month: { $first: '$month' },
-						year: { $first: '$year' },
+		const feedback = await FeedbackModel.aggregate([
+			{ $match: { approved: true } },
+			{ $project: { month: { $month: '$createdAt' }, year: { $year: '$createdAt' } } },
+			{
+				$group: {
+					_id: {
+						month: '$month',
+						year: '$year',
+					},
+					total: { $sum: 1 },
+					month: { $first: '$month' },
+					year: { $first: '$year' },
+				},
+			},
+			{ $sort: { year: -1, month: -1 } },
+			{ $limit: 12 },
+		])
+			.cache('10 minutes')
+			.exec();
+
+		const hours = await ControllerHoursModel.aggregate([
+			{
+				$project: {
+					length: {
+						$subtract: ['$timeEnd', '$timeStart'],
+					},
+					month: {
+						$month: '$timeStart',
+					},
+					year: {
+						$year: '$timeStart',
 					},
 				},
-				{ $sort: { year: -1, month: -1 } },
-				{ $limit: 12 },
-			])
-				.cache('10 minutes')
-				.exec();
-
-			const hours = await ControllerHoursModel.aggregate([
-				{
-					$project: {
-						length: {
-							$subtract: ['$timeEnd', '$timeStart'],
-						},
-						month: {
-							$month: '$timeStart',
-						},
-						year: {
-							$year: '$timeStart',
-						},
+			},
+			{
+				$group: {
+					_id: {
+						month: '$month',
+						year: '$year',
 					},
+					total: { $sum: '$length' },
+					month: { $first: '$month' },
+					year: { $first: '$year' },
 				},
-				{
-					$group: {
-						_id: {
-							month: '$month',
-							year: '$year',
-						},
-						total: { $sum: '$length' },
-						month: { $first: '$month' },
-						year: { $first: '$year' },
-					},
-				},
-				{ $sort: { year: -1, month: -1 } },
-				{ $limit: 12 },
-			])
-				.cache('10 minutes')
-				.exec();
+			},
+			{ $sort: { year: -1, month: -1 } },
+			{ $limit: 12 },
+		])
+			.cache('10 minutes')
+			.exec();
 
-			for (const item of feedback) {
-				item.month = months[item.month];
-			}
-			for (const item of hours) {
-				item.month = months[item.month];
-				item.total = Math.round(item.total / 1000);
-			}
-
-			const homeCount = await UserModel.countDocuments({ member: true, vis: false })
-				.cache('10 minutes')
-				.exec();
-			const visitorCount = await UserModel.countDocuments({ member: true, vis: true })
-				.cache('10 minutes')
-				.exec();
-			const ratingCounts = await UserModel.aggregate([
-				{ $match: { member: true } },
-				{ $group: { _id: '$rating', count: { $sum: 1 } } },
-				{ $sort: { _id: -1 } },
-			])
-				.cache('10 minutes')
-				.exec();
-
-			for (const item of ratingCounts) {
-				item.rating = zau.ratingsShort[item._id];
-			}
-
-			return res.status(status.OK).json({
-				totalTime: totalTime[0] ? Math.round(totalTime[0].total / 1000) : 1,
-				totalSessions: sessionCount[0] ? Math.round(sessionCount[0].total) : 1,
-				feedback: feedback.reverse(),
-				hours: hours.reverse(),
-				counts: {
-					home: homeCount,
-					vis: visitorCount,
-					byRating: ratingCounts.reverse(),
-				},
-			});
-		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
-			return next(e);
+		for (const item of feedback) {
+			item.month = months[item.month];
 		}
-	},
-);
+		for (const item of hours) {
+			item.month = months[item.month];
+			item.total = Math.round(item.total / 1000);
+		}
+
+		const homeCount = await UserModel.countDocuments({ member: true, vis: false })
+			.cache('10 minutes')
+			.exec();
+		const visitorCount = await UserModel.countDocuments({ member: true, vis: true })
+			.cache('10 minutes')
+			.exec();
+		const ratingCounts = await UserModel.aggregate([
+			{ $match: { member: true } },
+			{ $group: { _id: '$rating', count: { $sum: 1 } } },
+			{ $sort: { _id: -1 } },
+		])
+			.cache('10 minutes')
+			.exec();
+
+		for (const item of ratingCounts) {
+			item.rating = zau.ratingsShort[item._id];
+		}
+
+		return res.status(status.OK).json({
+			totalTime: totalTime[0] ? Math.round(totalTime[0].total / 1000) : 1,
+			totalSessions: sessionCount[0] ? Math.round(sessionCount[0].total) : 1,
+			feedback: feedback.reverse(),
+			hours: hours.reverse(),
+			counts: {
+				home: homeCount,
+				vis: visitorCount,
+				byRating: ratingCounts.reverse(),
+			},
+		});
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
+	}
+});
 
 router.get(
 	'/ins',
 	getUser,
-	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
+	isTrainingStaff,
 	async (_req: Request, res: Response, next: NextFunction) => {
 		try {
 			let lastTraining = await TrainingSessionModel.aggregate([

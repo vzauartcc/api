@@ -57,6 +57,9 @@ export interface IUser extends SoftDeleteDocument, ITimestamps {
 	isSeniorStaff: boolean;
 	isStaff: boolean;
 	isInstructor: boolean;
+	isTrainingStaff: boolean;
+	isEventsTeam: boolean;
+	isFacilityTeam: boolean;
 	ratingShort: string;
 	ratingLong: string;
 	certCodeList: string[];
@@ -142,13 +145,13 @@ UserSchema.virtual('name').get(function (this: IUser) {
 });
 
 UserSchema.virtual('isMember').get(function (this: IUser) {
-	return this.member;
+	return this.member === true;
 });
 
 UserSchema.virtual('isManagement').get(function (this: IUser) {
 	if (!this.roleCodes) return false;
 
-	const search = ['atm', 'datm', 'wm'];
+	const search = ['atm', 'datm'];
 	return this.roleCodes.some((r) => search.includes(r));
 });
 
@@ -169,7 +172,28 @@ UserSchema.virtual('isStaff').get(function (this: IUser) {
 UserSchema.virtual('isInstructor').get(function (this: IUser) {
 	if (!this.roleCodes) return false;
 
-	const search = ['atm', 'datm', 'ta', 'ins', 'mtr', 'ia'];
+	const search = ['atm', 'datm', 'ta', 'wm', 'ins'];
+	return this.roleCodes.some((r) => search.includes(r));
+});
+
+UserSchema.virtual('isTrainingStaff').get(function (this: IUser) {
+	if (!this.roleCodes) return false;
+
+	const search = ['atm', 'datm', 'ta', 'wm', 'ins', 'mtr', 'ia'];
+	return this.roleCodes.some((r) => search.includes(r));
+});
+
+UserSchema.virtual('isEventsTeam').get(function (this: IUser) {
+	if (!this.roleCodes) return false;
+
+	const search = ['atm', 'datm', 'ec', 'wm'];
+	return this.roleCodes.some((r) => search.includes(r));
+});
+
+UserSchema.virtual('isFacilityTeam').get(function (this: IUser) {
+	if (!this.roleCodes) return false;
+
+	const search = ['atm', 'datm', 'ta', 'fe', 'wm'];
 	return this.roleCodes.some((r) => search.includes(r));
 });
 

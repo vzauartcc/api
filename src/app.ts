@@ -8,19 +8,19 @@ import helmet from 'helmet';
 import { Redis } from 'ioredis';
 import mongoose from 'mongoose';
 import cache from 'ts-cache-mongoose';
-import controllerRouter from './controllers/controller.js';
-import discordRouter from './controllers/discord.js';
-import eventRouter from './controllers/event.js';
-import examRouter from './controllers/exam.js';
-import feedbackRouter from './controllers/feedback.js';
-import fileRouter from './controllers/file.js';
-import idsRouter from './controllers/ids.js';
-import newsRouter from './controllers/news.js';
-import onlineRouter from './controllers/online.js';
-import statsRouter from './controllers/stats.js';
-import trainingRouter from './controllers/training.js';
-import userRouter from './controllers/user.js';
-import vatusaRouter from './controllers/vatusa.js';
+import controllerRouter from './controllers/controller/controller.js';
+import discordRouter from './controllers/discord/discord.js';
+import eventRouter from './controllers/event/event.js';
+import examRouter from './controllers/exam/exam.js';
+import feedbackRouter from './controllers/feedback/feedback.js';
+import fileRouter from './controllers/file/file.js';
+import idsRouter from './controllers/ids/ids.js';
+import newsRouter from './controllers/news/news.js';
+import onlineRouter from './controllers/online/online.js';
+import statsRouter from './controllers/stats/stats.js';
+import trainingRouter from './controllers/training/training.js';
+import userRouter from './controllers/user/user.js';
+import vatusaRouter from './controllers/vatusa/vatusa.js';
 import { parseRedisConnectionString } from './helpers/redis.js';
 import { setupS3 } from './helpers/s3.js';
 import zau from './helpers/zau.js';
@@ -107,6 +107,7 @@ const cacheInstance = cache.init(mongoose, {
 	},
 	debug: zau.isDev,
 });
+await cacheInstance.clear();
 
 export const getCacheInstance = () => {
 	return cacheInstance;
