@@ -98,18 +98,20 @@ router.post(
 			const endDate = new Date(req.body.expirationDate);
 
 			let vatusaId = 0;
-			try {
-				const { data: vatusaResponse } = await vatusaApi.post('/solo', {
-					cid: student.cid,
-					position: req.body.position,
-					expDate: DateTime.fromJSDate(endDate).toUTC().toFormat('yyyy-MM-dd'),
-				});
-				vatusaId = vatusaResponse.data.id || 0;
-			} catch (err) {
-				throw {
-					code: status.INTERNAL_SERVER_ERROR,
-					message: (err as any).response?.data?.data?.msg || 'Error posting to VATUSA',
-				};
+			if (zau.isProd) {
+				try {
+					const { data: vatusaResponse } = await vatusaApi.post('/solo', {
+						cid: student.cid,
+						position: req.body.position,
+						expDate: DateTime.fromJSDate(endDate).toUTC().toFormat('yyyy-MM-dd'),
+					});
+					vatusaId = vatusaResponse.data.id || 0;
+				} catch (err) {
+					throw {
+						code: status.INTERNAL_SERVER_ERROR,
+						message: (err as any).response?.data?.data?.msg || 'Error posting to VATUSA',
+					};
+				}
 			}
 
 			SoloEndorsementModel.create({
