@@ -137,6 +137,7 @@ router.patch(
 				{ new: true },
 			).exec(); // { new: true } option returns the document after update
 			await getCacheInstance().clear(`exam-${examId}`);
+			await getCacheInstance().clear(`exams`);
 
 			if (!updatedExam) {
 				throw {
@@ -379,6 +380,7 @@ router.get(
 		try {
 			const exam = await ExamModel.findById(req.params['id'])
 				.populate('createdBy', 'fname lname')
+				.lean()
 				.cache('1 minute', `exam-${req.params['id']}`)
 				.exec();
 			if (!exam) {
@@ -404,6 +406,7 @@ router.get('/:id/results', getUser, async (req: Request, res: Response, next: Ne
 			exam: req.params['id'],
 			user: req.user._id, // Ensure results are fetched for the logged-in user
 		})
+			.lean()
 			.cache()
 			.exec();
 
