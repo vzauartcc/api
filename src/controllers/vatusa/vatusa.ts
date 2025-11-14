@@ -1,6 +1,6 @@
 import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import status from '../types/status.js';
+import status from '../../types/status.js';
 
 const router = Router();
 

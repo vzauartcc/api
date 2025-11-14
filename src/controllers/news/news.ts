@@ -1,11 +1,11 @@
 import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { getCacheInstance } from '../app.js';
-import { hasRole } from '../middleware/auth.js';
-import getUser from '../middleware/user.js';
-import { DossierModel } from '../models/dossier.js';
-import { NewsModel } from '../models/news.js';
-import status from '../types/status.js';
+import { getCacheInstance } from '../../app.js';
+import { isStaff } from '../../middleware/auth.js';
+import getUser from '../../middleware/user.js';
+import { DossierModel } from '../../models/dossier.js';
+import { NewsModel } from '../../models/news.js';
+import status from '../../types/status.js';
 
 const router = Router();
 
@@ -23,7 +23,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 			.limit(limit)
 			.populate('user', ['fname', 'lname'])
 			.lean()
-			.cache()
+			.cache('1 minute', 'news')
 			.exec();
 
 		return res.status(status.OK).json({ amount, news });
@@ -35,58 +35,54 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 	}
 });
 
-router.post(
-	'/',
-	getUser,
-	hasRole(['atm', 'datm', 'ta', 'ec', 'fe', 'wm']),
-	async (req: Request, res: Response, next: NextFunction) => {
-		try {
-			if (!req.body || !req.body.title || !req.body.content) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'You must fill out all required forms',
-				};
-			}
-			const { title, content, createdBy } = req.body;
-			const uriSlug =
-				title
-					.replace(/\s+/g, '-')
-					.toLowerCase()
-					.replace(/^-+|-+(?=-|$)/g, '')
-					.replace(/[^a-zA-Z0-9-_]/g, '') +
-				'-' +
-				Date.now().toString().slice(-5);
-
-			const news = await NewsModel.create({
-				title,
-				content,
-				uriSlug,
-				createdBy,
-			});
-			await getCacheInstance().clear('news-count');
-
-			if (!news) {
-				throw {
-					code: status.INTERNAL_SERVER_ERROR,
-					message: 'Something went wrong, please try again',
-				};
-			}
-
-			await DossierModel.create({
-				by: req.user.cid,
-				affected: -1,
-				action: `%b created the news item *${req.body.title}*.`,
-			});
-
-			return res.status(status.CREATED).json();
-		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
-			return next(e);
+router.post('/', getUser, isStaff, async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		if (!req.body || !req.body.title || !req.body.content) {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'You must fill out all required forms',
+			};
 		}
-	},
-);
+		const { title, content, createdBy } = req.body;
+		const uriSlug =
+			title
+				.replace(/\s+/g, '-')
+				.toLowerCase()
+				.replace(/^-+|-+(?=-|$)/g, '')
+				.replace(/[^a-zA-Z0-9-_]/g, '') +
+			'-' +
+			Date.now().toString().slice(-5);
+
+		const news = await NewsModel.create({
+			title,
+			content,
+			uriSlug,
+			createdBy,
+		});
+		await getCacheInstance().clear('news-count');
+		await getCacheInstance().clear('news');
+
+		if (!news) {
+			throw {
+				code: status.INTERNAL_SERVER_ERROR,
+				message: 'Something went wrong, please try again',
+			};
+		}
+
+		await DossierModel.create({
+			by: req.user.cid,
+			affected: -1,
+			action: `%b created the news item *${req.body.title}*.`,
+		});
+
+		return res.status(status.CREATED).json();
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
+	}
+});
 
 router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => {
 	try {
@@ -112,10 +108,10 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
 	}
 });
 
-router.put(
+router.patch(
 	'/:slug',
 	getUser,
-	hasRole(['atm', 'datm', 'ta', 'ec', 'fe', 'wm']),
+	isStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const { title, content } = req.body;
@@ -144,6 +140,7 @@ router.put(
 			newsItem.content = content;
 			await newsItem.save();
 			await getCacheInstance().clear(`news-${req.params['slug']}`);
+			await getCacheInstance().clear(`news`);
 
 			await DossierModel.create({
 				by: req.user.cid,
@@ -164,7 +161,7 @@ router.put(
 router.delete(
 	'/:slug',
 	getUser,
-	hasRole(['atm', 'datm', 'ta', 'ec', 'fe', 'wm']),
+	isStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const newsItem = await NewsModel.findOne({ uriSlug: req.params['slug'] })
@@ -180,6 +177,7 @@ router.delete(
 			const deleted = await newsItem.delete();
 			await getCacheInstance().clear(`news-${req.params['slug']}`);
 			await getCacheInstance().clear(`news-count`);
+			await getCacheInstance().clear(`news`);
 
 			if (!deleted) {
 				throw {

@@ -2,11 +2,11 @@ import { captureException } from '@sentry/node';
 import axios from 'axios';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { Redis } from 'ioredis';
-import zau from '../helpers/zau.js';
-import { ConfigModel } from '../models/config.js';
-import { PirepModel } from '../models/pirep.js';
-import { UserModel } from '../models/user.js';
-import status from '../types/status.js';
+import zau from '../../helpers/zau.js';
+import { ConfigModel } from '../../models/config.js';
+import { PirepModel } from '../../models/pirep.js';
+import { UserModel } from '../../models/user.js';
+import status from '../../types/status.js';
 
 const router = Router();
 

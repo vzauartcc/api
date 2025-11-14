@@ -1,13 +1,13 @@
 import { captureException } from '@sentry/node';
 import Discord from 'discord-oauth2';
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import discord from '../helpers/discord.js';
-import internalAuth from '../middleware/internalAuth.js';
-import getUser from '../middleware/user.js';
-import { DossierModel } from '../models/dossier.js';
-import { UserModel } from '../models/user.js';
-import status from '../types/status.js';
-import { clearUserCache } from './controller.js';
+import discord from '../../helpers/discord.js';
+import internalAuth from '../../middleware/internalAuth.js';
+import getUser from '../../middleware/user.js';
+import { DossierModel } from '../../models/dossier.js';
+import { UserModel } from '../../models/user.js';
+import status from '../../types/status.js';
+import { clearUserCache } from '../controller/utils.js';
 
 const router = Router();
 

@@ -3,20 +3,20 @@ import axios from 'axios';
 import { randomUUID } from 'crypto';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { getCacheInstance } from '../app.js';
-import { uploadToS3 } from '../helpers/s3.js';
-import zau from '../helpers/zau.js';
-import { userOrInternal } from '../middleware/auth.js';
-import internalAuth from '../middleware/internalAuth.js';
-import getUser, { deleteAuthCookie, type UserPayload } from '../middleware/user.js';
-import oAuth from '../middleware/vatsim.js';
-import { ControllerHoursModel } from '../models/controllerHours.js';
-import { DossierModel } from '../models/dossier.js';
-import { NotificationModel } from '../models/notification.js';
-import { TrainingSessionModel } from '../models/trainingSession.js';
-import { UserModel } from '../models/user.js';
-import status from '../types/status.js';
-import { clearUserCache } from './controller.js';
+import { getCacheInstance } from '../../app.js';
+import { uploadToS3 } from '../../helpers/s3.js';
+import zau from '../../helpers/zau.js';
+import { userOrInternal } from '../../middleware/auth.js';
+import internalAuth from '../../middleware/internalAuth.js';
+import getUser, { deleteAuthCookie, type UserPayload } from '../../middleware/user.js';
+import oAuth from '../../middleware/vatsim.js';
+import { ControllerHoursModel } from '../../models/controllerHours.js';
+import { DossierModel } from '../../models/dossier.js';
+import { NotificationModel } from '../../models/notification.js';
+import { TrainingSessionModel } from '../../models/trainingSession.js';
+import { UserModel } from '../../models/user.js';
+import status from '../../types/status.js';
+import { clearUserCache } from '../controller/utils.js';
 
 const router = Router();
 
@@ -440,7 +440,7 @@ router.delete(
 );
 //#endregion
 
-router.put('/profile', getUser, async (req: Request, res: Response, next: NextFunction) => {
+router.patch('/profile', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const { bio } = req.body;
 
