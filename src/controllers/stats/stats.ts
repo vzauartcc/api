@@ -4,7 +4,7 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import { DateTime } from 'luxon';
 import type { FlattenMaps } from 'mongoose';
 import zau from '../../helpers/zau.js';
-import { hasRole, isInstructor, isStaff } from '../../middleware/auth.js';
+import { hasRole, isStaff, isTrainingStaff } from '../../middleware/auth.js';
 import internalAuth from '../../middleware/internalAuth.js';
 import getUser from '../../middleware/user.js';
 import { ControllerHoursModel } from '../../models/controllerHours.js';
@@ -154,7 +154,7 @@ router.get('/admin', getUser, isStaff, async (_req: Request, res: Response, next
 router.get(
 	'/ins',
 	getUser,
-	isInstructor,
+	isTrainingStaff,
 	async (_req: Request, res: Response, next: NextFunction) => {
 		try {
 			let lastTraining = await TrainingSessionModel.aggregate([

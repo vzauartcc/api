@@ -125,7 +125,7 @@ app.use('/ids', idsRouter);
 app.use('/training', trainingRouter);
 app.use('/discord', discordRouter);
 app.use('/stats', statsRouter);
-app.use('/exams', examRouter);
+app.use('/exam', examRouter);
 app.use('/vatusa', vatusaRouter);
 
 // Sentry error capturing should be after all routes are registered.

@@ -57,6 +57,7 @@ export interface IUser extends SoftDeleteDocument, ITimestamps {
 	isSeniorStaff: boolean;
 	isStaff: boolean;
 	isInstructor: boolean;
+	isTrainingStaff: boolean;
 	isEventsTeam: boolean;
 	isFacilityTeam: boolean;
 	ratingShort: string;
@@ -169,6 +170,13 @@ UserSchema.virtual('isStaff').get(function (this: IUser) {
 });
 
 UserSchema.virtual('isInstructor').get(function (this: IUser) {
+	if (!this.roleCodes) return false;
+
+	const search = ['atm', 'datm', 'ta', 'wm', 'ins'];
+	return this.roleCodes.some((r) => search.includes(r));
+});
+
+UserSchema.virtual('isTrainingStaff').get(function (this: IUser) {
 	if (!this.roleCodes) return false;
 
 	const search = ['atm', 'datm', 'ta', 'wm', 'ins', 'mtr', 'ia'];

@@ -4,7 +4,7 @@ import { DateTime } from 'luxon';
 import { getCacheInstance } from '../../app.js';
 import { vatusaApi } from '../../helpers/vatusa.js';
 import zau from '../../helpers/zau.js';
-import { isInstructor } from '../../middleware/auth.js';
+import { isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { NotificationModel } from '../../models/notification.js';
 import { TrainingSessionModel } from '../../models/trainingSession.js';
@@ -16,41 +16,46 @@ const FIFTEEN = 15 * 60 * 1000;
 
 //#region Fetching Sessions
 // Get all sessions with pagination
-router.get('/', getUser, isInstructor, async (req: Request, res: Response, next: NextFunction) => {
-	try {
-		const page = +(req.query['page'] as string) || 1;
-		const limit = +(req.query['limit'] as string) || 20;
+router.get(
+	'/',
+	getUser,
+	isTrainingStaff,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const page = +(req.query['page'] as string) || 1;
+			const limit = +(req.query['limit'] as string) || 20;
 
-		const amount = await TrainingSessionModel.countDocuments({
-			submitted: true,
-			deleted: false,
-		})
-			.cache('10 minutes', 'session-count')
-			.exec();
-		const sessions = await TrainingSessionModel.find({
-			deleted: false,
-			submitted: true,
-		})
-			.skip(limit * (page - 1))
-			.limit(limit)
-			.sort({
-				startTime: 'desc',
+			const amount = await TrainingSessionModel.countDocuments({
+				submitted: true,
+				deleted: false,
 			})
-			.populate('student', 'fname lname cid vis')
-			.populate('instructor', 'fname lname')
-			.populate('milestone', 'name code')
-			.lean()
-			.cache()
-			.exec();
+				.cache('10 minutes', 'session-count')
+				.exec();
+			const sessions = await TrainingSessionModel.find({
+				deleted: false,
+				submitted: true,
+			})
+				.skip(limit * (page - 1))
+				.limit(limit)
+				.sort({
+					startTime: 'desc',
+				})
+				.populate('student', 'fname lname cid vis')
+				.populate('instructor', 'fname lname')
+				.populate('milestone', 'name code')
+				.lean()
+				.cache()
+				.exec();
 
-		return res.status(status.OK).json({ count: amount, sessions });
-	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
+			return res.status(status.OK).json({ count: amount, sessions });
+		} catch (e) {
+			if (!(e as any).code) {
+				captureException(e);
+			}
+			return next(e);
 		}
-		return next(e);
-	}
-});
+	},
+);
 
 router.get('/past', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
@@ -93,7 +98,7 @@ router.get('/past', getUser, async (req: Request, res: Response, next: NextFunct
 router.get(
 	'/by-user/:cid',
 	getUser,
-	isInstructor,
+	isTrainingStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const controller = await UserModel.findOne({ cid: req.params['cid'] })
@@ -151,7 +156,7 @@ router.get(
 router.get(
 	'/open',
 	getUser,
-	isInstructor,
+	isTrainingStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const sessions = await TrainingSessionModel.find({
@@ -222,7 +227,7 @@ router.get('/:id', getUser, async (req: Request, res: Response, next: NextFuncti
 router.patch(
 	'/:id/save',
 	getUser,
-	isInstructor,
+	isTrainingStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const session = await TrainingSessionModel.findByIdAndUpdate(
@@ -254,7 +259,7 @@ router.patch(
 router.patch(
 	'/:id/submit',
 	getUser,
-	isInstructor,
+	isTrainingStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (
@@ -382,7 +387,7 @@ router.patch(
 router.delete(
 	'/:id',
 	getUser,
-	isInstructor,
+	isTrainingStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['id'] || req.params['id'] === 'undefined') {
@@ -431,7 +436,7 @@ router.delete(
 router.post(
 	'/save',
 	getUser,
-	isInstructor,
+	isTrainingStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (
@@ -511,7 +516,7 @@ router.post(
 router.post(
 	'/submit',
 	getUser,
-	isInstructor,
+	isTrainingStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (

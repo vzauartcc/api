@@ -2,7 +2,7 @@ import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import { getCacheInstance } from '../../app.js';
-import { hasRole, isSeniorStaff } from '../../middleware/auth.js';
+import { isInstructor, isSeniorStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { ExamModel, type IExam } from '../../models/exam.js';
 import { ExamAttemptModel } from '../../models/examAttempt.js';
@@ -473,7 +473,7 @@ router.patch(
 router.put(
 	'/:examId/resetAttempts',
 	getUser,
-	hasRole(['atm', 'datm', 'ta', 'ins']),
+	isInstructor,
 	/* eslint-disable no-unused-vars */
 	async (_req: Request, _res: Response, _next: NextFunction) => {
 		// const { examId } = req.params;
