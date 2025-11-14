@@ -6,7 +6,7 @@ import { sendMail } from '../../helpers/mailer.js';
 import { getUsersWithPrivacy } from '../../helpers/mongodb.js';
 import { vatusaApi } from '../../helpers/vatusa.js';
 import zau from '../../helpers/zau.js';
-import { hasRole, isStaff, userOrInternal } from '../../middleware/auth.js';
+import { hasRole, isNotSelf, isStaff, userOrInternal } from '../../middleware/auth.js';
 import internalAuth from '../../middleware/internalAuth.js';
 import getUser from '../../middleware/user.js';
 import { ControllerHoursModel } from '../../models/controllerHours.js';
@@ -594,6 +594,7 @@ router.put(
 	'/:cid',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'fe', 'ec', 'wm', 'ins', 'mtr']),
+	isNotSelf(),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.body.form) {
@@ -604,9 +605,7 @@ router.put(
 			}
 
 			// Find the existing user
-			const user = await UserModel.findOne({ cid: req.params['cid'] })
-				.cache('10 minutes', `user-${req.params['cid']}`)
-				.exec();
+			const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
 
 			if (!user) {
 				throw {
@@ -718,6 +717,7 @@ router.delete(
 	'/:cid',
 	getUser,
 	hasRole(['atm', 'datm']),
+	isNotSelf(false),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.body.reason) {

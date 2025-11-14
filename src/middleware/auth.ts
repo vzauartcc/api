@@ -44,6 +44,30 @@ export function isSelf(req: Request, res: Response, next: NextFunction) {
 	return next();
 }
 
+export function isNotSelf(managementBypass: boolean = true) {
+	return function (req: Request, res: Response, next: NextFunction) {
+		if (!req.user) {
+			return res.status(status.FORBIDDEN).json();
+		}
+
+		const check = req.params['cid'] || req.params['id'];
+
+		if (isNaN(Number(check))) {
+			return res.status(status.FORBIDDEN).json();
+		}
+
+		if (managementBypass && req.user.isManagement) {
+			return next();
+		}
+
+		if (req.user.cid.toString() === check) {
+			return res.status(status.FORBIDDEN).json();
+		}
+
+		return next();
+	};
+}
+
 export function isInstructor(req: Request, res: Response, next: NextFunction) {
 	if (req.user && req.user.isInstructor) {
 		return next();

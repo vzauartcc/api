@@ -142,13 +142,13 @@ UserSchema.virtual('name').get(function (this: IUser) {
 });
 
 UserSchema.virtual('isMember').get(function (this: IUser) {
-	return this.member;
+	return this.member === true;
 });
 
 UserSchema.virtual('isManagement').get(function (this: IUser) {
 	if (!this.roleCodes) return false;
 
-	const search = ['atm', 'datm', 'wm'];
+	const search = ['atm', 'datm'];
 	return this.roleCodes.some((r) => search.includes(r));
 });
 

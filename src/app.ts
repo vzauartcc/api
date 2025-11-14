@@ -107,6 +107,7 @@ const cacheInstance = cache.init(mongoose, {
 	},
 	debug: zau.isDev,
 });
+await cacheInstance.clear();
 
 export const getCacheInstance = () => {
 	return cacheInstance;
