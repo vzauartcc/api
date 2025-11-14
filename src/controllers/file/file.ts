@@ -1,0 +1,41 @@
+import { captureException } from '@sentry/node';
+import { Router, type NextFunction, type Request, type Response } from 'express';
+import { getUploadStatus } from '../../helpers/s3.js';
+import status from '../../types/status.js';
+import documentsRouter from './documents.js';
+import downloadsRouter from './downloads.js';
+
+const router = Router();
+
+router.use('/downloads', downloadsRouter);
+router.use('/documents', documentsRouter);
+
+router.get('/checkStatus/:id', async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		if (!req.params['id']) {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Missing id',
+			};
+		}
+
+		const progress = getUploadStatus(req.params['id']);
+
+		if (!progress) {
+			throw {
+				code: status.NOT_FOUND,
+				message: 'Not found',
+			};
+		}
+
+		return res.status(status.OK).json({ progress });
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+
+		return next(e);
+	}
+});
+
+export default router;

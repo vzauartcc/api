@@ -1,13 +1,13 @@
 import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { getCacheInstance } from '../app.js';
-import { getUsersWithPrivacy } from '../helpers/mongodb.js';
-import { hasRole } from '../middleware/auth.js';
-import getUser from '../middleware/user.js';
-import { DossierModel } from '../models/dossier.js';
-import { FeedbackModel } from '../models/feedback.js';
-import { NotificationModel } from '../models/notification.js';
-import status from '../types/status.js';
+import { getCacheInstance } from '../../app.js';
+import { getUsersWithPrivacy } from '../../helpers/mongodb.js';
+import { hasRole } from '../../middleware/auth.js';
+import getUser from '../../middleware/user.js';
+import { DossierModel } from '../../models/dossier.js';
+import { FeedbackModel } from '../../models/feedback.js';
+import { NotificationModel } from '../../models/notification.js';
+import status from '../../types/status.js';
 
 const router = Router();
 
@@ -45,6 +45,51 @@ router.get(
 		}
 	},
 );
+
+router.get('/own', getUser, async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const page = +(req.query['page'] as string) || 1;
+		const limit = +(req.query['limit'] as string) || 10;
+
+		const amount = await FeedbackModel.countDocuments({
+			approved: true,
+			controllerCid: req.user.cid,
+		})
+			.cache()
+			.exec();
+		const feedback = await FeedbackModel.aggregate([
+			{
+				$match: {
+					controllerCid: req.user.cid,
+					approved: true,
+				},
+			},
+			{
+				$project: {
+					controller: 1,
+					position: 1,
+					rating: 1,
+					comments: 1,
+					createdAt: 1,
+					anonymous: 1,
+					name: { $cond: ['$anonymous', '$$REMOVE', '$name'] }, // Conditionally remove name if submitter wishes to remain anonymous
+				},
+			},
+			{ $sort: { createdAt: -1 } },
+			{ $skip: limit * (page - 1) },
+			{ $limit: limit },
+		])
+			.cache()
+			.exec();
+
+		return res.status(status.OK).json({ feedback, amount });
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
+	}
+});
 
 router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 	// Submit feedback
@@ -171,8 +216,8 @@ router.get(
 	},
 );
 
-router.put(
-	'/approve/:id',
+router.patch(
+	'/:id/approve',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'wm']),
 	async (req: Request, res: Response, next: NextFunction) => {
@@ -222,8 +267,8 @@ router.put(
 	},
 );
 
-router.put(
-	'/reject/:id',
+router.patch(
+	'/:id/reject',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'wm']),
 	async (req: Request, res: Response, next: NextFunction) => {
@@ -259,50 +304,5 @@ router.put(
 		}
 	},
 );
-
-router.get('/own', getUser, async (req: Request, res: Response, next: NextFunction) => {
-	try {
-		const page = +(req.query['page'] as string) || 1;
-		const limit = +(req.query['limit'] as string) || 10;
-
-		const amount = await FeedbackModel.countDocuments({
-			approved: true,
-			controllerCid: req.user.cid,
-		})
-			.cache()
-			.exec();
-		const feedback = await FeedbackModel.aggregate([
-			{
-				$match: {
-					controllerCid: req.user.cid,
-					approved: true,
-				},
-			},
-			{
-				$project: {
-					controller: 1,
-					position: 1,
-					rating: 1,
-					comments: 1,
-					createdAt: 1,
-					anonymous: 1,
-					name: { $cond: ['$anonymous', '$$REMOVE', '$name'] }, // Conditionally remove name if submitter wishes to remain anonymous
-				},
-			},
-			{ $sort: { createdAt: -1 } },
-			{ $skip: limit * (page - 1) },
-			{ $limit: limit },
-		])
-			.cache()
-			.exec();
-
-		return res.status(status.OK).json({ feedback, amount });
-	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
-		return next(e);
-	}
-});
 
 export default router;

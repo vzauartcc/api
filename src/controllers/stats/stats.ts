@@ -3,16 +3,16 @@ import axios from 'axios';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
 import type { FlattenMaps } from 'mongoose';
-import zau from '../helpers/zau.js';
-import { hasRole } from '../middleware/auth.js';
-import internalAuth from '../middleware/internalAuth.js';
-import getUser from '../middleware/user.js';
-import { ControllerHoursModel } from '../models/controllerHours.js';
-import { FeedbackModel } from '../models/feedback.js';
-import { TrainingRequestModel } from '../models/trainingRequest.js';
-import { TrainingSessionModel } from '../models/trainingSession.js';
-import { UserModel, type IUser } from '../models/user.js';
-import status from '../types/status.js';
+import zau from '../../helpers/zau.js';
+import { hasRole } from '../../middleware/auth.js';
+import internalAuth from '../../middleware/internalAuth.js';
+import getUser from '../../middleware/user.js';
+import { ControllerHoursModel } from '../../models/controllerHours.js';
+import { FeedbackModel } from '../../models/feedback.js';
+import { TrainingRequestModel } from '../../models/trainingRequest.js';
+import { TrainingSessionModel } from '../../models/trainingSession.js';
+import { UserModel, type IUser } from '../../models/user.js';
+import status from '../../types/status.js';
 
 const router = Router();
 

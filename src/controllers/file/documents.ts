@@ -3,14 +3,13 @@ import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import * as fs from 'fs';
 import multer from 'multer';
-import { getCacheInstance } from '../app.js';
-import { deleteFromS3, getUploadStatus, setUploadStatus, uploadToS3 } from '../helpers/s3.js';
-import { hasRole } from '../middleware/auth.js';
-import getUser from '../middleware/user.js';
-import { DocumentModel } from '../models/document.js';
-import { DossierModel } from '../models/dossier.js';
-import { DownloadModel } from '../models/download.js';
-import status from '../types/status.js';
+import { getCacheInstance } from '../../app.js';
+import { deleteFromS3, setUploadStatus, uploadToS3 } from '../../helpers/s3.js';
+import { hasRole } from '../../middleware/auth.js';
+import getUser from '../../middleware/user.js';
+import { DocumentModel } from '../../models/document.js';
+import { DossierModel } from '../../models/dossier.js';
+import status from '../../types/status.js';
 
 const router = Router();
 
@@ -28,289 +27,7 @@ const upload = multer({
 	},
 });
 
-router.get('/checkStatus/:id', async (req: Request, res: Response, next: NextFunction) => {
-	try {
-		if (!req.params['id']) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Missing id',
-			};
-		}
-
-		const progress = getUploadStatus(req.params['id']);
-
-		if (!progress) {
-			throw {
-				code: status.NOT_FOUND,
-				message: 'Not found',
-			};
-		}
-
-		return res.status(status.OK).json({ progress });
-	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
-
-		return next(e);
-	}
-});
-
-//#region Downloads
-router.get('/downloads', async (_req: Request, res: Response, next: NextFunction) => {
-	try {
-		const downloads = await DownloadModel.find({ deletedAt: null })
-			.sort({ category: 'asc', name: 'asc' })
-			.lean()
-			.cache('5 minutes', 'downloads')
-			.exec();
-
-		return res.status(status.OK).json(downloads);
-	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
-		return next(e);
-	}
-});
-
-router.get('/downloads/:id', async (req: Request, res: Response, next: NextFunction) => {
-	try {
-		const download = await DownloadModel.findById(req.params['id'])
-			.lean()
-			.cache('5 minutes', `download-${req.params['id']}`)
-			.exec();
-
-		if (!download) {
-			throw {
-				code: status.NOT_FOUND,
-				message: 'Download not found',
-			};
-		}
-
-		return res.status(status.OK).json(download);
-	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
-		return next(e);
-	}
-});
-
-router.post(
-	'/downloads',
-	getUser,
-	hasRole(['atm', 'datm', 'ta', 'fe', 'wm']),
-	upload.single('download'),
-	async (req: Request, res: Response, next: NextFunction) => {
-		try {
-			if (!req.body.category) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'You must select a category',
-				};
-			}
-			if (!req.file) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Missing file',
-				};
-			}
-
-			setUploadStatus(req.body.uploadId, 0);
-
-			res.status(status.ACCEPTED).json();
-
-			const filePath = req.file.path;
-			let fileStream: fs.ReadStream | undefined;
-
-			try {
-				fileStream = fs.createReadStream(filePath);
-
-				await uploadToS3(
-					`downloads/${req.file.filename}`,
-					fileStream,
-					req.file.mimetype,
-					{},
-					(progress: Progress) => {
-						const total = progress.total || 0;
-						const percent = total > 0 ? Math.round(((progress.loaded || 0) / total) * 100) : 0;
-						setUploadStatus(req.body.uploadId, percent);
-					},
-				);
-			} catch (e) {
-				captureException(e);
-
-				setUploadStatus(req.body.uploadId, -1);
-
-				throw {
-					code: status.INTERNAL_SERVER_ERROR,
-					message: 'Error streaming file to storage',
-				};
-			} finally {
-				try {
-					fileStream?.close();
-					fs.unlinkSync(filePath);
-				} catch (_err) {
-					// Do nothing, we don't care about this error
-				}
-			}
-
-			await DownloadModel.create({
-				name: req.body.name,
-				description: req.body.description,
-				fileName: req.file.filename,
-				category: req.body.category,
-				author: req.body.author,
-			});
-
-			await getCacheInstance().clear('downloads');
-
-			await DossierModel.create({
-				by: req.user.cid,
-				affected: -1,
-				action: `%b created the file *${req.body.name}*.`,
-			});
-
-			return res.status(status.CREATED).json();
-		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
-			return next(e);
-		}
-	},
-);
-
-router.put(
-	'/downloads/:id',
-	upload.single('download'),
-	getUser,
-	hasRole(['atm', 'datm', 'ta', 'fe', 'wm']),
-	async (req: Request, res: Response, next: NextFunction) => {
-		try {
-			const download = await DownloadModel.findById(req.params['id'])
-				.cache('5 minutes', `download-${req.params['id']}`)
-				.exec();
-			if (!download) {
-				throw { code: status.NOT_FOUND, message: 'Download not found' };
-			}
-
-			if (!req.file) {
-				await DownloadModel.findByIdAndUpdate(req.params['id'], {
-					name: req.body.name,
-					description: req.body.description,
-					category: req.body.category,
-				}).exec();
-			} else {
-				if (download.fileName) {
-					deleteFromS3(`downloads/${download.fileName}`);
-				}
-
-				setUploadStatus(req.body.uploadId, 0);
-
-				res.status(status.ACCEPTED).json();
-
-				const filePath = req.file.path;
-				let fileStream: fs.ReadStream | undefined;
-
-				try {
-					fileStream = fs.createReadStream(filePath);
-
-					await uploadToS3(
-						`downloads/${req.file.filename}`,
-						fileStream,
-						req.file.mimetype,
-						{},
-						(progress: Progress) => {
-							const total = progress.total || 0;
-							const percent = total > 0 ? Math.round(((progress.loaded || 0) / total) * 100) : 0;
-							setUploadStatus(req.body.uploadId, percent);
-						},
-					);
-				} catch (e) {
-					captureException(e);
-
-					setUploadStatus(req.body.uploadId, -1);
-
-					throw {
-						code: status.INTERNAL_SERVER_ERROR,
-						message: 'Error streaming file to storage',
-					};
-				} finally {
-					try {
-						fileStream?.close();
-						fs.unlinkSync(filePath);
-					} catch (_err) {
-						// Do nothing, we don't care about this error
-					}
-				}
-
-				await DownloadModel.findByIdAndUpdate(req.params['id'], {
-					name: req.body.name,
-					description: req.body.description,
-					category: req.body.category,
-					fileName: req.file.filename,
-				}).exec();
-			}
-
-			await getCacheInstance().clear(`download-${req.params['id']}`);
-			await DossierModel.create({
-				by: req.user.cid,
-				affected: -1,
-				action: `%b updated the file *${req.body.name}*.`,
-			});
-
-			return res.status(status.OK).json();
-		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
-			return next(e);
-		}
-	},
-);
-
-router.delete(
-	'/downloads/:id',
-	getUser,
-	hasRole(['atm', 'datm', 'ta', 'fe', 'wm']),
-	async (req: Request, res: Response, next: NextFunction) => {
-		try {
-			const download = await DownloadModel.findById(req.params['id'])
-				.lean()
-				.cache('5 minutes', `download-${req.params['id']}`)
-				.exec();
-			if (!download) {
-				return res.status(status.NOT_FOUND).json({ error: 'File not found' });
-			}
-
-			if (download.fileName) {
-				await deleteFromS3(`downloads/${download.fileName}`);
-			}
-
-			await DownloadModel.findByIdAndDelete(req.params['id']).exec();
-			await getCacheInstance().clear('downloads');
-
-			await DossierModel.create({
-				by: req.user.cid,
-				affected: -1,
-				action: `%b deleted the file *${download.name}*.`,
-			});
-
-			return res.status(status.NO_CONTENT).json();
-		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
-			return next(e);
-		}
-	},
-);
-//#endregion
-
-//#region Documents
-router.get('/documents', async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const documents = await DocumentModel.find({ deletedAt: null })
 			.select('-content')
@@ -329,7 +46,7 @@ router.get('/documents', async (_req: Request, res: Response, next: NextFunction
 	}
 });
 
-router.get('/documents/:slug', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const document = await DocumentModel.findOne({ slug: req.params['slug'], deletedAt: null })
 			.lean()
@@ -353,7 +70,7 @@ router.get('/documents/:slug', async (req: Request, res: Response, next: NextFun
 });
 
 router.post(
-	'/documents',
+	'/',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'fe', 'wm']),
 	upload.single('download'),
@@ -436,6 +153,7 @@ router.post(
 					type: 'file',
 					fileName: req.file.filename,
 				});
+				await getCacheInstance().clear('documents');
 			} else {
 				await DocumentModel.create({
 					name,
@@ -465,8 +183,8 @@ router.post(
 	},
 );
 
-router.put(
-	'/documents/:slug',
+router.patch(
+	'/:slug',
 	upload.single('download'),
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'fe', 'wm']),
@@ -571,6 +289,7 @@ router.put(
 				}
 			}
 
+			await getCacheInstance().clear('documents');
 			await getCacheInstance().clear(`document-${req.params['slug']}`);
 
 			await DossierModel.create({
@@ -590,7 +309,7 @@ router.put(
 );
 
 router.delete(
-	'/documents/:id',
+	'/:id',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'fe', 'wm']),
 	async (req: Request, res: Response, next: NextFunction) => {
@@ -609,6 +328,7 @@ router.delete(
 
 			await DocumentModel.findByIdAndDelete(req.params['id']).exec();
 			await getCacheInstance().clear('documents');
+			await getCacheInstance().clear(`document-${req.params['id']}`);
 
 			await DossierModel.create({
 				by: req.user.cid,
@@ -625,6 +345,5 @@ router.delete(
 		}
 	},
 );
-//#endregion
 
 export default router;

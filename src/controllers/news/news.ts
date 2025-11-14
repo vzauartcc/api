@@ -1,11 +1,11 @@
 import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { getCacheInstance } from '../app.js';
-import { hasRole } from '../middleware/auth.js';
-import getUser from '../middleware/user.js';
-import { DossierModel } from '../models/dossier.js';
-import { NewsModel } from '../models/news.js';
-import status from '../types/status.js';
+import { getCacheInstance } from '../../app.js';
+import { hasRole } from '../../middleware/auth.js';
+import getUser from '../../middleware/user.js';
+import { DossierModel } from '../../models/dossier.js';
+import { NewsModel } from '../../models/news.js';
+import status from '../../types/status.js';
 
 const router = Router();
 
@@ -23,7 +23,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 			.limit(limit)
 			.populate('user', ['fname', 'lname'])
 			.lean()
-			.cache()
+			.cache('1 minute', 'news')
 			.exec();
 
 		return res.status(status.OK).json({ amount, news });
@@ -64,6 +64,7 @@ router.post(
 				createdBy,
 			});
 			await getCacheInstance().clear('news-count');
+			await getCacheInstance().clear('news');
 
 			if (!news) {
 				throw {
@@ -112,7 +113,7 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
 	}
 });
 
-router.put(
+router.patch(
 	'/:slug',
 	getUser,
 	hasRole(['atm', 'datm', 'ta', 'ec', 'fe', 'wm']),
@@ -144,6 +145,7 @@ router.put(
 			newsItem.content = content;
 			await newsItem.save();
 			await getCacheInstance().clear(`news-${req.params['slug']}`);
+			await getCacheInstance().clear(`news`);
 
 			await DossierModel.create({
 				by: req.user.cid,
@@ -180,6 +182,7 @@ router.delete(
 			const deleted = await newsItem.delete();
 			await getCacheInstance().clear(`news-${req.params['slug']}`);
 			await getCacheInstance().clear(`news-count`);
+			await getCacheInstance().clear(`news`);
 
 			if (!deleted) {
 				throw {
