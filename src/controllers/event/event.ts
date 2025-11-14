@@ -7,7 +7,7 @@ import multer from 'multer';
 import { getCacheInstance } from '../../app.js';
 import { sendMail } from '../../helpers/mailer.js';
 import { deleteFromS3, setUploadStatus, uploadToS3 } from '../../helpers/s3.js';
-import { hasRole } from '../../middleware/auth.js';
+import { isEventsTeam } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { DossierModel } from '../../models/dossier.js';
 import EventModel from '../../models/event.js';
@@ -242,7 +242,7 @@ router.delete('/:slug/signup', getUser, async (req: Request, res: Response, next
 router.delete(
 	'/:slug/mandelete/:cid',
 	getUser,
-	hasRole(['atm', 'datm', 'ec', 'wm']),
+	isEventsTeam,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const signup = await EventModel.findOneAndUpdate(
@@ -298,7 +298,7 @@ router.delete(
 router.patch(
 	'/:slug/mansignup/:cid',
 	getUser,
-	hasRole(['atm', 'datm', 'ec', 'wm']),
+	isEventsTeam,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const user = await UserModel.findOne({ cid: req.params['cid'] })
@@ -367,7 +367,7 @@ router.patch(
 router.patch(
 	'/:slug/assign',
 	getUser,
-	hasRole(['atm', 'datm', 'ec', 'wm']),
+	isEventsTeam,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const { position, cid } = req.body;
@@ -433,7 +433,7 @@ router.patch(
 router.post(
 	'/sendEvent',
 	getUser,
-	hasRole(['atm', 'datm', 'ec', 'wm']),
+	isEventsTeam,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const url = req.body.url;
@@ -590,7 +590,7 @@ router.post(
 router.post(
 	'/',
 	getUser,
-	hasRole(['atm', 'datm', 'ec', 'wm']),
+	isEventsTeam,
 	upload.single('banner'),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
@@ -693,7 +693,7 @@ router.post(
 router.put(
 	'/:slug',
 	getUser,
-	hasRole(['atm', 'datm', 'ec', 'wm']),
+	isEventsTeam,
 	upload.single('banner'),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
@@ -862,7 +862,7 @@ router.put(
 router.delete(
 	'/:slug',
 	getUser,
-	hasRole(['atm', 'datm', 'ec', 'wm']),
+	isEventsTeam,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const deleteEvent = await EventModel.findOne({ url: req.params['slug'] })
@@ -902,7 +902,7 @@ router.delete(
 	},
 );
 
-// router.put('/:slug/assign', getUser, hasRole(['atm', 'datm', 'ec']), async (req: Request, res: Response) => {
+// router.put('/:slug/assign', getUser, isEventsTeam, async (req: Request, res: Response) => {
 // 	try {
 // 		const event = await Event.findOneAndUpdate({url: req.params.slug}, {
 // 			$set: {
@@ -926,7 +926,7 @@ router.delete(
 router.patch(
 	'/:slug/notify',
 	getUser,
-	hasRole(['atm', 'datm', 'ec', 'wm']),
+	isEventsTeam,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			await EventModel.updateOne(
@@ -984,7 +984,7 @@ router.patch(
 router.put(
 	'/:slug/close',
 	getUser,
-	hasRole(['atm', 'datm', 'ec', 'wm']),
+	isEventsTeam,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const event = await EventModel.updateOne(

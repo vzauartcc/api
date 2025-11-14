@@ -3,7 +3,7 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import { getCacheInstance } from '../../app.js';
 import { sendMail } from '../../helpers/mailer.js';
 import { vatusaApi, type IVisitingStatus } from '../../helpers/vatusa.js';
-import { hasRole, isManagement } from '../../middleware/auth.js';
+import { isManagement } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { DossierModel } from '../../models/dossier.js';
 import { UserModel } from '../../models/user.js';
@@ -157,7 +157,7 @@ router.get('/status', getUser, async (req: Request, res: Response, next: NextFun
 router.put(
 	'/:cid',
 	getUser,
-	hasRole(['atm', 'datm']),
+	isManagement,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const application = await VisitApplicationModel.findOne({ cid: req.params['cid'] })
@@ -233,7 +233,7 @@ router.put(
 router.delete(
 	'/:cid',
 	getUser,
-	hasRole(['atm', 'datm']),
+	isManagement,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const application = await VisitApplicationModel.findOne({ cid: req.params['cid'] })

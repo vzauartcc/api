@@ -2,7 +2,7 @@ import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { getCacheInstance } from '../../app.js';
 import { sendMail } from '../../helpers/mailer.js';
-import { hasRole } from '../../middleware/auth.js';
+import { isEventsTeam } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { DossierModel } from '../../models/dossier.js';
 import { StaffingRequestModel } from '../../models/staffingRequest.js';
@@ -144,7 +144,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 router.put(
 	'/:id',
 	getUser,
-	hasRole(['atm', 'datm', 'ec', 'wm']),
+	isEventsTeam,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const staffingRequest = await StaffingRequestModel.findById(req.params['id'])
@@ -206,7 +206,7 @@ router.put(
 router.delete(
 	'/:id',
 	getUser,
-	hasRole(['atm', 'datm', 'ec', 'wm']),
+	isEventsTeam,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const staffingRequest = await StaffingRequestModel.findById(req.params['id'])

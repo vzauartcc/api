@@ -5,7 +5,7 @@ import { getCacheInstance } from '../../app.js';
 import discord from '../../helpers/discord.js';
 import { vatusaApi } from '../../helpers/vatusa.js';
 import zau from '../../helpers/zau.js';
-import { hasRole } from '../../middleware/auth.js';
+import { isInstructor } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { DossierModel } from '../../models/dossier.js';
 import { NotificationModel } from '../../models/notification.js';
@@ -15,37 +15,32 @@ import status from '../../types/status.js';
 
 const router = Router();
 
-router.get(
-	'/',
-	getUser,
-	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
-	async (_req: Request, res: Response, next: NextFunction) => {
-		try {
-			const solos = await SoloEndorsementModel.find({
-				deleted: false,
-			})
-				.populate('student', 'fname lname')
-				.populate('instructor', 'fname lname')
-				.sort({ expires: 'desc' })
-				.limit(50)
-				.lean({ virtuals: true })
-				.cache('10 minutes', 'solos')
-				.exec();
+router.get('/', getUser, isInstructor, async (_req: Request, res: Response, next: NextFunction) => {
+	try {
+		const solos = await SoloEndorsementModel.find({
+			deleted: false,
+		})
+			.populate('student', 'fname lname')
+			.populate('instructor', 'fname lname')
+			.sort({ expires: 'desc' })
+			.limit(50)
+			.lean({ virtuals: true })
+			.cache('10 minutes', 'solos')
+			.exec();
 
-			return res.status(status.OK).json(solos);
-		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
-			return next(e);
+		return res.status(status.OK).json(solos);
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
 		}
-	},
-);
+		return next(e);
+	}
+});
 
 router.get(
 	'/:id',
 	getUser,
-	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
+	isInstructor,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['id'] || req.params['id'] === 'undefined') {
@@ -74,100 +69,95 @@ router.get(
 	},
 );
 
-router.post(
-	'/',
-	getUser,
-	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
-	async (req: Request, res: Response, next: NextFunction) => {
-		try {
-			if (!req.body.student || !req.body.position || !req.body.expirationDate) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'All fields are required',
-				};
-			}
-
-			const student = await UserModel.findOne({ cid: req.body.student }).exec();
-			if (!student) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Student not found',
-				};
-			}
-
-			const endDate = new Date(req.body.expirationDate);
-
-			let vatusaId = 0;
-			try {
-				const { data: vatusaResponse } = await vatusaApi.post('/solo', {
-					cid: student.cid,
-					position: req.body.position,
-					expDate: DateTime.fromJSDate(endDate).toUTC().toFormat('yyyy-MM-dd'),
-				});
-				vatusaId = vatusaResponse.data.id || 0;
-			} catch (err) {
-				throw {
-					code: status.INTERNAL_SERVER_ERROR,
-					message: (err as any).response?.data?.data?.msg || 'Error posting to VATUSA',
-				};
-			}
-
-			SoloEndorsementModel.create({
-				studentCid: student.cid,
-				instructorCid: req.user.cid,
-				position: req.body.position,
-				vatusaId: vatusaId,
-				expires: endDate,
-			});
-
-			await getCacheInstance().clear('solos');
-
-			NotificationModel.create({
-				recipient: req.body.student,
-				read: false,
-				title: 'Solo Endorsement Issued',
-				content: `You have been issued a solo endorsement for <b>${req.body.position}</b> by <b>${req.user.name}</b>. It will expire on ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}`,
-			});
-
-			DossierModel.create({
-				by: req.user.cid,
-				affected: req.body.student,
-				action: `%b issued a solo endorsement for %a to work ${req.body.position} until ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}`,
-			});
-
-			if (process.env['DISCORD_TOKEN'] !== '') {
-				try {
-					await discord.sendMessage('1341139323604439090', {
-						content:
-							':student: **SOLO ENDORSEMENT ISSUED** :student:\n\n' +
-							`Student Name: ${student.name}${student.discord ? ` <@${student.discord}>` : ''}\n` +
-							`Instructor Name: ${req.user.name}\n` +
-							`Issued Date: ${DateTime.fromJSDate(new Date()).toUTC().toFormat(zau.DATE_FORMAT)}\n` +
-							`Expires Date: ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}\n` +
-							`Position: ${req.body.position}\n` +
-							zau.isProd
-								? '<@&1215950778120933467>'
-								: '\nThis was sent from a test environment and is not real.',
-					});
-				} catch (err) {
-					console.log('Error posting solo endorsement to discord', err);
-				}
-			}
-
-			return res.status(status.CREATED).json();
-		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
-			return next(e);
+router.post('/', getUser, isInstructor, async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		if (!req.body.student || !req.body.position || !req.body.expirationDate) {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'All fields are required',
+			};
 		}
-	},
-);
+
+		const student = await UserModel.findOne({ cid: req.body.student }).exec();
+		if (!student) {
+			throw {
+				code: status.NOT_FOUND,
+				message: 'Student not found',
+			};
+		}
+
+		const endDate = new Date(req.body.expirationDate);
+
+		let vatusaId = 0;
+		try {
+			const { data: vatusaResponse } = await vatusaApi.post('/solo', {
+				cid: student.cid,
+				position: req.body.position,
+				expDate: DateTime.fromJSDate(endDate).toUTC().toFormat('yyyy-MM-dd'),
+			});
+			vatusaId = vatusaResponse.data.id || 0;
+		} catch (err) {
+			throw {
+				code: status.INTERNAL_SERVER_ERROR,
+				message: (err as any).response?.data?.data?.msg || 'Error posting to VATUSA',
+			};
+		}
+
+		SoloEndorsementModel.create({
+			studentCid: student.cid,
+			instructorCid: req.user.cid,
+			position: req.body.position,
+			vatusaId: vatusaId,
+			expires: endDate,
+		});
+
+		await getCacheInstance().clear('solos');
+
+		NotificationModel.create({
+			recipient: req.body.student,
+			read: false,
+			title: 'Solo Endorsement Issued',
+			content: `You have been issued a solo endorsement for <b>${req.body.position}</b> by <b>${req.user.name}</b>. It will expire on ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}`,
+		});
+
+		DossierModel.create({
+			by: req.user.cid,
+			affected: req.body.student,
+			action: `%b issued a solo endorsement for %a to work ${req.body.position} until ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}`,
+		});
+
+		if (process.env['DISCORD_TOKEN'] !== '') {
+			try {
+				await discord.sendMessage('1341139323604439090', {
+					content:
+						':student: **SOLO ENDORSEMENT ISSUED** :student:\n\n' +
+						`Student Name: ${student.name}${student.discord ? ` <@${student.discord}>` : ''}\n` +
+						`Instructor Name: ${req.user.name}\n` +
+						`Issued Date: ${DateTime.fromJSDate(new Date()).toUTC().toFormat(zau.DATE_FORMAT)}\n` +
+						`Expires Date: ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}\n` +
+						`Position: ${req.body.position}\n` +
+						zau.isProd
+							? '<@&1215950778120933467>'
+							: '\nThis was sent from a test environment and is not real.',
+				});
+			} catch (err) {
+				console.log('Error posting solo endorsement to discord', err);
+			}
+		}
+
+		return res.status(status.CREATED).json();
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
+	}
+});
 
 router.delete(
 	'/:id',
 	getUser,
-	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
+	isInstructor,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['id'] || req.params['id'] === 'undefined') {

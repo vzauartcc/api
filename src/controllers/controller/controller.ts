@@ -6,7 +6,13 @@ import { sendMail } from '../../helpers/mailer.js';
 import { getUsersWithPrivacy } from '../../helpers/mongodb.js';
 import { vatusaApi } from '../../helpers/vatusa.js';
 import zau from '../../helpers/zau.js';
-import { hasRole, isNotSelf, isStaff, userOrInternal } from '../../middleware/auth.js';
+import {
+	hasRole,
+	isManagement,
+	isNotSelf,
+	isStaff,
+	userOrInternal,
+} from '../../middleware/auth.js';
 import internalAuth from '../../middleware/internalAuth.js';
 import getUser from '../../middleware/user.js';
 import { ControllerHoursModel } from '../../models/controllerHours.js';
@@ -716,7 +722,7 @@ router.patch(
 router.delete(
 	'/:cid',
 	getUser,
-	hasRole(['atm', 'datm']),
+	isManagement,
 	isNotSelf(false),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {

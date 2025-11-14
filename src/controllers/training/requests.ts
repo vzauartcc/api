@@ -2,7 +2,7 @@ import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { getCacheInstance } from '../../app.js';
 import { sendMail } from '../../helpers/mailer.js';
-import { hasRole } from '../../middleware/auth.js';
+import { isInstructor } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { NotificationModel } from '../../models/notification.js';
 import { TrainingRequestMilestoneModel } from '../../models/trainingMilestone.js';
@@ -173,7 +173,7 @@ router.post('/new', getUser, async (req: Request, res: Response, next: NextFunct
 router.get(
 	'/open',
 	getUser,
-	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
+	isInstructor,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const days = +(req.query['period'] as string) || 21; // days from start of CURRENT week
@@ -208,7 +208,7 @@ router.get(
 router.get(
 	'/open/:date',
 	getUser,
-	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
+	isInstructor,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const paramDate = req.params['date'] as string;
@@ -245,7 +245,7 @@ router.get(
 router.post(
 	'/:id/take',
 	getUser,
-	hasRole(['atm', 'datm', 'ta', 'ins', 'mtr', 'ia']),
+	isInstructor,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (new Date(req.body.startTime) >= new Date(req.body.endTime)) {
@@ -353,8 +353,8 @@ router.delete('/:id', getUser, async (req: Request, res: Response, next: NextFun
 
 		const isSelf = req.user.cid === request.studentCid;
 
-		if (!isSelf) {
-			hasRole(['atm', 'datm', 'ta'])(req, res, () => {}); // Call the auth middleware
+		if (!isSelf && !req.user.isSeniorStaff) {
+			res.status(status.FORBIDDEN).json();
 		}
 
 		await request.delete();

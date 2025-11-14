@@ -2,7 +2,7 @@ import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import { getCacheInstance } from '../../app.js';
-import { hasRole } from '../../middleware/auth.js';
+import { hasRole, isSeniorStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { ExamModel, type IExam } from '../../models/exam.js';
 import { ExamAttemptModel } from '../../models/examAttempt.js';
@@ -70,7 +70,7 @@ const createExamValidation = [
 router.post(
 	'/',
 	getUser,
-	hasRole(['atm', 'datm', 'ta']),
+	isSeniorStaff,
 	createExamValidation,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
@@ -116,7 +116,7 @@ router.post(
 router.patch(
 	'/:examId',
 	getUser,
-	hasRole(['atm', 'datm', 'ta']),
+	isSeniorStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		const { examId } = req.params; // Get the exam ID from the URL parameter
 		const { title, description, questions, timeLimit, questionSubsetSize } = req.body; // Extract updated fields from the request body
@@ -340,7 +340,7 @@ interface IExamPopulated extends Omit<IExam, 'createdBy'> {
 router.get(
 	'/',
 	getUser,
-	hasRole(['atm', 'datm', 'ta']),
+	isSeniorStaff,
 	async (_req: Request, res: Response, next: NextFunction) => {
 		try {
 			// Fetch all exams, populate createdBy, and exclude questions
@@ -374,7 +374,7 @@ router.get(
 router.get(
 	'/:id',
 	getUser,
-	hasRole(['atm', 'datm', 'ta']),
+	isSeniorStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const exam = await ExamModel.findById(req.params['id'])
@@ -487,7 +487,7 @@ router.put(
 router.delete(
 	'/:id',
 	getUser,
-	hasRole(['atm', 'datm', 'ta']),
+	isSeniorStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			// Attempt to find and delete the exam by ID

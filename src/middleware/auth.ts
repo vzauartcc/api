@@ -84,6 +84,22 @@ export function isStaff(req: Request, res: Response, next: NextFunction) {
 	return res.status(status.FORBIDDEN).json();
 }
 
+export function isEventsTeam(req: Request, res: Response, next: NextFunction) {
+	if (req.user && req.user.isEventsTeam) {
+		return next();
+	}
+
+	return res.status(status.FORBIDDEN).json();
+}
+
+export function isFacilityTeam(req: Request, res: Response, next: NextFunction) {
+	if (req.user && req.user.isFacilityTeam) {
+		return next();
+	}
+
+	return res.status(status.FORBIDDEN).json();
+}
+
 export function isSeniorStaff(req: Request, res: Response, next: NextFunction) {
 	if (req.user && req.user.isSeniorStaff) {
 		return next();

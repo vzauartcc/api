@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import multer from 'multer';
 import { getCacheInstance } from '../../app.js';
 import { deleteFromS3, setUploadStatus, uploadToS3 } from '../../helpers/s3.js';
-import { hasRole } from '../../middleware/auth.js';
+import { isFacilityTeam } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { DocumentModel } from '../../models/document.js';
 import { DossierModel } from '../../models/dossier.js';
@@ -72,7 +72,7 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
 router.post(
 	'/',
 	getUser,
-	hasRole(['atm', 'datm', 'ta', 'fe', 'wm']),
+	isFacilityTeam,
 	upload.single('download'),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
@@ -187,7 +187,7 @@ router.patch(
 	'/:slug',
 	upload.single('download'),
 	getUser,
-	hasRole(['atm', 'datm', 'ta', 'fe', 'wm']),
+	isFacilityTeam,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const document = await DocumentModel.findOne({ slug: req.params['slug'] })
@@ -311,7 +311,7 @@ router.patch(
 router.delete(
 	'/:id',
 	getUser,
-	hasRole(['atm', 'datm', 'ta', 'fe', 'wm']),
+	isFacilityTeam,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const doc = await DocumentModel.findById(req.params['id']).lean().exec();
