@@ -23,7 +23,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 			.limit(limit)
 			.populate('user', ['fname', 'lname'])
 			.lean()
-			.cache('1 minute', 'news')
+			.cache('10 minutes')
 			.exec();
 
 		return res.status(status.OK).json({ amount, news });
