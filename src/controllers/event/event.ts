@@ -80,7 +80,7 @@ router.get('/archive', async (req: Request, res: Response, next: NextFunction) =
 			.limit(limit)
 			.sort({ eventStart: 'desc' })
 			.lean()
-			.cache('10 minutes', 'event-archive')
+			.cache('10 minutes')
 			.exec();
 
 		return res.status(status.OK).json({ amount: count, events });

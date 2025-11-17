@@ -183,7 +183,7 @@ router.post(
 	},
 );
 
-router.patch(
+router.put(
 	'/:slug',
 	upload.single('download'),
 	getUser,
