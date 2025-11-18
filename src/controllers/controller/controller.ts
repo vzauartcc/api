@@ -15,6 +15,7 @@ import {
 } from '../../middleware/auth.js';
 import internalAuth from '../../middleware/internalAuth.js';
 import getUser from '../../middleware/user.js';
+import { CertificationModel } from '../../models/certification.js';
 import { ControllerHoursModel } from '../../models/controllerHours.js';
 import { DossierModel } from '../../models/dossier.js';
 import { RoleModel } from '../../models/role.js';
@@ -155,6 +156,19 @@ router.get('/role', async (_req: Request, res: Response, next: NextFunction) => 
 		const roles = await RoleModel.find().lean().cache('5 minutes').exec();
 
 		return res.status(status.OK).json(roles);
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
+	}
+});
+
+router.get('/certifications', async (_req: Request, res: Response, next: NextFunction) => {
+	try {
+		const certifications = await CertificationModel.find().lean().cache('10 minutes').exec();
+
+		return res.status(status.OK).json(certifications);
 	} catch (e) {
 		if (!(e as any).code) {
 			captureException(e);
