@@ -48,6 +48,13 @@ router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 
 router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => {
 	try {
+		if (!req.params['slug'] || req.params['slug'] === 'undefined') {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Invalid document slug.',
+			};
+		}
+
 		const document = await DocumentModel.findOne({ slug: req.params['slug'], deletedAt: null })
 			.lean()
 			.cache('5 minutes', `documents-${req.params['slug']}`)
@@ -190,6 +197,13 @@ router.put(
 	isFacilityTeam,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (!req.params['slug'] || req.params['slug'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid document slug.',
+				};
+			}
+
 			const document = await DocumentModel.findOne({ slug: req.params['slug'] })
 				.cache('5 minutes', `documents-${req.params['slug']}`)
 				.exec();
@@ -314,6 +328,13 @@ router.delete(
 	isFacilityTeam,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (!req.params['id'] || req.params['id'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid ID.',
+				};
+			}
+
 			const doc = await DocumentModel.findById(req.params['id']).lean().exec();
 			if (!doc) {
 				throw {

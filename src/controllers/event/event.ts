@@ -94,6 +94,13 @@ router.get('/archive', async (req: Request, res: Response, next: NextFunction) =
 
 router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => {
 	try {
+		if (!req.params['slug'] || req.params['slug'] === 'undefined') {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Invalid event slug.',
+			};
+		}
+
 		const event = await EventModel.findOne({
 			url: req.params['slug'],
 			deleted: false,
@@ -113,6 +120,13 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
 //#region Position Signups
 router.get('/:slug/positions', async (req: Request, res: Response, next: NextFunction) => {
 	try {
+		if (!req.params['slug'] || req.params['slug'] === 'undefined') {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Invalid event slug.',
+			};
+		}
+
 		const event = await EventModel.findOne({
 			url: req.params['slug'],
 			deleted: false,
@@ -138,6 +152,13 @@ router.get('/:slug/positions', async (req: Request, res: Response, next: NextFun
 
 router.patch('/:slug/signup', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
+		if (!req.params['slug'] || req.params['slug'] === 'undefined') {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Invalid event slug.',
+			};
+		}
+
 		if (req.body.requests.length > 3) {
 			throw {
 				code: status.BAD_REQUEST,
@@ -203,6 +224,13 @@ router.patch('/:slug/signup', getUser, async (req: Request, res: Response, next:
 
 router.delete('/:slug/signup', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
+		if (!req.params['slug'] || req.params['slug'] === 'undefined') {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Invalid event slug.',
+			};
+		}
+
 		const event = await EventModel.findOneAndUpdate(
 			{ url: req.params['slug'] },
 			{
@@ -245,6 +273,23 @@ router.delete(
 	isEventsTeam,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (!req.params['slug'] || req.params['slug'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid event slug.',
+				};
+			}
+
+			if (
+				!req.params['cid'] ||
+				req.params['cid'] === 'undefined' ||
+				isNaN(Number(req.params['cid']))
+			) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid CID.',
+				};
+			}
 			const signup = await EventModel.findOneAndUpdate(
 				{ url: req.params['slug'] },
 				{
@@ -301,6 +346,23 @@ router.patch(
 	isEventsTeam,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (!req.params['slug'] || req.params['slug'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid event slug.',
+				};
+			}
+
+			if (
+				!req.params['cid'] ||
+				req.params['cid'] === 'undefined' ||
+				isNaN(Number(req.params['cid']))
+			) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid CID.',
+				};
+			}
 			const user = await UserModel.findOne({ cid: req.params['cid'] })
 				.cache('1 minute', `user-${req.params['cid']}`)
 				.exec();
@@ -370,6 +432,13 @@ router.patch(
 	isEventsTeam,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (!req.params['slug'] || req.params['slug'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid event slug.',
+				};
+			}
+
 			const { position, cid } = req.body;
 
 			const eventData = await EventModel.findOneAndUpdate(
@@ -697,6 +766,13 @@ router.put(
 	upload.single('banner'),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (!req.params['slug'] || req.params['slug'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid event slug.',
+				};
+			}
+
 			const eventData = await EventModel.findOne({ url: req.params['slug'] })
 				.cache('1 minute', `event-${req.params['slug']}`)
 				.exec();
@@ -865,6 +941,13 @@ router.delete(
 	isEventsTeam,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (!req.params['slug'] || req.params['slug'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid event slug.',
+				};
+			}
+
 			const deleteEvent = await EventModel.findOne({ url: req.params['slug'] })
 				.cache('1 minute', `event-${req.params['slug']}`)
 				.exec();
@@ -929,6 +1012,13 @@ router.patch(
 	isEventsTeam,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (!req.params['slug'] || req.params['slug'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid event slug.',
+				};
+			}
+
 			await EventModel.updateOne(
 				{ url: req.params['slug'] },
 				{
@@ -987,6 +1077,13 @@ router.put(
 	isEventsTeam,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (!req.params['slug'] || req.params['slug'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid event slug.',
+				};
+			}
+
 			const event = await EventModel.updateOne(
 				{ url: req.params['slug'] },
 				{

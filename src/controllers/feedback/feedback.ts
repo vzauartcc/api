@@ -218,6 +218,13 @@ router.patch(
 	async (req: Request, res: Response, next: NextFunction) => {
 		// Approve feedback
 		try {
+			if (!req.params['id'] || req.params['id'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid ID.',
+				};
+			}
+
 			const approved = await FeedbackModel.findOneAndUpdate(
 				{ _id: req.params['id'] },
 				{
@@ -269,6 +276,13 @@ router.patch(
 	async (req: Request, res: Response, next: NextFunction) => {
 		// Reject feedback
 		try {
+			if (!req.params['id'] || req.params['id'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid ID.',
+				};
+			}
+
 			const feedback = await FeedbackModel.findOne({ _id: req.params['id'] })
 				.cache('1 minute', `feedback-${req.params['id']}`)
 				.exec();

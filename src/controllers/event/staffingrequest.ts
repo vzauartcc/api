@@ -41,6 +41,13 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 	try {
+		if (!req.params['id'] || req.params['id'] === 'undefined') {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Invalid ID.',
+			};
+		}
+
 		const staffingRequest = await StaffingRequestModel.findById(req.params['id'])
 			.cache('10 minutes', `staffing-request-${req.params['id']}`)
 			.exec();
@@ -147,6 +154,13 @@ router.put(
 	isEventsTeam,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (!req.params['id'] || req.params['id'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid ID.',
+				};
+			}
+
 			const staffingRequest = await StaffingRequestModel.findById(req.params['id'])
 				.cache('1 minute', `staffing-request-${req.params['id']}`)
 				.exec();
@@ -209,6 +223,13 @@ router.delete(
 	isEventsTeam,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (!req.params['id'] || req.params['id'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid ID.',
+				};
+			}
+
 			const staffingRequest = await StaffingRequestModel.findById(req.params['id'])
 				.cache('1 minute', `staffing-request-${req.params['id']}`)
 				.exec();

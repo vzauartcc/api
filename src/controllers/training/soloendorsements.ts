@@ -51,7 +51,7 @@ router.get(
 			if (!req.params['id'] || req.params['id'] === 'undefined') {
 				throw {
 					code: status.BAD_REQUEST,
-					message: 'Id required.',
+					message: 'Invalid ID.',
 				};
 			}
 
@@ -175,7 +175,7 @@ router.delete(
 			if (!req.params['id'] || req.params['id'] === 'undefined') {
 				throw {
 					code: status.BAD_REQUEST,
-					message: 'Id required.',
+					message: 'Invalid ID.',
 				};
 			}
 

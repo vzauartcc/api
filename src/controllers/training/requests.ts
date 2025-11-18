@@ -211,6 +211,13 @@ router.get(
 	isTrainingStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (!req.params['date'] || req.params['date'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid date.',
+				};
+			}
+
 			const paramDate = req.params['date'] as string;
 			const d = new Date(
 				`${paramDate.slice(0, 4)}-${paramDate.slice(4, 6)}-${paramDate.slice(6, 8)}`,
@@ -248,6 +255,13 @@ router.post(
 	isTrainingStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (!req.params['id'] || req.params['id'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid ID.',
+				};
+			}
+
 			if (new Date(req.body.startTime) >= new Date(req.body.endTime)) {
 				throw {
 					code: status.BAD_REQUEST,
@@ -340,6 +354,13 @@ router.post(
 
 router.delete('/:id', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
+		if (!req.params['id'] || req.params['id'] === 'undefined') {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Invalid ID.',
+			};
+		}
+
 		const request = await TrainingRequestModel.findById(req.params['id'])
 			.cache('10 minutes', `request-${req.params['id']}`)
 			.exec();
