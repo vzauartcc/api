@@ -311,6 +311,17 @@ router.patch(
 // @TODO: fix this to remove the ts-ignore and structure the data properly
 router.get('/stats/:cid', async (req: Request, res: Response, next: NextFunction) => {
 	try {
+		if (
+			!req.params['cid'] ||
+			req.params['cid'] === 'undefined' ||
+			isNaN(Number(req.params['cid']))
+		) {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Invalid CID.',
+			};
+		}
+
 		const controllerHours = await ControllerHoursModel.find({ cid: req.params['cid'] })
 			.cache('5 minutes')
 			.exec();
