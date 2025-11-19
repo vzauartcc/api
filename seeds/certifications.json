@@ -64,14 +64,6 @@
 		"rolledInto": ["ordapp"]
 	},
 	{
-		"name": "C90 Solo",
-		"code": "ordapps",
-		"order": 40,
-		"class": "solom",
-		"facility": "app",
-		"rolledInto": ["none"]
-	},
-	{
 		"name": "C90",
 		"code": "ordapp",
 		"order": 41,
