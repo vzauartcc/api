@@ -11,7 +11,7 @@ export function userSelector(isStaff: boolean): string {
 }
 
 export async function getUsersWithPrivacy(user: IUser, findOptions = {}) {
-	const isStaff = user.isStaff || user.isInstructor || user.rating >= 11;
+	const isStaff = user.isStaff || user.isTrainingStaff || user.rating >= 11;
 	const projectLName = isStaff
 		? '$lname'
 		: {

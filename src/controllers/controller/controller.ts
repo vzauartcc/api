@@ -243,9 +243,12 @@ router.get('/:cid', userOrInternal, async (req: Request, res: Response, next: Ne
 
 		let user: IUser[] = [];
 		if (req.internal === true) {
-			user = await getUsersWithPrivacy({ isStaff: true, isInstructor: true, rating: 12 } as IUser, {
-				cid: Number(req.params['cid']),
-			});
+			user = await getUsersWithPrivacy(
+				{ isStaff: true, isTrainingStaff: true, rating: 12 } as IUser,
+				{
+					cid: Number(req.params['cid']),
+				},
+			);
 		} else {
 			user = await getUsersWithPrivacy(req.user, {
 				cid: Number(req.params['cid']),
