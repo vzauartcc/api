@@ -86,6 +86,13 @@ router.post('/', getUser, isStaff, async (req: Request, res: Response, next: Nex
 
 router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => {
 	try {
+		if (!req.params['slug'] || req.params['slug'] === 'undefined') {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Invalid news slug.',
+			};
+		}
+
 		const newsItem = await NewsModel.findOne({ uriSlug: req.params['slug'] })
 			.populate('user', 'fname lname')
 			.lean()
@@ -114,6 +121,13 @@ router.patch(
 	isStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (!req.params['slug'] || req.params['slug'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid news slug.',
+				};
+			}
+
 			const { title, content } = req.body;
 			const newsItem = await NewsModel.findOne({ uriSlug: req.params['slug'] })
 				.cache('10 minutes', `news-${req.params['slug']}`)
@@ -164,6 +178,13 @@ router.delete(
 	isStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (!req.params['slug'] || req.params['slug'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid news slug.',
+				};
+			}
+
 			const newsItem = await NewsModel.findOne({ uriSlug: req.params['slug'] })
 				.cache('10 minutes', `news-${req.params['slug']}`)
 				.exec();

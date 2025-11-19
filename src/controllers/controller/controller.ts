@@ -15,6 +15,7 @@ import {
 } from '../../middleware/auth.js';
 import internalAuth from '../../middleware/internalAuth.js';
 import getUser from '../../middleware/user.js';
+import { CertificationModel } from '../../models/certification.js';
 import { ControllerHoursModel } from '../../models/controllerHours.js';
 import { DossierModel } from '../../models/dossier.js';
 import { RoleModel } from '../../models/role.js';
@@ -81,7 +82,7 @@ router.get('/staff', async (_req: Request, res: Response, next: NextFunction) =>
 
 		if (!users) {
 			throw {
-				code: 503,
+				code: status.SERVICE_UNAVAILABLE,
 				message: 'Unable to retrieve staff members',
 			};
 		}
@@ -163,6 +164,19 @@ router.get('/role', async (_req: Request, res: Response, next: NextFunction) => 
 	}
 });
 
+router.get('/certifications', async (_req: Request, res: Response, next: NextFunction) => {
+	try {
+		const certifications = await CertificationModel.find().lean().cache('10 minutes').exec();
+
+		return res.status(status.OK).json(certifications);
+	} catch (e) {
+		if (!(e as any).code) {
+			captureException(e);
+		}
+		return next(e);
+	}
+});
+
 router.get('/oi', async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const oi = await UserModel.find({ deletedAt: null, member: true })
@@ -216,11 +230,25 @@ router.get('/log', getUser, isStaff, async (req: Request, res: Response, next: N
 
 router.get('/:cid', userOrInternal, async (req: Request, res: Response, next: NextFunction) => {
 	try {
+		if (
+			!req.params['cid'] ||
+			req.params['cid'] === 'undefined' ||
+			isNaN(Number(req.params['cid']))
+		) {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Invalid CID.',
+			};
+		}
+
 		let user: IUser[] = [];
 		if (req.internal === true) {
-			user = await getUsersWithPrivacy({ isStaff: true, isInstructor: true, rating: 12 } as IUser, {
-				cid: Number(req.params['cid']),
-			});
+			user = await getUsersWithPrivacy(
+				{ isStaff: true, isTrainingStaff: true, rating: 12 } as IUser,
+				{
+					cid: Number(req.params['cid']),
+				},
+			);
 		} else {
 			user = await getUsersWithPrivacy(req.user, {
 				cid: Number(req.params['cid']),
@@ -250,7 +278,18 @@ router.patch(
 		if (!req.body.rating) {
 			throw {
 				code: status.BAD_REQUEST,
-				message: 'Rating is required',
+				message: 'Invalid Rating',
+			};
+		}
+
+		if (
+			!req.params['cid'] ||
+			req.params['cid'] === 'undefined' ||
+			isNaN(Number(req.params['cid']))
+		) {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Invalid CID.',
 			};
 		}
 
@@ -297,6 +336,17 @@ router.patch(
 // @TODO: fix this to remove the ts-ignore and structure the data properly
 router.get('/stats/:cid', async (req: Request, res: Response, next: NextFunction) => {
 	try {
+		if (
+			!req.params['cid'] ||
+			req.params['cid'] === 'undefined' ||
+			isNaN(Number(req.params['cid']))
+		) {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Invalid CID.',
+			};
+		}
+
 		const controllerHours = await ControllerHoursModel.find({ cid: req.params['cid'] })
 			.cache('5 minutes')
 			.exec();
@@ -391,6 +441,17 @@ router.get('/stats/:cid', async (req: Request, res: Response, next: NextFunction
 
 router.post('/:cid', internalAuth, async (req: Request, res: Response, next: NextFunction) => {
 	try {
+		if (
+			!req.params['cid'] ||
+			req.params['cid'] === 'undefined' ||
+			isNaN(Number(req.params['cid']))
+		) {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Invalid CID.',
+			};
+		}
+
 		const user = await UserModel.findOne({ cid: req.params['cid'] })
 			.cache('10 minutes', `user-${req.params['cid']}`)
 			.exec();
@@ -464,6 +525,17 @@ router.patch(
 	internalAuth,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (
+				!req.params['cid'] ||
+				req.params['cid'] === 'undefined' ||
+				isNaN(Number(req.params['cid']))
+			) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid CID.',
+				};
+			}
+
 			const user = await UserModel.findOne({ cid: req.params['cid'] })
 				.cache('10 minutes', `user-${req.params['cid']}`)
 				.exec();
@@ -547,6 +619,17 @@ router.patch(
 	internalAuth,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (
+				!req.params['cid'] ||
+				req.params['cid'] === 'undefined' ||
+				isNaN(Number(req.params['cid']))
+			) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid CID.',
+				};
+			}
+
 			const user = await UserModel.findOne({ cid: req.params['cid'] })
 				.cache('10 minutes', `user-${req.params['cid']}`)
 				.exec();
@@ -607,6 +690,17 @@ router.put(
 				throw {
 					code: status.BAD_REQUEST,
 					message: 'No user data included',
+				};
+			}
+
+			if (
+				!req.params['cid'] ||
+				req.params['cid'] === 'undefined' ||
+				isNaN(Number(req.params['cid']))
+			) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid CID.',
 				};
 			}
 
@@ -689,7 +783,17 @@ router.patch(
 	internalAuth,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			// Find the user by CID
+			if (
+				!req.params['cid'] ||
+				req.params['cid'] === 'undefined' ||
+				isNaN(Number(req.params['cid']))
+			) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid CID.',
+				};
+			}
+
 			const user = await UserModel.findOne({ cid: req.params['cid'] })
 				.cache('10 minutes', `user-${req.params['cid']}`)
 				.exec();
@@ -730,6 +834,17 @@ router.delete(
 				throw {
 					code: status.BAD_REQUEST,
 					message: 'You must specify a reason',
+				};
+			}
+
+			if (
+				!req.params['cid'] ||
+				req.params['cid'] === 'undefined' ||
+				isNaN(Number(req.params['cid']))
+			) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid CID.',
 				};
 			}
 

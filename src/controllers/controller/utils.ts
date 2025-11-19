@@ -163,6 +163,7 @@ export function grantCerts(
 }
 
 export async function clearUserCache(id: number) {
+	await getCacheInstance().clear('user-{"member":true}');
 	await getCacheInstance().clear('users');
 	await getCacheInstance().clear('discord-users');
 	await getCacheInstance().clear('user-users-user');

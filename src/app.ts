@@ -21,7 +21,7 @@ import statsRouter from './controllers/stats/stats.js';
 import trainingRouter from './controllers/training/training.js';
 import userRouter from './controllers/user/user.js';
 import vatusaRouter from './controllers/vatusa/vatusa.js';
-import { parseRedisConnectionString } from './helpers/redis.js';
+import { clearCacheKeys, parseRedisConnectionString } from './helpers/redis.js';
 import { setupS3 } from './helpers/s3.js';
 import zau from './helpers/zau.js';
 import { soloExpiringNotifications, syncVatusaSoloEndorsements } from './tasks/solo.js';
@@ -107,7 +107,8 @@ const cacheInstance = cache.init(mongoose, {
 	},
 	debug: zau.isDev,
 });
-await cacheInstance.clear();
+
+await clearCacheKeys(app.redis);
 
 export const getCacheInstance = () => {
 	return cacheInstance;

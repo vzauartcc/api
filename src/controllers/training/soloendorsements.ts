@@ -2,7 +2,6 @@ import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
 import { getCacheInstance } from '../../app.js';
-import discord from '../../helpers/discord.js';
 import { vatusaApi } from '../../helpers/vatusa.js';
 import zau from '../../helpers/zau.js';
 import { isTrainingStaff } from '../../middleware/auth.js';
@@ -51,7 +50,7 @@ router.get(
 			if (!req.params['id'] || req.params['id'] === 'undefined') {
 				throw {
 					code: status.BAD_REQUEST,
-					message: 'Id required.',
+					message: 'Invalid ID.',
 				};
 			}
 
@@ -137,25 +136,6 @@ router.post(
 				action: `%b issued a solo endorsement for %a to work ${req.body.position} until ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}`,
 			});
 
-			if (process.env['DISCORD_TOKEN'] !== '') {
-				try {
-					await discord.sendMessage('1341139323604439090', {
-						content:
-							':student: **SOLO ENDORSEMENT ISSUED** :student:\n\n' +
-							`Student Name: ${student.name}${student.discord ? ` <@${student.discord}>` : ''}\n` +
-							`Instructor Name: ${req.user.name}\n` +
-							`Issued Date: ${DateTime.fromJSDate(new Date()).toUTC().toFormat(zau.DATE_FORMAT)}\n` +
-							`Expires Date: ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}\n` +
-							`Position: ${req.body.position}\n` +
-							zau.isProd
-								? '<@&1215950778120933467>'
-								: '\nThis was sent from a test environment and is not real.',
-					});
-				} catch (err) {
-					console.log('Error posting solo endorsement to discord', err);
-				}
-			}
-
 			return res.status(status.CREATED).json();
 		} catch (e) {
 			if (!(e as any).code) {
@@ -175,7 +155,7 @@ router.delete(
 			if (!req.params['id'] || req.params['id'] === 'undefined') {
 				throw {
 					code: status.BAD_REQUEST,
-					message: 'Id required.',
+					message: 'Invalid ID.',
 				};
 			}
 

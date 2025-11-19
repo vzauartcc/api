@@ -160,6 +160,17 @@ router.put(
 	isManagement,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (
+				!req.params['cid'] ||
+				req.params['cid'] === 'undefined' ||
+				isNaN(Number(req.params['cid']))
+			) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid CID.',
+				};
+			}
+
 			const application = await VisitApplicationModel.findOne({ cid: req.params['cid'] })
 				.cache()
 				.exec();
@@ -236,6 +247,17 @@ router.delete(
 	isManagement,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (
+				!req.params['cid'] ||
+				req.params['cid'] === 'undefined' ||
+				isNaN(Number(req.params['cid']))
+			) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid CID.',
+				};
+			}
+
 			const application = await VisitApplicationModel.findOne({ cid: req.params['cid'] })
 				.cache()
 				.exec();

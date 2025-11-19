@@ -509,6 +509,16 @@ router.post(
 	internalAuth,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (
+				!req.params['cid'] ||
+				req.params['cid'] === 'undefined' ||
+				isNaN(Number(req.params['cid']))
+			) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid CID.',
+				};
+			}
 			const { redis } = req.app;
 			const { cid } = req.params;
 			const fiftyData = await getFiftyData(cid!);

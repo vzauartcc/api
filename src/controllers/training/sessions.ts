@@ -101,6 +101,17 @@ router.get(
 	isTrainingStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (
+				!req.params['cid'] ||
+				req.params['cid'] === 'undefined' ||
+				isNaN(Number(req.params['cid']))
+			) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid CID.',
+				};
+			}
+
 			const controller = await UserModel.findOne({ cid: req.params['cid'] })
 				.select('fname lname cid')
 				.lean()
@@ -182,6 +193,13 @@ router.get(
 
 router.get('/:id', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
+		if (!req.params['id'] || req.params['id'] === 'undefined') {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Invalid ID.',
+			};
+		}
+
 		const isIns = ['ta', 'ins', 'mtr', 'ia', 'atm', 'datm'].some((r) =>
 			req.user.roleCodes.includes(r),
 		);
@@ -230,6 +248,13 @@ router.patch(
 	isTrainingStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (!req.params['id'] || req.params['id'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid ID.',
+				};
+			}
+
 			const session = await TrainingSessionModel.findByIdAndUpdate(
 				req.params['id'],
 				req.body,
@@ -262,6 +287,13 @@ router.patch(
 	isTrainingStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (!req.params['id'] || req.params['id'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid ID.',
+				};
+			}
+
 			if (
 				req.body.position === '' ||
 				req.body.progress === null ||
@@ -390,6 +422,13 @@ router.delete(
 	isTrainingStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (!req.params['id'] || req.params['id'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid ID.',
+				};
+			}
+
 			if (!req.params['id'] || req.params['id'] === 'undefined') {
 				throw {
 					code: status.BAD_REQUEST,

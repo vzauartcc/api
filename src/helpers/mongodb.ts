@@ -2,7 +2,7 @@ import { UserModel, type IUser } from '../models/user.js';
 import zau from './zau.js';
 
 export function userSelector(isStaff: boolean): string {
-	let select = '-idsToken -discordInfo -discord -certificationDate -broadcast';
+	let select = '-idsToken -discordInfo -discord -broadcast';
 	if (!isStaff) {
 		select += ' -email -history -joinDate -removalDate -trainingMilestones';
 	}
@@ -11,7 +11,7 @@ export function userSelector(isStaff: boolean): string {
 }
 
 export async function getUsersWithPrivacy(user: IUser, findOptions = {}) {
-	const isStaff = user.isStaff || user.isInstructor || user.rating >= 11;
+	const isStaff = user.isStaff || user.isTrainingStaff || user.rating >= 11;
 	const projectLName = isStaff
 		? '$lname'
 		: {

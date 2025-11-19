@@ -123,7 +123,7 @@ router.get('/self', async (req: Request, res: Response, next: NextFunction) => {
 	} catch (e) {
 		deleteAuthCookie(res);
 
-		if (!(e as any).code) {
+		if (!(e as any).code && (e as any).name !== 'JsonWebTokenError') {
 			captureException(e);
 		}
 
@@ -272,7 +272,7 @@ router.post('/login', oAuth, async (req: Request, res: Response, next: NextFunct
 	}
 });
 
-router.get('/logout', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/logout', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.cookies['token']) {
 			throw {
@@ -396,28 +396,32 @@ router.put(
 	},
 );
 
-router.put('/notifications/read/:id', async (req: Request, res: Response, next: NextFunction) => {
-	try {
-		if (!req.params['id']) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Incomplete request',
-			};
-		}
-		await NotificationModel.findByIdAndUpdate(req.params['id'], {
-			read: true,
-		}).exec();
+router.put(
+	'/notifications/read/:id',
+	getUser,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			if (!req.params['id'] || req.params['id'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid ID.',
+				};
+			}
+			await NotificationModel.findByIdAndUpdate(req.params['id'], {
+				read: true,
+			}).exec();
 
-		await getCacheInstance().clear(`notifications-unread-${req.user.cid}`);
+			await getCacheInstance().clear(`notifications-unread-${req.user.cid}`);
 
-		return res.status(status.OK).json();
-	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
+			return res.status(status.OK).json();
+		} catch (e) {
+			if (!(e as any).code) {
+				captureException(e);
+			}
+			return next(e);
 		}
-		return next(e);
-	}
-});
+	},
+);
 
 router.delete(
 	'/notifications',
@@ -478,7 +482,7 @@ router.patch('/:cid', internalAuth, async (req: Request, res: Response, next: Ne
 		if (!req.body || !req.params['cid'] || req.params['cid'] === 'undefined') {
 			throw {
 				code: status.BAD_REQUEST,
-				message: 'No user data provided',
+				message: 'Invalid CID.',
 			};
 		}
 

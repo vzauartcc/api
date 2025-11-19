@@ -1,128 +1,122 @@
 [
 	{
-		"name": "Minor Delivery",
-		"code": "del",
-		"order": 1,
-		"class": "minor",
-		"facility": "del"
-	},
-	{
-		"name": "Major Delivery",
-		"code": "orddel",
-		"order": 2,
-		"class": "major",
-		"facility": "del"
-	},
-	{
-		"name": "Minor Ground",
+		"name": "N/T GND",
 		"code": "gnd",
-		"order": 3,
-		"class": "minor",
-		"facility": "gnd"
+		"order": 1,
+		"class": "non-tier",
+		"facility": "gnd",
+		"rolledInto": ["twr", "mdwgnd"]
 	},
 	{
-		"name": "Major Ground",
-		"code": "ordgnd",
-		"order": 4,
-		"class": "major",
-		"facility": "gnd"
-	},
-	{
-		"name": "Minor Tower",
+		"name": "N/T TWR",
 		"code": "twr",
-		"order": 5,
-		"class": "minor",
-		"facility": "twr"
+		"order": 2,
+		"class": "non-tier",
+		"facility": "twr",
+		"rolledInto": ["mdwtwr"]
 	},
 	{
-		"name": "Major Tower",
-		"code": "ordtwr",
-		"order": 6,
-		"class": "major",
-		"facility": "twr"
-	},
-	{
-		"name": "Minor Approach",
-		"code": "app",
-		"order": 7,
-		"class": "minor",
-		"facility": "app"
-	},
-	{
-		"name": "Major Approach",
-		"code": "ordapp",
-		"order": 8,
-		"class": "major",
-		"facility": "app"
-	},
-	{
-		"name": "Chicago Center",
-		"code": "zau",
-		"order": 9,
-		"class": "center",
-		"facility": "ctr"
-	},
-	{
-		"name": "Minor Approach Solo",
-		"code": "apps",
+		"name": "MDW GND",
+		"code": "mdwgnd",
 		"order": 10,
-		"class": "minor",
-		"facility": "app"
+		"class": "tier-2",
+		"facility": "gnd",
+		"rolledInto": ["mdwtwr"]
 	},
 	{
-		"name": "Minor Tower Solo",
-		"code": "twrs",
+		"name": "MDW TWR",
+		"code": "mdwtwr",
 		"order": 11,
-		"class": "minor",
-		"facility": "twr"
+		"class": "tier-2",
+		"facility": "twr",
+		"rolledInto": ["zaut2"]
 	},
 	{
-		"name": "Minor Ground Solo",
-		"code": "gnds",
-		"order": 12,
-		"class": "minor",
-		"facility": "gnd"
+		"name": "ORD GND",
+		"code": "ordgnd",
+		"order": 20,
+		"class": "tier-1",
+		"facility": "gnd",
+		"rolledInto": ["ordtwr"]
 	},
 	{
-		"name": "Minor Delivery Solo",
-		"code": "dels",
-		"order": 13,
-		"class": "minor",
-		"facility": "del"
+		"name": "ORD TWR",
+		"code": "ordtwr",
+		"order": 21,
+		"class": "tier-1",
+		"facility": "twr",
+		"rolledInto": ["ordtwre"]
 	},
 	{
-		"name": "Major Approach Solo",
-		"code": "ordapps",
-		"order": 14,
-		"class": "major",
-		"facility": "app"
+		"name": "N/T APP Solo",
+		"code": "apps",
+		"order": 30,
+		"class": "solon",
+		"facility": "app",
+		"rolledInto": ["none"]
 	},
 	{
-		"name": "Major Tower Solo",
-		"code": "ordtwrs",
-		"order": 15,
-		"class": "major",
-		"facility": "twr"
+		"name": "N/T APP",
+		"code": "app",
+		"order": 31,
+		"class": "non-tier",
+		"facility": "app",
+		"rolledInto": ["ordapp"]
 	},
 	{
-		"name": "Major Ground Solo",
-		"code": "ordgnds",
-		"order": 16,
-		"class": "major",
-		"facility": "gnd"
+		"name": "C90",
+		"code": "ordapp",
+		"order": 41,
+		"class": "tier-1",
+		"facility": "app",
+		"rolledInto": ["ordappe"]
 	},
 	{
-		"name": "Major Delivery Solo",
-		"code": "orddels",
-		"order": 17,
-		"class": "major",
-		"facility": "del"
-	},
-	{
-		"name": "Center Solo",
+		"name": "ZAU Solo",
 		"code": "zaus",
-		"order": 18,
-		"class": "center",
-		"facility": "ctr"
+		"order": 50,
+		"class": "solom",
+		"facility": "ctr",
+		"rolledInto": ["none"]
+	},
+	{
+		"name": "ZAU T2",
+		"code": "zaut2",
+		"order": 51,
+		"class": "tier-2",
+		"facility": "ctr",
+		"rolledInto": ["zaue"]
+	},
+	{
+		"name": "ZAU",
+		"code": "zau",
+		"order": 52,
+		"class": "tier-1",
+		"facility": "ctr",
+		"rolledInto": ["zaue"]
+	},
+	{
+		"name": "ORD TWR Events",
+		"code": "ordtwre",
+		"order": 97,
+		"class": "evento",
+		"facility": "twr",
+		"rolledInto": ["none"]
+	},
+	{
+		"name": "C90 Events",
+		"code": "ordappe",
+		"order": 98,
+		"class": "eventa",
+		"facility": "app",
+		"rolledInto": ["none"]
+	},
+	{
+		"name": "ZAU Events",
+		"code": "zaue",
+		"order": 99,
+		"class": "eventc",
+		"facility": "ctr",
+		"rolledInto": ["none"]
 	}
 ]
