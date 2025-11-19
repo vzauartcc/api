@@ -30,7 +30,7 @@ export async function soloExpiringNotifications() {
 
 	for (const solo of solos) {
 		try {
-			await discord.sendMessage('1341139323604439090', {
+			await discord.sendMessage('1107470185218199562', {
 				content: `:timer: **SOLO ENDORSEMENT EXPIRING SOON** :timer:\n<@&1215950778120933467>\n\nStudent Name: ${solo.student!.name}\nExpiration Date: ${DateTime.fromJSDate(solo.expires).toUTC().toFormat(zau.DATE_FORMAT)} (<t:${Math.floor(solo.expires.getTime() / 1000)}:R>)\nPosition: ${solo.position}\n\n[Manage Solo Endorsements](https://${process.env['DOMAIN']}/ins/solo)`,
 			});
 
