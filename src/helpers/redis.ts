@@ -1,3 +1,5 @@
+import { Redis } from 'ioredis';
+
 interface RedisConnectionDetails {
 	username: string;
 	password: string;
@@ -41,5 +43,14 @@ export function parseRedisConnectionString(connectionString: string): RedisConne
 			host: '',
 			port: 6379,
 		};
+	}
+}
+
+export async function clearCacheKeys(redis: Redis) {
+	const keys = await redis.keys('cache-mongoose:*');
+
+	if (keys.length > 0) {
+		const count = await redis.del(keys);
+		console.log('Deleted', count, 'old cache entries.');
 	}
 }
