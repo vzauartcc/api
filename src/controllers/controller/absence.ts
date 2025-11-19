@@ -93,18 +93,18 @@ router.delete(
 	isManagement,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			if (!req.params['id']) {
+			if (!req.params['id'] || req.params['id'] === 'undefined') {
 				throw {
 					code: status.BAD_REQUEST,
-					message: 'Invalid request',
+					message: 'Invalid ID',
 				};
 			}
 
 			const absence = await AbsenceModel.findOne({ _id: req.params['id'] }).cache().exec();
 			if (!absence) {
 				throw {
-					code: status.BAD_REQUEST,
-					message: 'Unable to locate absence.',
+					code: status.NOT_FOUND,
+					message: 'Absence not found.',
 				};
 			}
 

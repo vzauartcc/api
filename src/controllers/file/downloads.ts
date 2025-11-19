@@ -46,6 +46,13 @@ router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 	try {
+		if (!req.params['id'] || req.params['slug'] === 'undefined') {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Invalid ID.',
+			};
+		}
+
 		const download = await DownloadModel.findById(req.params['id'])
 			.lean()
 			.cache('5 minutes', `download-${req.params['id']}`)
@@ -159,6 +166,13 @@ router.patch(
 	isFacilityTeam,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (!req.params['id'] || req.params['id'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid ID.',
+				};
+			}
+
 			const download = await DownloadModel.findById(req.params['id'])
 				.cache('5 minutes', `download-${req.params['id']}`)
 				.exec();
@@ -248,6 +262,13 @@ router.delete(
 	isFacilityTeam,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (!req.params['slug'] || req.params['id'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid ID.',
+				};
+			}
+
 			const download = await DownloadModel.findById(req.params['id'])
 				.lean()
 				.cache('5 minutes', `download-${req.params['id']}`)

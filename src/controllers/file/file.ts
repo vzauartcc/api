@@ -12,10 +12,10 @@ router.use('/documents', documentsRouter);
 
 router.get('/checkStatus/:id', async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		if (!req.params['id']) {
+		if (!req.params['id'] || req.params['id'] === 'undefined') {
 			throw {
 				code: status.BAD_REQUEST,
-				message: 'Missing id',
+				message: 'Invalid ID.',
 			};
 		}
 
