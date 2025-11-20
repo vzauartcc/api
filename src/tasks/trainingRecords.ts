@@ -62,8 +62,7 @@ export async function syncVatusaTrainingRecords() {
 					v.location === zau.location &&
 					new Date(v.session_date + '+00:00').getTime() === zau.startTime.getTime() &&
 					zau.studentNotes &&
-					stringSimilarity(sanitizeInput(v.notes.trim()), sanitizeInput(zau.studentNotes.trim())) >=
-						0.9,
+					stringSimilarity(v.notes.trim(), zau.studentNotes.trim()) >= 0.9,
 			);
 
 			if (matches.length !== 1) {
@@ -103,10 +102,7 @@ export async function syncVatusaTrainingRecords() {
 				});
 				addedCount++;
 			} else {
-				if (
-					stringSimilarity(sanitizeInput(record.notes), sanitizeInput(matched.studentNotes || '')) <
-					0.9
-				) {
+				if (stringSimilarity(record.notes, matched.studentNotes || '') < 0.9) {
 					matched.studentNotes = sanitizeInput(record.notes);
 					matched.progress = record.score;
 					matched.movements = record.movements || 0;
