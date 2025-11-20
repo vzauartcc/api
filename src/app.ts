@@ -173,6 +173,9 @@ new Cron('0 * * * *', { name: 'Solo Endorsement Sync', catch: true }, () =>
 
 if (process.env['NODE_ENV'] === 'production') {
 	console.log(`Starting VATUSA Training Records Sync task. . . .`);
+	// @TODO remove this
+	syncVatusaTrainingRecords();
+
 	new Cron(
 		'0 6 * * *',
 		{ name: 'Training Record Sync', timezone: 'America/Chicago', catch: true },

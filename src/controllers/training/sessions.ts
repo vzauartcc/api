@@ -2,6 +2,7 @@ import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
 import { getCacheInstance } from '../../app.js';
+import { sanitizeInput } from '../../helpers/html.js';
 import { vatusaApi } from '../../helpers/vatusa.js';
 import zau from '../../helpers/zau.js';
 import { isTrainingStaff } from '../../middleware/auth.js';
@@ -255,10 +256,10 @@ router.patch(
 				};
 			}
 
-			const session = await TrainingSessionModel.findByIdAndUpdate(
-				req.params['id'],
-				req.body,
-			).exec();
+			const session = await TrainingSessionModel.findByIdAndUpdate(req.params['id'], {
+				...req.body,
+				studentNotes: sanitizeInput(req.body.studentNotes),
+			}).exec();
 			if (!session) {
 				throw {
 					code: status.BAD_REQUEST,
@@ -328,24 +329,36 @@ router.patch(
 				};
 			}
 
-			const startTime = new Date(req.body.startTime);
-			const endTime = new Date(req.body.endTime);
+			const start = new Date(
+				Math.round(new Date(req.body.startTime).getTime() / FIFTEEN) * FIFTEEN,
+			);
+			const end = new Date(Math.round(new Date(req.body.endTime).getTime() / FIFTEEN) * FIFTEEN);
 
-			if (startTime.getTime() >= endTime.getTime()) {
+			if (start.getTime() >= end.getTime()) {
 				throw {
 					code: status.BAD_REQUEST,
 					message: 'Start Time must be before End Time',
 				};
 			}
 
-			if (startTime.getTime() > Date.now() || endTime.getTime() > Date.now()) {
+			if (start.getTime() > Date.now()) {
 				throw {
 					code: status.BAD_REQUEST,
-					message: 'Start and End Time must be before today',
+					message: 'Start Time must not be in the future.',
 				};
 			}
 
-			const delta = Math.abs(endTime.getTime() - startTime.getTime()) / 1000;
+			const maxEnd = new Date();
+			maxEnd.setUTCMinutes(maxEnd.getUTCMinutes() + 20);
+
+			if (end.getTime() > maxEnd.getTime()) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'End Time must not be in the future.',
+				};
+			}
+
+			const delta = Math.abs(end.getTime() - start.getTime()) / 1000;
 			const hours = Math.floor(delta / 3600);
 			const minutes = Math.floor(delta / 60) % 60;
 
@@ -357,12 +370,12 @@ router.patch(
 				if (!zau.isDev) {
 					vatusaRes = await vatusaApi.post(`/user/${session.studentCid}/training/record`, {
 						instructor_id: session.instructorCid,
-						session_date: DateTime.fromISO(req.body.startTime).toFormat('y-MM-dd HH:mm'),
+						session_date: DateTime.fromJSDate(start).toFormat('y-MM-dd HH:mm'),
 						position: req.body.position,
 						duration: duration,
 						movements: req.body.movements,
 						score: req.body.progress,
-						notes: req.body.studentNotes,
+						notes: sanitizeInput(req.body.studentNotes),
 						ots_status: req.body.ots,
 						location: req.body.location,
 						is_cbt: false,
@@ -376,7 +389,7 @@ router.patch(
 				await session.save();
 			} else {
 				await vatusaApi.put(`/training/record/${session.vatusaId}`, {
-					session_date: DateTime.fromISO(req.body.startTime).toFormat('y-MM-dd HH:mm'),
+					session_date: DateTime.fromJSDate(start).toFormat('y-MM-dd HH:mm'),
 					position: req.body.position,
 					duration: duration,
 					movements: req.body.movements,
@@ -503,6 +516,16 @@ router.post(
 			);
 			const end = new Date(Math.round(new Date(req.body.endTime).getTime() / FIFTEEN) * FIFTEEN);
 
+			const maxEnd = new Date();
+			maxEnd.setUTCMinutes(maxEnd.getUTCMinutes() + 20);
+
+			if (end.getTime() > maxEnd.getTime()) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'End Time must not be in the future.',
+				};
+			}
+
 			if (end < start) {
 				throw {
 					code: status.BAD_REQUEST,
@@ -510,10 +533,10 @@ router.post(
 				};
 			}
 
-			if (start.getTime() > Date.now() || end.getTime() > Date.now()) {
+			if (start.getTime() > Date.now()) {
 				throw {
 					code: status.BAD_REQUEST,
-					message: 'Start and End Time must be before today',
+					message: 'Start Time must not be in the future.',
 				};
 			}
 
@@ -535,7 +558,7 @@ router.post(
 				movements: req.body.movements,
 				location: req.body.location,
 				ots: req.body.ots,
-				studentNotes: req.body.studentNotes,
+				studentNotes: sanitizeInput(req.body.studentNotes),
 				insNotes: req.body.insNotes,
 				submitted: false,
 			});
@@ -574,7 +597,7 @@ router.post(
 			) {
 				throw {
 					code: status.BAD_REQUEST,
-					message: 'You must fill out all required forms',
+					message: 'You must fill out all required forms.',
 				};
 			}
 
@@ -583,17 +606,27 @@ router.post(
 			);
 			const end = new Date(Math.round(new Date(req.body.endTime).getTime() / FIFTEEN) * FIFTEEN);
 
-			if (end < start) {
+			const maxEnd = new Date();
+			maxEnd.setUTCMinutes(maxEnd.getUTCMinutes() + 20);
+
+			if (end.getTime() > maxEnd.getTime()) {
 				throw {
 					code: status.BAD_REQUEST,
-					message: 'End Time must be before Start Time',
+					message: 'End Time must not be in the future.',
 				};
 			}
 
-			if (start.getTime() > Date.now() || end.getTime() > Date.now()) {
+			if (end < start) {
 				throw {
 					code: status.BAD_REQUEST,
-					message: 'Start and End Time must be before today',
+					message: 'End Time must be before Start Time.',
+				};
+			}
+
+			if (start.getTime() > Date.now()) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Start Time must not be in the future.',
 				};
 			}
 
@@ -614,7 +647,7 @@ router.post(
 					duration: duration,
 					movements: req.body.movements,
 					score: req.body.progress,
-					notes: req.body.studentNotes,
+					notes: sanitizeInput(req.body.studentNotes),
 					ots_status: req.body.ots,
 					location: req.body.location,
 					is_cbt: false,
@@ -634,7 +667,7 @@ router.post(
 				movements: req.body.movements,
 				location: req.body.location,
 				ots: req.body.ots,
-				studentNotes: req.body.studentNotes,
+				studentNotes: sanitizeInput(req.body.studentNotes),
 				insNotes: req.body.insNotes,
 				submitted: true,
 				vatusaId: vatusaRes.data.id,
