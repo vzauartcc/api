@@ -329,24 +329,36 @@ router.patch(
 				};
 			}
 
-			const startTime = new Date(req.body.startTime);
-			const endTime = new Date(req.body.endTime);
+			const start = new Date(
+				Math.round(new Date(req.body.startTime).getTime() / FIFTEEN) * FIFTEEN,
+			);
+			const end = new Date(Math.round(new Date(req.body.endTime).getTime() / FIFTEEN) * FIFTEEN);
 
-			if (startTime.getTime() >= endTime.getTime()) {
+			if (start.getTime() >= end.getTime()) {
 				throw {
 					code: status.BAD_REQUEST,
 					message: 'Start Time must be before End Time',
 				};
 			}
 
-			if (startTime.getTime() > Date.now()) {
+			if (start.getTime() > Date.now()) {
 				throw {
 					code: status.BAD_REQUEST,
 					message: 'Start Time must not be in the future.',
 				};
 			}
 
-			const delta = Math.abs(endTime.getTime() - startTime.getTime()) / 1000;
+			const maxEnd = new Date();
+			maxEnd.setUTCMinutes(maxEnd.getUTCMinutes() + 20);
+
+			if (end.getTime() > maxEnd.getTime()) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'End Time must not be in the future.',
+				};
+			}
+
+			const delta = Math.abs(end.getTime() - start.getTime()) / 1000;
 			const hours = Math.floor(delta / 3600);
 			const minutes = Math.floor(delta / 60) % 60;
 
@@ -358,7 +370,7 @@ router.patch(
 				if (!zau.isDev) {
 					vatusaRes = await vatusaApi.post(`/user/${session.studentCid}/training/record`, {
 						instructor_id: session.instructorCid,
-						session_date: DateTime.fromISO(req.body.startTime).toFormat('y-MM-dd HH:mm'),
+						session_date: DateTime.fromJSDate(start).toFormat('y-MM-dd HH:mm'),
 						position: req.body.position,
 						duration: duration,
 						movements: req.body.movements,
@@ -377,7 +389,7 @@ router.patch(
 				await session.save();
 			} else {
 				await vatusaApi.put(`/training/record/${session.vatusaId}`, {
-					session_date: DateTime.fromISO(req.body.startTime).toFormat('y-MM-dd HH:mm'),
+					session_date: DateTime.fromJSDate(start).toFormat('y-MM-dd HH:mm'),
 					position: req.body.position,
 					duration: duration,
 					movements: req.body.movements,
@@ -504,6 +516,16 @@ router.post(
 			);
 			const end = new Date(Math.round(new Date(req.body.endTime).getTime() / FIFTEEN) * FIFTEEN);
 
+			const maxEnd = new Date();
+			maxEnd.setUTCMinutes(maxEnd.getUTCMinutes() + 20);
+
+			if (end.getTime() > maxEnd.getTime()) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'End Time must not be in the future.',
+				};
+			}
+
 			if (end < start) {
 				throw {
 					code: status.BAD_REQUEST,
@@ -583,6 +605,16 @@ router.post(
 				Math.round(new Date(req.body.startTime).getTime() / FIFTEEN) * FIFTEEN,
 			);
 			const end = new Date(Math.round(new Date(req.body.endTime).getTime() / FIFTEEN) * FIFTEEN);
+
+			const maxEnd = new Date();
+			maxEnd.setUTCMinutes(maxEnd.getUTCMinutes() + 20);
+
+			if (end.getTime() > maxEnd.getTime()) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'End Time must not be in the future.',
+				};
+			}
 
 			if (end < start) {
 				throw {
