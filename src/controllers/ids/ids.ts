@@ -357,7 +357,7 @@ router.delete('/pireps/:id', async (req: Request, res: Response, next: NextFunct
 
 router.put('/config/:id', async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		const updatedConfig = await ConfigModel.findOneAndUpdate({ id: req.params['id'] }, req.body, {
+		const updatedConfig = await ConfigModel.findOneAndUpdate({ _id: req.params['id'] }, req.body, {
 			new: true,
 		}).exec();
 
@@ -379,7 +379,7 @@ router.put('/config/:id', async (req: Request, res: Response, next: NextFunction
 
 router.get('/config/:id', async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		const config = await ConfigModel.findOne({ id: req.params['id'] }).exec();
+		const config = await ConfigModel.findOne({ _id: req.params['id'] }).exec();
 		if (!config) {
 			throw {
 				code: status.NOT_FOUND,
