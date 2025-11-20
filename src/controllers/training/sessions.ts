@@ -338,10 +338,10 @@ router.patch(
 				};
 			}
 
-			if (startTime.getTime() > Date.now() || endTime.getTime() > Date.now()) {
+			if (startTime.getTime() > Date.now()) {
 				throw {
 					code: status.BAD_REQUEST,
-					message: 'Start and End Time must be before today',
+					message: 'Start Time must not be in the future.',
 				};
 			}
 
@@ -510,10 +510,10 @@ router.post(
 				};
 			}
 
-			if (start.getTime() > Date.now() || end.getTime() > Date.now()) {
+			if (start.getTime() > Date.now()) {
 				throw {
 					code: status.BAD_REQUEST,
-					message: 'Start and End Time must be before today',
+					message: 'Start Time must not be in the future.',
 				};
 			}
 
@@ -574,7 +574,7 @@ router.post(
 			) {
 				throw {
 					code: status.BAD_REQUEST,
-					message: 'You must fill out all required forms',
+					message: 'You must fill out all required forms.',
 				};
 			}
 
@@ -586,14 +586,14 @@ router.post(
 			if (end < start) {
 				throw {
 					code: status.BAD_REQUEST,
-					message: 'End Time must be before Start Time',
+					message: 'End Time must be before Start Time.',
 				};
 			}
 
-			if (start.getTime() > Date.now() || end.getTime() > Date.now()) {
+			if (start.getTime() > Date.now()) {
 				throw {
 					code: status.BAD_REQUEST,
-					message: 'Start and End Time must be before today',
+					message: 'Start Time must not be in the future.',
 				};
 			}
 
