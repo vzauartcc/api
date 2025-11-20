@@ -1,6 +1,7 @@
 import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { getCacheInstance } from '../../app.js';
+import { sanitizeInput } from '../../helpers/html.js';
 import { isStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { DossierModel } from '../../models/dossier.js';
@@ -55,7 +56,7 @@ router.post('/', getUser, isStaff, async (req: Request, res: Response, next: Nex
 
 		const news = await NewsModel.create({
 			title,
-			content,
+			content: sanitizeInput(content),
 			uriSlug,
 			createdBy,
 		});
@@ -151,7 +152,7 @@ router.patch(
 					Date.now().toString().slice(-5);
 			}
 
-			newsItem.content = content;
+			newsItem.content = sanitizeInput(content);
 			await newsItem.save();
 			await getCacheInstance().clear(`news-${req.params['slug']}`);
 			await getCacheInstance().clear(`news`);
