@@ -1,5 +1,4 @@
 import { captureException } from '@sentry/node';
-import Discord from 'discord-oauth2';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import discord from '../../helpers/discord.js';
 import internalAuth from '../../middleware/internalAuth.js';
@@ -15,7 +14,6 @@ router.get('/users', internalAuth, async (_req: Request, res: Response, next: Ne
 	try {
 		const users = await UserModel.find({ discordInfo: { $ne: null } })
 			.select('fname lname cid discordInfo roleCodes oi rating member vis')
-			.cache('10 minutes', `discord-users`)
 			.exec();
 
 		return res.status(status.OK).json(users);
@@ -59,9 +57,7 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 		}
 
 		const { cid, code } = req.body;
-		const user = await UserModel.findOne({ cid })
-			.cache('10 minutes', `user-${req.params['cid']}`)
-			.exec();
+		const user = await UserModel.findOne({ cid }).exec();
 
 		if (!user) {
 			throw {
@@ -70,20 +66,14 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 			};
 		}
 
-		const oauth = new Discord();
-		const token = await oauth
-			.tokenRequest({
-				clientId: process.env['DISCORD_CLIENT_ID'],
-				clientSecret: process.env['DISCORD_CLIENT_SECRET'],
-				redirectUri: process.env['DISCORD_REDIRECT_URI'],
-				grantType: 'authorization_code',
-				code,
-				scope: 'identify',
-			})
-			.catch((err) => {
-				captureException(err);
-				return null;
-			});
+		const token = await requestToken({
+			clientId: process.env['DISCORD_CLIENT_ID'],
+			clientSecret: process.env['DISCORD_CLIENT_SECRET'],
+			redirectUri: process.env['DISCORD_REDIRECT_URI'],
+			grantType: 'authorization_code',
+			code,
+			scope: 'identify',
+		});
 
 		if (!token) {
 			throw {
@@ -150,5 +140,89 @@ router.delete('/user', getUser, async (req: Request, res: Response, next: NextFu
 		return next(e);
 	}
 });
+
+interface DiscordOptions {
+	clientId: string;
+	clientSecret: string;
+	grantType: string;
+	refreshToken?: string;
+	scope: string | string[];
+	redirectUri: string;
+	code: string;
+}
+
+interface DiscordToken {
+	access_token: string;
+	refresh_token: string;
+	expires_in: number;
+	token_type: string;
+	scope: string;
+}
+
+async function requestToken(options = {} as DiscordOptions): Promise<DiscordToken> {
+	interface DiscordApiOptions {
+		client_id: string;
+		client_secret: string;
+		grant_type: string | undefined;
+		code: string | undefined;
+		refresh_token: string | undefined;
+		redirect_uri: string;
+		scope: string | string[];
+	}
+	function encode(obj: Object) {
+		let string = '';
+
+		for (const [key, value] of Object.entries(obj)) {
+			if (!value) continue;
+			string += `&${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+		}
+
+		return string.substring(1);
+	}
+
+	const obj: DiscordApiOptions = {
+		client_id: options.clientId,
+		client_secret: options.clientSecret,
+		grant_type: undefined,
+		code: undefined,
+		refresh_token: undefined,
+		redirect_uri: options.redirectUri,
+		scope: options.scope instanceof Array ? options.scope.join(' ') : options.scope,
+	};
+
+	if (options.grantType === 'authorization_code') {
+		obj.code = options.code;
+		obj.grant_type = options.grantType;
+	} else if (options.grantType === 'refresh_token') {
+		obj.refresh_token = options.refreshToken;
+		obj.grant_type = options.grantType;
+	} else
+		throw new Error(
+			'Invalid grant_type provided, it must be either authorization_code or refresh_token',
+		);
+
+	const encoded_string = encode(obj);
+
+	const response = await fetch('https://discord.com/api/oauth2/token', {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/x-www-form-urlencoded',
+			'User-Agent': 'vZAU ARTCC Discord OAuth Integration',
+		},
+		body: encoded_string,
+	});
+
+	if (!response.ok) {
+		const errorData = await response.json();
+		throw {
+			code: response.status,
+			message: errorData,
+		};
+	}
+
+	const tokenData = await response.json();
+
+	return tokenData as DiscordToken;
+}
 
 export default router;

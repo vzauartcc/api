@@ -4,7 +4,7 @@ import { DateTime } from 'luxon';
 import { getCacheInstance } from '../../app.js';
 import { vatusaApi } from '../../helpers/vatusa.js';
 import zau from '../../helpers/zau.js';
-import { isTrainingStaff } from '../../middleware/auth.js';
+import { isInstructor, isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { DossierModel } from '../../models/dossier.js';
 import { NotificationModel } from '../../models/notification.js';
@@ -54,7 +54,7 @@ router.get(
 				};
 			}
 
-			const solos = await SoloEndorsementModel.findOne({ id: req.params['id'] })
+			const solos = await SoloEndorsementModel.findById(req.params['id'])
 				.populate('student', 'fname lname')
 				.populate('instructor', 'fname lname')
 				.sort({ expires: 'desc' })
@@ -86,6 +86,13 @@ router.post(
 				};
 			}
 
+			if (!req.body.expirationDate || isNaN(Date.parse(req.body.expirationDate))) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid request.',
+				};
+			}
+
 			const student = await UserModel.findOne({ cid: req.body.student }).exec();
 			if (!student) {
 				throw {
@@ -94,7 +101,21 @@ router.post(
 				};
 			}
 
+			const today = new Date();
+			const maxDate = new Date(
+				today.getUTCFullYear(),
+				today.getUTCMonth(),
+				today.getUTCDate() + 45,
+			);
+
 			const endDate = new Date(req.body.expirationDate);
+
+			if (endDate.getTime() > maxDate.getTime()) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Solo endorsements cannot be issued for more than 45 days.',
+				};
+			}
 
 			let vatusaId = 0;
 			if (zau.isProd) {
@@ -146,6 +167,127 @@ router.post(
 	},
 );
 
+router.patch(
+	'/:id',
+	getUser,
+	isInstructor,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			if (!req.params['id'] || req.params['id'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid ID.',
+				};
+			}
+
+			if (
+				!req.body.expirationDate ||
+				isNaN(Date.parse(req.body.expirationDate)) ||
+				!req.body.confirmation ||
+				req.body.confirmation !== true
+			) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid request.',
+				};
+			}
+
+			const newEndDate = new Date(req.body.expirationDate);
+
+			const solo = await SoloEndorsementModel.findOne({
+				_id: req.params['id'],
+				deleted: false,
+			})
+				.cache('10 minutes', `solo-${req.params['id']}`)
+				.exec();
+			if (!solo) {
+				throw {
+					code: status.NOT_FOUND,
+					message: 'Solo endorsement not found.',
+				};
+			}
+
+			const oldDate = new Date(
+				solo.createdAt.getUTCFullYear(),
+				solo.createdAt.getUTCMonth(),
+				solo.createdAt.getUTCDate() + 90,
+			);
+
+			if (newEndDate.getTime() <= solo.expires.getTime()) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'New expiration date cannot be less than the current expiration date.',
+				};
+			}
+
+			if (newEndDate.getTime() >= oldDate.getTime()) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'New expiration date cannot be more than 90 days from the date of issuance.',
+				};
+			}
+
+			solo.expires = newEndDate;
+
+			let e = '';
+
+			if (zau.isProd) {
+				if (solo.vatusaId || 0 !== 0) {
+					try {
+						await vatusaApi.delete(`/solo?id=${solo.vatusaId}`);
+					} catch (err) {
+						e += `${e}`;
+					}
+				}
+
+				try {
+					const { data: vatusaResponse } = await vatusaApi.post('/solo', {
+						cid: solo.studentCid,
+						position: solo.position,
+						expDate: DateTime.fromJSDate(newEndDate).toUTC().toFormat('yyyy-MM-dd'),
+					});
+					solo.vatusaId = vatusaResponse.data.id || 0;
+				} catch (err) {
+					e += `\n${err}`;
+				}
+			}
+
+			DossierModel.create({
+				by: req.user.cid,
+				affected: solo.studentCid,
+				action: `%b extended a solo endorsement for %a to work ${solo.position} until ${DateTime.fromJSDate(solo.expires).toUTC().toFormat(zau.DATE_FORMAT)}`,
+			});
+
+			NotificationModel.create({
+				recipient: solo.studentCid,
+				read: false,
+				title: 'Solo Endorsement Extended',
+				content: `You have been issued a solo endorsement for <b>${solo.position}</b> has been extended and will now expire on ${DateTime.fromJSDate(newEndDate).toUTC().toFormat(zau.DATE_FORMAT)}`,
+			});
+
+			await solo.save();
+			getCacheInstance().clear(`solo-${req.params['id']}`);
+			getCacheInstance().clear('solos');
+
+			if (e !== '') {
+				console.error('error extending vatusa solo', e);
+
+				return res
+					.status(status.INTERNAL_SERVER_ERROR)
+					.json('Error updating VATUSA, manually check VATUSA and verify.');
+			}
+
+			return res.status(status.OK).json();
+		} catch (e) {
+			if (!(e as any).code) {
+				captureException(e);
+			}
+
+			return next(e);
+		}
+	},
+);
+
 router.delete(
 	'/:id',
 	getUser,
@@ -160,7 +302,7 @@ router.delete(
 			}
 
 			const solo = await SoloEndorsementModel.findOne({
-				id: req.params['id'],
+				_id: req.params['id'],
 				deleted: false,
 			})
 				.cache('10 minutes', `solo-${req.params['id']}`)
@@ -174,6 +316,13 @@ router.delete(
 
 			await solo.delete();
 			await getCacheInstance().clear('solos');
+			await getCacheInstance().clear(`solo-${req.params['id']}`);
+
+			DossierModel.create({
+				by: req.user.cid,
+				affected: req.body.student,
+				action: `%b deleted a solo endorsement for %a to work ${req.body.position} until ${DateTime.fromJSDate(solo.expires).toUTC().toFormat(zau.DATE_FORMAT)}`,
+			});
 
 			if (zau.isProd) {
 				try {
@@ -181,16 +330,10 @@ router.delete(
 				} catch (err) {
 					throw {
 						code: status.INTERNAL_SERVER_ERROR,
-						message: 'Error deleting from VATUSA',
+						message: 'Error deleting from VATUSA, manually check VATUSA and verify.',
 					};
 				}
 			}
-
-			DossierModel.create({
-				by: req.user.cid,
-				affected: req.body.student,
-				action: `%b deleted a solo endorsement for %a to work ${req.body.position} until ${DateTime.fromJSDate(solo.expires).toUTC().toFormat(zau.DATE_FORMAT)}`,
-			});
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
