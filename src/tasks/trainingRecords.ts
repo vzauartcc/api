@@ -61,20 +61,7 @@ export async function syncVatusaTrainingRecords() {
 					v.location === zau.location &&
 					new Date(v.session_date + '+00:00').getTime() === zau.startTime.getTime() &&
 					zau.studentNotes &&
-					stringSimilarity(
-						v.notes
-							.replaceAll('<p>', '')
-							.replaceAll('</p>', '')
-							.replaceAll('\\n', '')
-							.replaceAll('&amp;', '-')
-							.replaceAll('&apos;', "'")
-							.replaceAll('\n', '')
-							.replaceAll('&gt;', '>')
-							.replaceAll('&lt;', '<')
-							.replaceAll('<br>', '')
-							.trim(),
-						zau.studentNotes.replaceAll('\n', '').trim(),
-					) >= 0.9,
+					stringSimilarity(v.notes.trim(), zau.studentNotes.trim()) >= 0.9,
 			);
 
 			if (matches.length !== 1) {
@@ -89,18 +76,6 @@ export async function syncVatusaTrainingRecords() {
 		}
 
 		for (const record of vatusaData) {
-			const conformedNote = record.notes
-				.replaceAll('<p>', '')
-				.replaceAll('</p>', '')
-				.replaceAll('\\n', '')
-				.replaceAll('&amp;', '-')
-				.replaceAll('&apos;', "'")
-				.replaceAll('&gt;', '>')
-				.replaceAll('&lt;', '<')
-				.replaceAll('<br>', '')
-				.replaceAll('<li>', '- ')
-				.replaceAll('</li>', '');
-
 			const matched = zauRecords.find((z) => z.vatusaId === record.id);
 
 			if (!matched) {
@@ -120,14 +95,14 @@ export async function syncVatusaTrainingRecords() {
 					movements: record.movements || 0,
 					location: record.location,
 					ots: record.ots_status,
-					studentNotes: conformedNote,
+					studentNotes: record.notes,
 					submitted: true,
 					vatusaId: record.id,
 				});
 				addedCount++;
 			} else {
-				if (stringSimilarity(conformedNote, matched.studentNotes || '') < 0.9) {
-					matched.studentNotes = conformedNote;
+				if (stringSimilarity(record.notes, matched.studentNotes || '') < 0.9) {
+					matched.studentNotes = record.notes;
 					matched.progress = record.score;
 					matched.movements = record.movements || 0;
 					matched.location = record.location;
