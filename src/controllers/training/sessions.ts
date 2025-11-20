@@ -2,6 +2,7 @@ import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
 import { getCacheInstance } from '../../app.js';
+import { sanitizeInput } from '../../helpers/html.js';
 import { vatusaApi } from '../../helpers/vatusa.js';
 import zau from '../../helpers/zau.js';
 import { isTrainingStaff } from '../../middleware/auth.js';
@@ -255,10 +256,10 @@ router.patch(
 				};
 			}
 
-			const session = await TrainingSessionModel.findByIdAndUpdate(
-				req.params['id'],
-				req.body,
-			).exec();
+			const session = await TrainingSessionModel.findByIdAndUpdate(req.params['id'], {
+				...req.body,
+				studentNotes: sanitizeInput(req.body.studentNotes),
+			}).exec();
 			if (!session) {
 				throw {
 					code: status.BAD_REQUEST,
@@ -362,7 +363,7 @@ router.patch(
 						duration: duration,
 						movements: req.body.movements,
 						score: req.body.progress,
-						notes: req.body.studentNotes,
+						notes: sanitizeInput(req.body.studentNotes),
 						ots_status: req.body.ots,
 						location: req.body.location,
 						is_cbt: false,
@@ -535,7 +536,7 @@ router.post(
 				movements: req.body.movements,
 				location: req.body.location,
 				ots: req.body.ots,
-				studentNotes: req.body.studentNotes,
+				studentNotes: sanitizeInput(req.body.studentNotes),
 				insNotes: req.body.insNotes,
 				submitted: false,
 			});
@@ -614,7 +615,7 @@ router.post(
 					duration: duration,
 					movements: req.body.movements,
 					score: req.body.progress,
-					notes: req.body.studentNotes,
+					notes: sanitizeInput(req.body.studentNotes),
 					ots_status: req.body.ots,
 					location: req.body.location,
 					is_cbt: false,
@@ -634,7 +635,7 @@ router.post(
 				movements: req.body.movements,
 				location: req.body.location,
 				ots: req.body.ots,
-				studentNotes: req.body.studentNotes,
+				studentNotes: sanitizeInput(req.body.studentNotes),
 				insNotes: req.body.insNotes,
 				submitted: true,
 				vatusaId: vatusaRes.data.id,

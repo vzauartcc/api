@@ -1,4 +1,5 @@
 import { stringSimilarity } from 'string-similarity-js';
+import { sanitizeInput } from '../helpers/html.js';
 import { vatusaApi } from '../helpers/vatusa.js';
 import { TrainingSessionModel } from '../models/trainingSession.js';
 
@@ -61,7 +62,8 @@ export async function syncVatusaTrainingRecords() {
 					v.location === zau.location &&
 					new Date(v.session_date + '+00:00').getTime() === zau.startTime.getTime() &&
 					zau.studentNotes &&
-					stringSimilarity(v.notes.trim(), zau.studentNotes.trim()) >= 0.9,
+					stringSimilarity(sanitizeInput(v.notes.trim()), sanitizeInput(zau.studentNotes.trim())) >=
+						0.9,
 			);
 
 			if (matches.length !== 1) {
@@ -95,14 +97,17 @@ export async function syncVatusaTrainingRecords() {
 					movements: record.movements || 0,
 					location: record.location,
 					ots: record.ots_status,
-					studentNotes: record.notes,
+					studentNotes: sanitizeInput(record.notes),
 					submitted: true,
 					vatusaId: record.id,
 				});
 				addedCount++;
 			} else {
-				if (stringSimilarity(record.notes, matched.studentNotes || '') < 0.9) {
-					matched.studentNotes = record.notes;
+				if (
+					stringSimilarity(sanitizeInput(record.notes), sanitizeInput(matched.studentNotes || '')) <
+					0.9
+				) {
+					matched.studentNotes = sanitizeInput(record.notes);
 					matched.progress = record.score;
 					matched.movements = record.movements || 0;
 					matched.location = record.location;
