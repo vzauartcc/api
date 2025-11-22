@@ -2,7 +2,7 @@ import { DateTime } from 'luxon';
 import discord from '../helpers/discord.js';
 import { vatusaApi } from '../helpers/vatusa.js';
 import zau from '../helpers/zau.js';
-import { DossierModel } from '../models/dossier.js';
+import { ACTION_TYPE, DossierModel } from '../models/dossier.js';
 import { SoloEndorsementModel } from '../models/soloEndorsement.js';
 
 export async function soloExpiringNotifications() {
@@ -85,6 +85,7 @@ export async function syncVatusaSoloEndorsements() {
 				by: -1,
 				affected: solo.cid,
 				action: `An external service issued a solo endorsement for %a to work ${solo.position} until ${DateTime.fromJSDate(new Date(solo.expires)).toUTC().toFormat(zau.DATE_FORMAT)}`,
+				actionType: ACTION_TYPE.CREATE_SOLO_ENDORSEMENT,
 			});
 		}
 	} catch (err) {

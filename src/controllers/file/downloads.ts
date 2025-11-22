@@ -7,7 +7,7 @@ import { getCacheInstance } from '../../app.js';
 import { deleteFromS3, setUploadStatus, uploadToS3 } from '../../helpers/s3.js';
 import { isFacilityTeam } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
-import { DossierModel } from '../../models/dossier.js';
+import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { DownloadModel } from '../../models/download.js';
 import status from '../../types/status.js';
 
@@ -147,6 +147,7 @@ router.post(
 				by: req.user.cid,
 				affected: -1,
 				action: `%b created the file *${req.body.name}*.`,
+				actionType: ACTION_TYPE.CREATE_FILE,
 			});
 
 			return res.status(status.CREATED).json();
@@ -244,6 +245,7 @@ router.patch(
 				by: req.user.cid,
 				affected: -1,
 				action: `%b updated the file *${req.body.name}*.`,
+				actionType: ACTION_TYPE.UPDATE_FILE,
 			});
 
 			return res.status(status.OK).json();
@@ -289,6 +291,7 @@ router.delete(
 				by: req.user.cid,
 				affected: -1,
 				action: `%b deleted the file *${download.name}*.`,
+				actionType: ACTION_TYPE.DELETE_FILE,
 			});
 
 			return res.status(status.NO_CONTENT).json();

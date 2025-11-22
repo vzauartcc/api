@@ -4,7 +4,7 @@ import { getCacheInstance } from '../../app.js';
 import { sanitizeInput } from '../../helpers/html.js';
 import { isStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
-import { DossierModel } from '../../models/dossier.js';
+import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { NewsModel } from '../../models/news.js';
 import status from '../../types/status.js';
 
@@ -74,6 +74,7 @@ router.post('/', getUser, isStaff, async (req: Request, res: Response, next: Nex
 			by: req.user.cid,
 			affected: -1,
 			action: `%b created the news item *${req.body.title}*.`,
+			actionType: ACTION_TYPE.CREATE_NEWS,
 		});
 
 		return res.status(status.CREATED).json();
@@ -161,6 +162,7 @@ router.patch(
 				by: req.user.cid,
 				affected: -1,
 				action: `%b updated the news item *${newsItem.title}*.`,
+				actionType: ACTION_TYPE.UPDATE_NEWS,
 			});
 
 			return res.status(status.OK).json();
@@ -212,6 +214,7 @@ router.delete(
 				by: req.user.cid,
 				affected: -1,
 				action: `%b deleted the news item *${newsItem.title}*.`,
+				actionType: ACTION_TYPE.DELETE_NEWS,
 			});
 
 			return res.status(status.NO_CONTENT).json();

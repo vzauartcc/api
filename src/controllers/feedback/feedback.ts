@@ -4,7 +4,7 @@ import { getCacheInstance } from '../../app.js';
 import { getUsersWithPrivacy } from '../../helpers/mongodb.js';
 import { isSeniorStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
-import { DossierModel } from '../../models/dossier.js';
+import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { FeedbackModel } from '../../models/feedback.js';
 import { NotificationModel } from '../../models/notification.js';
 import status from '../../types/status.js';
@@ -129,6 +129,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 			by: req.body.cid,
 			affected: req.body.controller,
 			action: `%b submitted feedback about %a.`,
+			actionType: ACTION_TYPE.SUBMIT_FEEDBACK,
 		});
 
 		return res.status(status.CREATED).json();
@@ -257,6 +258,7 @@ router.patch(
 				by: req.user.cid,
 				affected: approved.controllerCid,
 				action: `%b approved feedback for %a.`,
+				actionType: ACTION_TYPE.APPROVE_FEEDBACK,
 			});
 
 			return res.status(status.OK).json();
@@ -302,6 +304,7 @@ router.patch(
 				by: req.user.cid,
 				affected: feedback.controllerCid,
 				action: `%b rejected feedback for %a.`,
+				type: ACTION_TYPE.REJECT_FEEDBACK,
 			});
 
 			return res.status(status.OK).json();

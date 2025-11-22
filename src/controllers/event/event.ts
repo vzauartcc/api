@@ -9,7 +9,7 @@ import { sendMail } from '../../helpers/mailer.js';
 import { deleteFromS3, setUploadStatus, uploadToS3 } from '../../helpers/s3.js';
 import { isEventsTeam } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
-import { DossierModel } from '../../models/dossier.js';
+import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import EventModel from '../../models/event.js';
 import type { IEventPosition, IEventPositionData } from '../../models/eventPosition.js';
 import type { IEventSignup } from '../../models/eventSignup.js';
@@ -211,6 +211,7 @@ router.patch('/:slug/signup', getUser, async (req: Request, res: Response, next:
 			by: req.user.cid,
 			affected: -1,
 			action: `%b signed up for the event *${event.name}*.`,
+			actionType: ACTION_TYPE.CREATE_EVENT_SIGNUP,
 		});
 
 		return res.status(status.OK).json();
@@ -256,6 +257,7 @@ router.delete('/:slug/signup', getUser, async (req: Request, res: Response, next
 			by: req.user.cid,
 			affected: -1,
 			action: `%b deleted their signup for the event *${event.name}*.`,
+			actionType: ACTION_TYPE.DELETE_EVENT_SIGNUP,
 		});
 
 		return res.status(status.NO_CONTENT).json();
@@ -328,6 +330,7 @@ router.delete(
 				by: req.user.cid,
 				affected: req.params['cid'],
 				action: `%b manually deleted the event signup for %a for the event *${signup.name}*.`,
+				actionType: ACTION_TYPE.MANUAL_DELETE_EVENT_SIGNUP,
 			});
 
 			return res.status(status.NO_CONTENT).json();
@@ -414,6 +417,7 @@ router.patch(
 				by: req.user.cid,
 				affected: req.params['cid'],
 				action: `%b manually signed up %a for the event *${event.name}*.`,
+				actionType: ACTION_TYPE.MANUAL_EVENT_SIGNUP,
 			});
 
 			return res.status(status.OK).json();
@@ -479,12 +483,14 @@ router.patch(
 					by: req.user.cid,
 					affected: cid,
 					action: `%b assigned %a to *${assignedPosition.pos}* for *${eventData.name}*.`,
+					actionType: ACTION_TYPE.ASSIGN_EVENT_POSITION,
 				});
 			} else {
 				await DossierModel.create({
 					by: req.user.cid,
 					affected: -1,
 					action: `%b unassigned *${assignedPosition.pos}* for *${eventData.name}*.`,
+					actionType: ACTION_TYPE.UNASSIGN_EVENT_POSITION,
 				});
 			}
 
@@ -747,6 +753,7 @@ router.post(
 				by: req.user.cid,
 				affected: -1,
 				action: `%b created the event *${req.body.name}*.`,
+				actionType: ACTION_TYPE.CREATE_EVENT,
 			});
 
 			return res.status(status.CREATED).json();
@@ -923,6 +930,7 @@ router.put(
 				by: req.user.cid,
 				affected: -1,
 				action: `%b updated the event *${eventData.name}*.`,
+				actionType: ACTION_TYPE.UPDATE_EVENT,
 			});
 
 			return res.status(status.OK).json();
@@ -973,6 +981,7 @@ router.delete(
 				by: req.user.cid,
 				affected: -1,
 				action: `%b deleted the event *${deleteEvent.name}*.`,
+				actionType: ACTION_TYPE.DELETE_EVENT,
 			});
 
 			return res.status(status.NO_CONTENT).json();
@@ -984,27 +993,6 @@ router.delete(
 		}
 	},
 );
-
-// router.put('/:slug/assign', getUser, isEventsTeam, async (req: Request, res: Response) => {
-// 	try {
-// 		const event = await Event.findOneAndUpdate({url: req.params.slug}, {
-// 			$set: {
-// 				positions: req.body.assignment
-// 			}
-// 		});
-
-// 		await DossierModel.create({
-// 			by: req.user.cid,
-// 			affected: -1,
-// 			action: `%b updated the positions assignments for the event *${event.name}*.`
-// 		});
-// 	} catch (e) {
-// 		res.stdRes.ret_det = convertToReturnDetails(e);
-// 		captureException(e);
-// 	} finally {
-// 		return res.json(res.stdRes);
-// }
-// });
 
 router.patch(
 	'/:slug/notify',
@@ -1059,6 +1047,7 @@ router.patch(
 				by: req.user.cid,
 				affected: -1,
 				action: `%b notified controllers of positions for the event *${eventData.name}*.`,
+				actionType: ACTION_TYPE.NOTIFY_EVENT,
 			});
 
 			return res.status(status.OK).json();
