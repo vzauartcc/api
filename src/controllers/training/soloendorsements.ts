@@ -6,7 +6,7 @@ import { vatusaApi } from '../../helpers/vatusa.js';
 import zau from '../../helpers/zau.js';
 import { isInstructor, isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
-import { DossierModel } from '../../models/dossier.js';
+import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { NotificationModel } from '../../models/notification.js';
 import { SoloEndorsementModel } from '../../models/soloEndorsement.js';
 import { UserModel } from '../../models/user.js';
@@ -155,6 +155,7 @@ router.post(
 				by: req.user.cid,
 				affected: req.body.student,
 				action: `%b issued a solo endorsement for %a to work ${req.body.position} until ${DateTime.fromJSDate(endDate).toUTC().toFormat(zau.DATE_FORMAT)}`,
+				actionType: ACTION_TYPE.CREATE_SOLO_ENDORSEMENT,
 			});
 
 			return res.status(status.CREATED).json();
@@ -256,6 +257,7 @@ router.patch(
 				by: req.user.cid,
 				affected: solo.studentCid,
 				action: `%b extended a solo endorsement for %a to work ${solo.position} until ${DateTime.fromJSDate(solo.expires).toUTC().toFormat(zau.DATE_FORMAT)}`,
+				actionType: ACTION_TYPE.EXTEND_SOLO_ENDORSEMENT,
 			});
 
 			NotificationModel.create({
@@ -322,6 +324,7 @@ router.delete(
 				by: req.user.cid,
 				affected: req.body.student,
 				action: `%b deleted a solo endorsement for %a to work ${req.body.position} until ${DateTime.fromJSDate(solo.expires).toUTC().toFormat(zau.DATE_FORMAT)}`,
+				actionType: ACTION_TYPE.DELETE_SOLO_ENDORSEMENT,
 			});
 
 			if (zau.isProd) {

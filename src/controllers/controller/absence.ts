@@ -4,7 +4,7 @@ import { getCacheInstance } from '../../app.js';
 import { isManagement } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { AbsenceModel } from '../../models/absence.js';
-import { DossierModel } from '../../models/dossier.js';
+import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { NotificationModel } from '../../models/notification.js';
 import status from '../../types/status.js';
 
@@ -76,6 +76,7 @@ router.post('/', getUser, isManagement, async (req: Request, res: Response, next
 			by: req.user.cid,
 			affected: req.body.controller,
 			action: `%b added a leave of absence for %a until ${new Date(req.body.expirationDate).toLocaleDateString()}: ${req.body.reason}`,
+			actionType: ACTION_TYPE.CREATE_LOA,
 		});
 
 		return res.status(status.CREATED).json();
@@ -115,6 +116,7 @@ router.delete(
 				by: req.user.cid,
 				affected: absence.controller,
 				action: `%b deleted the leave of absence for %a.`,
+				actionType: ACTION_TYPE.DELETE_LOA,
 			});
 
 			return res.status(status.NO_CONTENT).json();

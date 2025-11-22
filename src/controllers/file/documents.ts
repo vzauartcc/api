@@ -8,7 +8,7 @@ import { deleteFromS3, setUploadStatus, uploadToS3 } from '../../helpers/s3.js';
 import { isFacilityTeam } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { DocumentModel } from '../../models/document.js';
-import { DossierModel } from '../../models/dossier.js';
+import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import status from '../../types/status.js';
 
 const router = Router();
@@ -178,6 +178,7 @@ router.post(
 				by: req.user.cid,
 				affected: -1,
 				action: `%b created the document *${req.body.name}*.`,
+				actionType: ACTION_TYPE.CREATE_DOCUMENT,
 			});
 
 			return res.status(status.CREATED).json();
@@ -310,6 +311,7 @@ router.put(
 				by: req.user.cid,
 				affected: -1,
 				action: `%b updated the document *${name}*.`,
+				actionType: ACTION_TYPE.UPDATE_DOCUMENT,
 			});
 
 			return res.status(status.OK).json();
@@ -355,6 +357,7 @@ router.delete(
 				by: req.user.cid,
 				affected: -1,
 				action: `%b deleted the document *${doc.name}*.`,
+				actionType: ACTION_TYPE.DELETE_DOCUMENT,
 			});
 
 			return res.status(status.NO_CONTENT).json();
