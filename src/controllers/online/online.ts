@@ -76,6 +76,7 @@ router.get('/top', async (_req: Request, res: Response, next: NextFunction) => {
 				{ isInstructor: { $ne: true } },
 				{ isStudent: { $ne: true } },
 				{ timeStart: { $gt: thisMonth, $lt: nextMonth } },
+				{ position: { $not: /_OBS/ } },
 			],
 		})
 			.populate('user', 'fname lname cid')
