@@ -3,7 +3,7 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import discord from '../../helpers/discord.js';
 import internalAuth from '../../middleware/internalAuth.js';
 import getUser from '../../middleware/user.js';
-import { DossierModel } from '../../models/dossier.js';
+import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { UserModel } from '../../models/user.js';
 import status from '../../types/status.js';
 import { clearUserCache } from '../controller/utils.js';
@@ -116,6 +116,7 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 			by: user.cid,
 			affected: -1,
 			action: `%b connected their Discord.`,
+			actionType: ACTION_TYPE.CONNECT_DISCORD,
 		});
 
 		return res.status(status.CREATED).json();
@@ -131,6 +132,13 @@ router.delete('/user', getUser, async (req: Request, res: Response, next: NextFu
 	try {
 		await UserModel.updateOne({ cid: req.user.cid }, { $unset: { discord: '', discordInfo: '' } });
 		clearUserCache(req.user.cid);
+
+		await DossierModel.create({
+			by: req.user.cid,
+			affected: -1,
+			action: `%b disconnected their Discord.`,
+			actionType: ACTION_TYPE.DISCONNECT_DISCORD,
+		});
 
 		res.status(status.OK).json();
 	} catch (e) {

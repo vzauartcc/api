@@ -5,7 +5,7 @@ import { sendMail } from '../../helpers/mailer.js';
 import { vatusaApi, type IVisitingStatus } from '../../helpers/vatusa.js';
 import { isManagement } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
-import { DossierModel } from '../../models/dossier.js';
+import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { UserModel } from '../../models/user.js';
 import { VisitApplicationModel } from '../../models/visitApplication.js';
 import status from '../../types/status.js';
@@ -229,6 +229,7 @@ router.put(
 				by: req.user.cid,
 				affected: user.cid,
 				action: `%b approved the visiting application for %a.`,
+				actionType: ACTION_TYPE.APPROVE_VISIT,
 			});
 
 			return res.status(status.OK).json();
@@ -295,6 +296,7 @@ router.delete(
 				by: req.user.cid,
 				affected: user.cid,
 				action: `%b rejected the visiting application for %a: ${req.body.reason}`,
+				type: ACTION_TYPE.REJECT_VISIT,
 			});
 
 			return res.status(status.NO_CONTENT).json();

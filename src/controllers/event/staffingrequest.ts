@@ -4,7 +4,7 @@ import { getCacheInstance } from '../../app.js';
 import { sendMail } from '../../helpers/mailer.js';
 import { isEventsTeam } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
-import { DossierModel } from '../../models/dossier.js';
+import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { StaffingRequestModel } from '../../models/staffingRequest.js';
 import status from '../../types/status.js';
 
@@ -204,6 +204,14 @@ router.put(
 					by: req.user.cid,
 					affected: -1,
 					action: `%b approved a staffing request for ${req.body.vaName}.`,
+					actionType: ACTION_TYPE.APPROVE_STAFFING_REQUEST,
+				});
+			} else {
+				await DossierModel.create({
+					by: req.user.cid,
+					affected: -1,
+					action: `%b rejected a staffing request for ${req.body.vaName}.`,
+					actionType: ACTION_TYPE.REJECT_STAFFING_REQUEST,
 				});
 			}
 

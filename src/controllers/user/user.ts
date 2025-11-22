@@ -11,7 +11,7 @@ import internalAuth from '../../middleware/internalAuth.js';
 import getUser, { deleteAuthCookie, type UserPayload } from '../../middleware/user.js';
 import oAuth from '../../middleware/vatsim.js';
 import { ControllerHoursModel } from '../../models/controllerHours.js';
-import { DossierModel } from '../../models/dossier.js';
+import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { NotificationModel } from '../../models/notification.js';
 import { TrainingSessionModel } from '../../models/trainingSession.js';
 import { UserModel } from '../../models/user.js';
@@ -149,6 +149,7 @@ router.post('/idsToken', getUser, async (req: Request, res: Response, next: Next
 			by: req.user.cid,
 			affected: -1,
 			action: `%b generated a new IDS Token.`,
+			actionType: ACTION_TYPE.GENERATE_IDS_TOKEN,
 		});
 
 		return res.status(status.CREATED).json(idsToken);
@@ -466,6 +467,7 @@ router.patch('/profile', getUser, async (req: Request, res: Response, next: Next
 			by: req.user.cid,
 			affected: -1,
 			action: `%b updated their profile.`,
+			actionType: ACTION_TYPE.UPDATE_SELF,
 		});
 
 		return res.status(status.OK).json();

@@ -17,7 +17,7 @@ import internalAuth from '../../middleware/internalAuth.js';
 import getUser from '../../middleware/user.js';
 import { CertificationModel } from '../../models/certification.js';
 import { ControllerHoursModel } from '../../models/controllerHours.js';
-import { DossierModel } from '../../models/dossier.js';
+import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { RoleModel } from '../../models/role.js';
 import { UserModel, type IUser } from '../../models/user.js';
 import status from '../../types/status.js';
@@ -320,6 +320,7 @@ router.patch(
 					by: -1,
 					affected: req.params['cid'],
 					action: `%a was set as Rating ${req.body.rating} by an external service.`,
+					actionType: ACTION_TYPE.SET_RATING,
 				});
 			}
 
@@ -509,6 +510,7 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response, next: Nex
 			by: -1,
 			affected: req.body.cid,
 			action: `%a was created by an external service.`,
+			actionType: ACTION_TYPE.CREATE_USER,
 		});
 
 		return res.status(status.CREATED).json();
@@ -602,6 +604,7 @@ router.patch(
 				by: -1,
 				affected: req.params['cid'],
 				action: `%a was ${req.body.member ? 'added to' : 'removed from'} the roster by an external service.`,
+				actionType: ACTION_TYPE.SET_MEMBERSHIP,
 			});
 
 			return res.status(status.OK).json();
@@ -667,6 +670,7 @@ router.patch(
 				by: -1,
 				affected: req.params['cid'],
 				action: `%a was set as a ${req.body.vis ? 'visiting controller' : 'home controller'} by an external service.`,
+				actionType: ACTION_TYPE.SET_VISIT_STATUS,
 			});
 
 			return res.status(status.OK).json();
@@ -766,6 +770,7 @@ router.put(
 				by: req.user.cid,
 				affected: req.params['cid'],
 				action: `%a was updated by %b.`,
+				actionType: ACTION_TYPE.UPDATE_USER,
 			});
 
 			return res.status(status.OK).json();
@@ -892,6 +897,7 @@ router.delete(
 				by: req.user.cid,
 				affected: req.params['cid'],
 				action: `%a was removed from the roster by %b, reason: ${req.body.reason}`,
+				actionType: ACTION_TYPE.DELETE_USER,
 			});
 
 			return res.status(status.NO_CONTENT).json();
