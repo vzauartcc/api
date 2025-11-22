@@ -204,10 +204,17 @@ router.get('/oi', async (_req: Request, res: Response, next: NextFunction) => {
 router.get('/log', getUser, isStaff, async (req: Request, res: Response, next: NextFunction) => {
 	const page = +(req.query['page'] as string) || 1;
 	const limit = +(req.query['limit'] as string) || 20;
-	const amount = await DossierModel.countDocuments().cache('5 minutes').exec();
+	const action = +(req.query['action'] as string);
+
+	const actionQuery = {} as any;
+	if (!isNaN(action) && action > 0) {
+		actionQuery.actionType = action;
+	}
+
+	const amount = await DossierModel.countDocuments(actionQuery).cache('5 minutes').exec();
 
 	try {
-		const dossier = await DossierModel.find()
+		const dossier = await DossierModel.find(actionQuery)
 			.sort({
 				createdAt: 'desc',
 			})
@@ -227,6 +234,67 @@ router.get('/log', getUser, isStaff, async (req: Request, res: Response, next: N
 		return next(e);
 	}
 });
+
+router.get(
+	'/log/types',
+	getUser,
+	isStaff,
+	async (_req: Request, res: Response, next: NextFunction) => {
+		try {
+			return res
+				.status(status.OK)
+				.json([
+					'All Actions',
+					'Created User',
+					'Updated User',
+					'Removed User',
+					'Updated Bio',
+					'Set Membership',
+					'Set Visit Status',
+					'Created LOA',
+					'Removed LOA',
+					'Set Rating',
+					'Approved Visit Application',
+					'Rejected Visit Application',
+					'Created Event Signup',
+					'Deleted Event Signup',
+					'Created Manual Event Signup',
+					'Deleted Manual Event Signup',
+					'Assigned Event Position',
+					'Unassigned Event Position',
+					'Created Event',
+					'Updated Event',
+					'Deleted Event',
+					'Sent Notification for Event',
+					'Approved Staffing Request',
+					'Rejected Staffing Request',
+					'Submitted Feedback',
+					'Approved Feedback',
+					'Rejected Feedback',
+					'Created Document',
+					'Updated Document',
+					'Deleted Document',
+					'Created File',
+					'Updated File',
+					'Deleted File',
+					'Created News',
+					'Updated News',
+					'Deleted News',
+					'Issued Solo Endorsement',
+					'Extended Solo Endorsement',
+					'Deleted Solo Endorsement',
+					'Generated IDS Token',
+					'Connected Discord',
+					'Disconnect Discord',
+				]);
+		} catch (e) {
+			if (!(e as any).code) {
+				captureException(e);
+			}
+			return next(e);
+		}
+	},
+);
 
 router.get('/:cid', userOrInternal, async (req: Request, res: Response, next: NextFunction) => {
 	try {

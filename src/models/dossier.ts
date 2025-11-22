@@ -3,6 +3,7 @@ import type { ITimestamps } from './timestamps.js';
 import type { IUser } from './user.js';
 
 export const ACTION_TYPE = {
+	UNKNOWN: 0,
 	CREATE_USER: 1,
 	UPDATE_USER: 2,
 	DELETE_USER: 3,
