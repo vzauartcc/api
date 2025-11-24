@@ -925,6 +925,7 @@ router.put(
 			await eventData.save();
 			await getCacheInstance().clear(`event-${req.params['slug']}`);
 			await getCacheInstance().clear(`event-positions-${req.params['slug']}`);
+			await getCacheInstance().clear('events');
 
 			await DossierModel.create({
 				by: req.user.cid,
@@ -1082,6 +1083,7 @@ router.put(
 				},
 			).exec();
 
+			await getCacheInstance().clear(`events`);
 			await getCacheInstance().clear(`event-${req.params['slug']}`);
 			await getCacheInstance().clear(`event-positions-${req.params['slug']}`);
 
