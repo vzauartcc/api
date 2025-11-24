@@ -49,6 +49,7 @@
 		"nodemailer": "^7.0.6",
 		"nodemailer-express-handlebars": "^7.0.0",
 		"string-similarity-js": "^2.1.4",
+		"tar-stream": "^3.1.7",
 		"ts-cache-mongoose": "^1.7.6"
 	},
 	"devDependencies": {
@@ -64,6 +65,7 @@
 		"@types/node": "^24.6.2",
 		"@types/nodemailer": "^7.0.2",
 		"@types/nodemailer-express-handlebars": "^4.0.5",
+		"@types/tar-stream": "^3.1.4",
 		"@typescript-eslint/eslint-plugin": "^8.45.0",
 		"@typescript-eslint/parser": "^8.45.0",
 		"eslint": "^9.36.0",

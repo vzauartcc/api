@@ -286,6 +286,7 @@ router.get(
 					'Generated IDS Token',
 					'Connected Discord',
 					'Disconnect Discord',
+					'Requested GDRP Data',
 				]);
 		} catch (e) {
 			if (!(e as any).code) {

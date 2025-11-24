@@ -17,8 +17,11 @@ import { TrainingSessionModel } from '../../models/trainingSession.js';
 import { UserModel } from '../../models/user.js';
 import status from '../../types/status.js';
 import { clearUserCache } from '../controller/utils.js';
+import gdrpRouter from './gdrp.js';
 
 const router = Router();
+
+router.use('/gdrp', gdrpRouter);
 
 router.get('/', userOrInternal, async (req: Request, res: Response, next: NextFunction) => {
 	try {
