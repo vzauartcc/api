@@ -52,6 +52,7 @@ EventSchema.virtual('user', {
 	ref: 'User',
 	localField: 'createdBy',
 	foreignField: 'cid',
+	justOne: true,
 });
 
 EventSchema.plugin(MongooseDelete, {

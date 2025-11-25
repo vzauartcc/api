@@ -287,6 +287,7 @@ router.get(
 					'Connected Discord',
 					'Disconnect Discord',
 					'Requested GDRP Data',
+					'Erase User Data',
 				]);
 		} catch (e) {
 			if (!(e as any).code) {

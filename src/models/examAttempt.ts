@@ -1,4 +1,7 @@
-import { Document, model, Schema, Types } from 'mongoose';
+import { Document, model, Schema, Types, type PopulatedDoc } from 'mongoose';
+import type { IExam } from './exam.js';
+import type { ITimestamps } from './timestamps.js';
+import type { IUser } from './user.js';
 
 interface IResponse {
 	question: Types.ObjectId;
@@ -9,8 +12,8 @@ interface IResponse {
 }
 
 interface IExamAttempt extends Document {
-	exam: Types.ObjectId;
-	user: Types.ObjectId;
+	examId: Types.ObjectId;
+	student: number;
 	questionOrder: Types.ObjectId[];
 	responses: IResponse[];
 	startTime: Date;
@@ -20,6 +23,10 @@ interface IExamAttempt extends Document {
 	attemptNumber: number;
 	lastAttemptTime: Date;
 	status: 'in_progress' | 'completed' | 'timed_out';
+
+	// Virtuals
+	user?: PopulatedDoc<IUser & ITimestamps & Document>;
+	exam?: PopulatedDoc<IExam & ITimestamps & Document>;
 }
 
 const ResponseSchema = new Schema<IResponse>(
@@ -35,8 +42,8 @@ const ResponseSchema = new Schema<IResponse>(
 
 const ExamAttemptSchema = new Schema<IExamAttempt>(
 	{
-		exam: { type: Schema.Types.ObjectId, required: true, ref: 'Exam' },
-		user: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
+		examId: { type: Schema.Types.ObjectId, required: true, ref: 'Exam' },
+		student: { type: Number, required: true, ref: 'User' },
 		questionOrder: [{ type: Schema.Types.ObjectId, ref: 'Question' }],
 		responses: [ResponseSchema],
 		startTime: { type: Date, required: true },
@@ -53,4 +60,19 @@ const ExamAttemptSchema = new Schema<IExamAttempt>(
 	},
 	{ collection: 'examAttempts' },
 );
+
+ExamAttemptSchema.virtual('user', {
+	ref: 'User',
+	localField: 'student',
+	foreignField: 'cid',
+	justOne: true,
+});
+
+ExamAttemptSchema.virtual('exam', {
+	ref: 'User',
+	localField: 'exam',
+	foreignField: '_id',
+	justOne: true,
+});
+
 export const ExamAttemptModel = model<IExamAttempt>('ExamAttempt', ExamAttemptSchema);

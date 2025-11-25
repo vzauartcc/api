@@ -46,6 +46,7 @@ export const ACTION_TYPE = {
 	CONNECT_DISCORD: 40,
 	DISCONNECT_DISCORD: 41,
 	REQUEST_GDRP_DATA: 42,
+	ERASE_USER_DATA: 43,
 } as const;
 
 interface IDossier extends Document, ITimestamps {
