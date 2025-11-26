@@ -138,7 +138,7 @@ router.post(
 				description: req.body.description,
 				fileName: req.file.filename,
 				category: req.body.category,
-				author: req.body.author,
+				author: req.user.cid,
 			});
 
 			await getCacheInstance().clear('downloads');
@@ -186,6 +186,7 @@ router.patch(
 					name: req.body.name,
 					description: req.body.description,
 					category: req.body.category,
+					author: req.user.cid,
 				}).exec();
 			} else {
 				if (download.fileName) {
@@ -236,6 +237,7 @@ router.patch(
 					description: req.body.description,
 					category: req.body.category,
 					fileName: req.file.filename,
+					author: req.user.cid,
 				}).exec();
 			}
 

@@ -105,7 +105,7 @@ async function getGdrpData(cid: number) {
 	})
 		.lean()
 		.exec();
-	const createdFiles = await DownloadModel.find({ author: user._id }).lean().exec();
+	const createdFiles = await DownloadModel.find({ author: user.cid }).lean().exec();
 	const events = await EventModel.find({
 		$or: [{ createdBy: cid }, { 'positions.takenBy': cid }, { 'signups.cid': cid }],
 	})
@@ -338,15 +338,6 @@ router.delete(
 				};
 			}
 
-			const nullUser = await UserModel.findOne({ cid: -1 }).lean().exec();
-
-			if (!nullUser) {
-				throw {
-					code: status.INTERNAL_SERVER_ERROR,
-					message: 'Null User Not Found',
-				};
-			}
-
 			const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
 			if (!user) {
 				throw {
@@ -368,10 +359,7 @@ router.delete(
 			await DossierModel.deleteMany({ affected: user.cid }).exec();
 			await DossierModel.updateMany({ by: user.cid }, { $set: { by: -1 } }).exec();
 
-			await DownloadModel.updateMany(
-				{ author: user._id },
-				{ $set: { author: nullUser._id } },
-			).exec();
+			await DownloadModel.updateMany({ author: user.cid }, { $set: { author: -1 } }).exec();
 
 			await EventModel.updateMany({ createdBy: user.cid }, { $set: { createdBy: -1 } }).exec();
 			await EventModel.updateMany(
