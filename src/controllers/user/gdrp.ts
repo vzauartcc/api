@@ -6,6 +6,7 @@ import { pipeline } from 'stream/promises';
 import tar from 'tar-stream';
 import zlib from 'zlib';
 import { sendMail } from '../../helpers/mailer.js';
+import { clearCacheKeys } from '../../helpers/redis.js';
 import { isManagement } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { AbsenceModel } from '../../models/absence.js';
@@ -88,6 +89,14 @@ router.post(
 );
 
 async function getGdrpData(cid: number) {
+	const user = await UserModel.findOne({ cid: cid }).lean().exec();
+	if (!user) {
+		throw {
+			code: status.NOT_FOUND,
+			message: 'User not found.',
+		};
+	}
+
 	const absences = await AbsenceModel.find({ controller: cid }).lean().exec();
 	const hours = await ControllerHoursModel.find({ cid: cid }).lean().exec();
 	const createdDocuments = await DocumentModel.find({ author: cid }).lean().exec();
@@ -96,7 +105,7 @@ async function getGdrpData(cid: number) {
 	})
 		.lean()
 		.exec();
-	const createdFiles = await DownloadModel.find({ author: cid }).lean().exec();
+	const createdFiles = await DownloadModel.find({ author: user._id }).lean().exec();
 	const events = await EventModel.find({
 		$or: [{ createdBy: cid }, { 'positions.takenBy': cid }, { 'signups.cid': cid }],
 	})
@@ -127,7 +136,7 @@ async function getGdrpData(cid: number) {
 		.select('-insNotes')
 		.lean()
 		.exec();
-	const user = await UserModel.findOne({ cid: cid }).lean().exec();
+
 	const visitApplications = await VisitApplicationModel.find({ cid: cid }).lean().exec();
 
 	const filename = `${cid}-${Date.now()}.tar.gz`;
@@ -329,6 +338,15 @@ router.delete(
 				};
 			}
 
+			const nullUser = await UserModel.findOne({ cid: -1 }).lean().exec();
+
+			if (!nullUser) {
+				throw {
+					code: status.INTERNAL_SERVER_ERROR,
+					message: 'Null User Not Found',
+				};
+			}
+
 			const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
 			if (!user) {
 				throw {
@@ -350,7 +368,10 @@ router.delete(
 			await DossierModel.deleteMany({ affected: user.cid }).exec();
 			await DossierModel.updateMany({ by: user.cid }, { $set: { by: -1 } }).exec();
 
-			await DownloadModel.updateMany({ author: user.cid }, { $set: { author: -1 } }).exec();
+			await DownloadModel.updateMany(
+				{ author: user._id },
+				{ $set: { author: nullUser._id } },
+			).exec();
 
 			await EventModel.updateMany({ createdBy: user.cid }, { $set: { createdBy: -1 } }).exec();
 			await EventModel.updateMany(
@@ -420,7 +441,7 @@ router.delete(
 				actionType: ACTION_TYPE.ERASE_USER_DATA,
 			});
 
-			clearUserCache(+req.params['cid']);
+			clearCacheKeys(req.app.redis);
 
 			return res.status(status.NO_CONTENT).json({ message: 'User erased successfully!' });
 		} catch (e) {
