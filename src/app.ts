@@ -30,6 +30,8 @@ import { syncVatusaTrainingRecords } from './tasks/trainingRecords.js';
 console.log(`Starting application. . . .`);
 const app = express();
 
+app.set('trust proxy', true);
+
 app.use(cookie());
 
 app.use(express.json({ limit: '50mb' }));

@@ -126,7 +126,7 @@ router.get('/self', async (req: Request, res: Response, next: NextFunction) => {
 	} catch (e) {
 		deleteAuthCookie(res);
 
-		if (!(e as any).code && (e as any).name !== 'JsonWebTokenError') {
+		if (!(e as any).code || (e as any).name !== 'JsonWebTokenError') {
 			captureException(e);
 		}
 
