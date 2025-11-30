@@ -1,7 +1,9 @@
-import { model, Schema, Types } from 'mongoose';
+import { Document, model, Schema, type PopulatedDoc } from 'mongoose';
 import type { SoftDeleteDocument, SoftDeleteModel } from 'mongoose-delete';
 import MongooseDelete from 'mongoose-delete';
 import { QuestionSchema, type IQuestion } from './examQuestion.js';
+import type { ITimestamps } from './timestamps.js';
+import type { IUser } from './user.js';
 
 export interface IExam extends SoftDeleteDocument {
 	title: string;
@@ -9,7 +11,10 @@ export interface IExam extends SoftDeleteDocument {
 	questions: IQuestion[];
 	questionSubsetSize: number;
 	timeLimit: number;
-	createdBy: Types.ObjectId;
+	createdBy: number;
+
+	// Virtuals
+	user?: PopulatedDoc<IUser & ITimestamps & Document>;
 }
 
 const ExamSchema = new Schema<IExam>({
@@ -18,7 +23,14 @@ const ExamSchema = new Schema<IExam>({
 	questions: [QuestionSchema],
 	questionSubsetSize: { type: Number, required: true },
 	timeLimit: { type: Number, required: true },
-	createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+	createdBy: { type: Number, ref: 'User', required: true },
+});
+
+ExamSchema.virtual('user', {
+	ref: 'User',
+	localField: 'createdBy',
+	foreignField: 'cid',
+	justOne: true,
 });
 
 ExamSchema.plugin(MongooseDelete, {
