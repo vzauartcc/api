@@ -354,14 +354,14 @@ router.delete(
 
 			await ControllerHoursModel.deleteMany({ cid: user.cid }).exec();
 
-			await DocumentModel.updateMany({ author: user.cid }, { $set: { author: -1 } }).exec();
+			await DocumentModel.updateMany({ author: user.cid }, { $set: { author: -2 } }).exec();
 
 			await DossierModel.deleteMany({ affected: user.cid }).exec();
-			await DossierModel.updateMany({ by: user.cid }, { $set: { by: -1 } }).exec();
+			await DossierModel.updateMany({ by: user.cid }, { $set: { by: -2 } }).exec();
 
-			await DownloadModel.updateMany({ author: user.cid }, { $set: { author: -1 } }).exec();
+			await DownloadModel.updateMany({ author: user.cid }, { $set: { author: -2 } }).exec();
 
-			await EventModel.updateMany({ createdBy: user.cid }, { $set: { createdBy: -1 } }).exec();
+			await EventModel.updateMany({ createdBy: user.cid }, { $set: { createdBy: -2 } }).exec();
 			await EventModel.updateMany(
 				{ 'signups.cid': user.cid },
 				{
@@ -377,7 +377,7 @@ router.delete(
 				{
 					$set: {
 						// Target all array elements matching the filter 'pos'
-						'positions.$[pos].takenBy': -1,
+						'positions.$[pos].takenBy': -2,
 					},
 				},
 				{
@@ -387,14 +387,14 @@ router.delete(
 				},
 			).exec();
 
-			await ExamModel.updateMany({ createdBy: user.cid }, { $set: { createdBy: -1 } }).exec();
+			await ExamModel.updateMany({ createdBy: user.cid }, { $set: { createdBy: -2 } }).exec();
 
 			await ExamAttemptModel.deleteMany({ student: user.cid }).exec();
 
 			await FeedbackModel.deleteMany({ controllerCid: user.cid }).exec();
-			await FeedbackModel.updateMany({ submitter: user.cid }, { $set: { submitter: -1 } }).exec();
+			await FeedbackModel.updateMany({ submitter: user.cid }, { $set: { submitter: -2 } }).exec();
 
-			await NewsModel.updateMany({ createdBy: user.cid }, { $set: { createdBy: -1 } }).exec();
+			await NewsModel.updateMany({ createdBy: user.cid }, { $set: { createdBy: -2 } }).exec();
 
 			await NotificationModel.deleteMany({ recipient: user.cid }).exec();
 
@@ -403,19 +403,19 @@ router.delete(
 			await SoloEndorsementModel.deleteMany({ studentCid: user.cid }).exec();
 			await SoloEndorsementModel.updateMany(
 				{ instructorCid: user.cid },
-				{ $set: { instructorCid: -1 } },
+				{ $set: { instructorCid: -2 } },
 			).exec();
 
 			await TrainingRequestModel.deleteMany({ studentCid: user.cid }).exec();
 			await TrainingRequestModel.updateMany(
 				{ instructorCid: user.cid },
-				{ $set: { instructorCid: -1 } },
+				{ $set: { instructorCid: -2 } },
 			).exec();
 
 			await TrainingSessionModel.deleteMany({ $or: [{ studentCid: user.cid }] }).exec();
 			await TrainingSessionModel.updateMany(
 				{ instructorCid: user.cid },
-				{ $set: { instructorCid: -1 } },
+				{ $set: { instructorCid: -2 } },
 			).exec();
 
 			await VisitApplicationModel.deleteMany({ cid: user.cid }).exec();
