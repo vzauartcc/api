@@ -109,7 +109,7 @@ router.get('/self', async (req: Request, res: Response, next: NextFunction) => {
 
 		const user = await UserModel.findOne({ cid: decoded.cid })
 			.select('-createdAt -updatedAt')
-			.populate('roles absence')
+			.populate('roles absence certifications')
 			.lean({ virtuals: true })
 			.cache('10 minutes', `users-user-${decoded.cid}`)
 			.exec();
