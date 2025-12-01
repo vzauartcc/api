@@ -1,4 +1,13 @@
-import { DeleteObjectCommand, HeadObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+	DeleteObjectCommand,
+	HeadObjectCommand,
+	ListObjectsV2Command,
+	S3Client,
+	type CompleteMultipartUploadCommandInput,
+	type CreateMultipartUploadCommandInput,
+	type PutObjectCommandInput,
+	type UploadPartCommandInput,
+} from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import type { Readable } from 'stream';
 
@@ -57,10 +66,15 @@ export function uploadToS3(
 	filename: string,
 	file: Readable,
 	mimeType: string,
-	options = {},
+	options = {} as Partial<PutObjectCommandInput> &
+		Partial<
+			CreateMultipartUploadCommandInput &
+				UploadPartCommandInput &
+				CompleteMultipartUploadCommandInput
+		>,
 	progressHandler?: any,
 ) {
-	if (!client) {
+	if (!client || !BUCKET) {
 		throw new Error('S3 not set up.');
 	}
 
@@ -86,7 +100,7 @@ export function uploadToS3(
 }
 
 export function deleteFromS3(filename: string) {
-	if (!client) {
+	if (!client || !BUCKET) {
 		throw new Error('S3 not set up.');
 	}
 
@@ -99,7 +113,7 @@ export function deleteFromS3(filename: string) {
 }
 
 export async function findInS3(filename: string) {
-	if (!client) {
+	if (!client || !BUCKET) {
 		throw new Error('S3 not set up.');
 	}
 
@@ -119,4 +133,34 @@ export async function findInS3(filename: string) {
 
 		throw e;
 	}
+}
+
+export async function findPrefixInS3(partial: string) {
+	if (!client || !BUCKET) {
+		throw new Error('S3 not set up.');
+	}
+
+	const allKeys = [];
+	let isTruncated = true;
+	let continuationToken = undefined;
+
+	while (isTruncated) {
+		const cmd: ListObjectsV2Command = new ListObjectsV2Command({
+			Bucket: BUCKET,
+			Prefix: `${S3_PREFIX}/${partial}`,
+			ContinuationToken: continuationToken,
+		});
+
+		const response = await client.send(cmd);
+
+		if (response.Contents) {
+			const keys = response.Contents.map((obj) => obj.Key);
+			allKeys.push(...keys);
+		}
+
+		isTruncated = response.IsTruncated || false;
+		continuationToken = response.NextContinuationToken;
+	}
+
+	return allKeys;
 }

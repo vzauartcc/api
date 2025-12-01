@@ -49,6 +49,7 @@ export interface IUser extends SoftDeleteDocument, ITimestamps {
 	roleCodes: string[];
 	trainingMilestones: [];
 	history: IUserHistory[];
+	lastGdrpRequest?: Date | null;
 
 	// Virtual Properties
 	name: string;
@@ -128,6 +129,7 @@ const UserSchema = new Schema<IUser>(
 			default: [],
 		},
 		history: { type: [UserHistorySchema], default: [] },
+		lastGdrpRequest: { type: Date },
 	},
 	{
 		timestamps: true,
