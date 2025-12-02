@@ -131,6 +131,16 @@ app.use('/stats', statsRouter);
 app.use('/exam', examRouter);
 app.use('/vatusa', vatusaRouter);
 
+// Sentry user middleware
+app.use((req: Request, _res: Response, _next: NextFunction) => {
+	if (req.user) {
+		Sentry.getCurrentScope().setUser({
+			id: req.user.cid,
+			name: req.user.fname + ' ' + req.user.lname,
+			ip: req.ip,
+		});
+	}
+});
 // Sentry error capturing should be after all routes are registered.
 if (process.env['NODE_ENV'] === 'production') {
 	console.log('Setting up Sentry Express error handler. . . .');
