@@ -120,13 +120,18 @@ export const getCacheInstance = () => {
 
 // Sentry user middleware
 app.use((req: Request, _res: Response, next: NextFunction) => {
-	console.log(req.ip);
-	console.log(req.headers);
+	const ips = req.headers['x-original-forwarded-for'];
+	let clientIp = req.ip;
+
+	if (typeof ips === 'string') {
+		clientIp = ips.split(',')[0]?.trim();
+	}
+
 	if (req.user) {
 		Sentry.getCurrentScope().setUser({
 			id: req.user.cid,
 			name: req.user.fname + ' ' + req.user.lname,
-			ip: req.ip,
+			ip: clientIp,
 		});
 	}
 
