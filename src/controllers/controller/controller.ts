@@ -19,6 +19,7 @@ import { CertificationModel } from '../../models/certification.js';
 import { ControllerHoursModel } from '../../models/controllerHours.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { RoleModel } from '../../models/role.js';
+import { TrainingWaitlistModel } from '../../models/trainingWaitlist.js';
 import { UserModel, type IUser } from '../../models/user.js';
 import status from '../../types/status.js';
 import absenceRouter from './absence.js';
@@ -842,6 +843,13 @@ router.put(
 				action: `%a was updated by %b.`,
 				actionType: ACTION_TYPE.UPDATE_USER,
 			});
+
+			await TrainingWaitlistModel.deleteMany({
+				studentCid: user.cid,
+				certCode: { $in: updatedCertificationDate.map((c) => c.code) },
+			}).exec();
+
+			clearCachePrefix('waitlist');
 
 			return res.status(status.OK).json();
 		} catch (e) {
