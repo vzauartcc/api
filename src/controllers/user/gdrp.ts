@@ -429,7 +429,8 @@ router.delete(
 				actionType: ACTION_TYPE.ERASE_USER_DATA,
 			});
 
-			clearCacheKeys(req.app.redis);
+			// Full cache reset due to GDRP request.
+			clearCacheKeys();
 
 			return res.status(status.NO_CONTENT).json({ message: 'User erased successfully!' });
 		} catch (e) {
