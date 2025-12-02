@@ -6,6 +6,7 @@ import * as fs from 'fs';
 import multer from 'multer';
 import { getCacheInstance } from '../../app.js';
 import { sendMail } from '../../helpers/mailer.js';
+import { clearCachePrefix } from '../../helpers/redis.js';
 import { deleteFromS3, setUploadStatus, uploadToS3 } from '../../helpers/s3.js';
 import { isEventsTeam } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
@@ -923,9 +924,8 @@ router.put(
 			}
 
 			await eventData.save();
-			await getCacheInstance().clear(`event-${req.params['slug']}`);
-			await getCacheInstance().clear(`event-positions-${req.params['slug']}`);
-			await getCacheInstance().clear('events');
+
+			await clearCachePrefix('event');
 
 			await DossierModel.create({
 				by: req.user.cid,
@@ -974,9 +974,8 @@ router.delete(
 			}
 
 			await deleteEvent.delete();
-			await getCacheInstance().clear(`event-${req.params['slug']}`);
-			await getCacheInstance().clear(`event-positions-${req.params['slug']}`);
-			await getCacheInstance().clear(`events`);
+
+			await clearCachePrefix('event');
 
 			await DossierModel.create({
 				by: req.user.cid,
@@ -1083,9 +1082,7 @@ router.put(
 				},
 			).exec();
 
-			await getCacheInstance().clear(`events`);
-			await getCacheInstance().clear(`event-${req.params['slug']}`);
-			await getCacheInstance().clear(`event-positions-${req.params['slug']}`);
+			await clearCachePrefix('event');
 
 			if (!event) {
 				throw {

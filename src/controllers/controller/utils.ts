@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getCacheInstance } from '../../app.js';
+import { clearCachePrefix } from '../../helpers/redis.js';
 import { findInS3, uploadToS3 } from '../../helpers/s3.js';
 import { UserModel, type ICertificationDate, type IUser } from '../../models/user.js';
 import status from '../../types/status.js';
@@ -163,12 +164,9 @@ export function grantCerts(
 }
 
 export async function clearUserCache(id: number) {
-	await getCacheInstance().clear('user-{"member":true}');
+	clearCachePrefix('user-');
+	clearCachePrefix('users-');
 	await getCacheInstance().clear('users');
 	await getCacheInstance().clear('discord-users');
-	await getCacheInstance().clear('user-users-user');
-	await getCacheInstance().clear('user-users-internal');
-	await getCacheInstance().clear(`user-${id}`);
 	await getCacheInstance().clear(`auth-${id}`);
-	await getCacheInstance().clear(`users-user-${id}`);
 }

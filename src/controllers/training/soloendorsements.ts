@@ -2,6 +2,7 @@ import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
 import { getCacheInstance } from '../../app.js';
+import { clearCachePrefix } from '../../helpers/redis.js';
 import { vatusaApi } from '../../helpers/vatusa.js';
 import zau from '../../helpers/zau.js';
 import { isInstructor, isTrainingStaff } from '../../middleware/auth.js';
@@ -268,8 +269,8 @@ router.patch(
 			});
 
 			await solo.save();
-			getCacheInstance().clear(`solo-${req.params['id']}`);
-			getCacheInstance().clear('solos');
+
+			await clearCachePrefix('solo');
 
 			if (e !== '') {
 				console.error('error extending vatusa solo', e);
@@ -317,8 +318,8 @@ router.delete(
 			}
 
 			await solo.delete();
-			await getCacheInstance().clear('solos');
-			await getCacheInstance().clear(`solo-${req.params['id']}`);
+
+			await clearCachePrefix('solo');
 
 			DossierModel.create({
 				by: req.user.cid,

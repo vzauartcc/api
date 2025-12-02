@@ -7,12 +7,14 @@ import status from '../../types/status.js';
 import requestRouter from './requests.js';
 import sessionRouter from './sessions.js';
 import soloRouter from './soloendorsements.js';
+import waitlistRouter from './waitlist.js';
 
 const router = Router();
 
 router.use('/request', requestRouter);
 router.use('/session', sessionRouter);
 router.use('/solo', soloRouter);
+router.use('/waitlist', waitlistRouter);
 
 router.get('/milestones', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
