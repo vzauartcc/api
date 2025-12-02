@@ -1,5 +1,11 @@
 import { Redis } from 'ioredis';
 
+let redis: Redis | null = null;
+
+export function setRedis(client: Redis) {
+	redis = client;
+}
+
 interface RedisConnectionDetails {
 	username: string;
 	password: string;
@@ -24,9 +30,9 @@ export function parseRedisConnectionString(connectionString: string): RedisConne
 		if (url.port) {
 			port = parseInt(url.port, 10);
 		} else if (url.protocol === 'redis:' || url.protocol === 'rediss:') {
-			// Set the default port if it's a redis/rediss protocol and no port is specified.
+			// Set the default port if it's a redis/redisS protocol and no port is specified.
 			// Although not strictly necessary as clients often default it, this provides clarity.
-			port = url.protocol === 'rediss:' ? 6380 : 6379; // Rediss often defaults to 6380 for SSL
+			port = url.protocol === 'rediss:' ? 6380 : 6379; // RedisS often defaults to 6380 for SSL
 		}
 
 		return {
@@ -46,11 +52,24 @@ export function parseRedisConnectionString(connectionString: string): RedisConne
 	}
 }
 
-export async function clearCacheKeys(redis: Redis) {
+export async function clearCacheKeys() {
+	if (!redis) return;
+
 	const keys = await redis.keys('cache-mongoose:*');
 
 	if (keys.length > 0) {
 		const count = await redis.del(keys);
 		console.log('Deleted', count, 'old cache entries.');
+	}
+}
+
+export async function clearCachePrefix(prefix: string) {
+	if (!redis) return;
+
+	const keys = await redis.keys(`cache-mongoose:${prefix}*`);
+
+	if (keys.length > 0) {
+		const count = await redis.del(keys);
+		console.log(`Cleared ${count} cache entires for "${prefix}"`);
 	}
 }

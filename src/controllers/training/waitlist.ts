@@ -1,6 +1,6 @@
 import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { getCacheInstance } from '../../app.js';
+import { clearCachePrefix } from '../../helpers/redis.js';
 import { isMember, isSeniorStaff, isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { CertificationModel } from '../../models/certification.js';
@@ -81,7 +81,7 @@ router.post('/', getUser, isMember, async (req: Request, res: Response, next: Ne
 			availability: req.body.availability,
 		});
 
-		clearCache('');
+		clearCachePrefix('waitlist');
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
@@ -162,7 +162,7 @@ router.post(
 				availability: req.body.availability,
 			});
 
-			clearCache('');
+			clearCachePrefix('waitlist');
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
@@ -219,7 +219,7 @@ router.patch(
 				+req.body.instructor === -1 ? null : waitlist.assignedDate || new Date();
 			await waitlist.save();
 
-			clearCache(req.params['id']);
+			clearCachePrefix('waitlist');
 
 			return res.status(status.OK).json();
 		} catch (e) {
@@ -254,7 +254,7 @@ router.delete(
 				};
 			}
 
-			clearCache(req.params['id']);
+			clearCachePrefix('waitlist');
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
@@ -306,7 +306,7 @@ router.get(
 				.populate('instructor', 'fname lname cid')
 				.populate('certification', 'name code')
 				.sort({ assignedDate: 'desc' })
-				.cache()
+				.cache('10 minutes', `waitlist-instructor-${req.params['cid']}`)
 				.exec();
 
 			return res.status(status.OK).json(waitlist);
@@ -321,8 +321,3 @@ router.get(
 );
 
 export default router;
-
-function clearCache(id: string) {
-	getCacheInstance().clear('waitlist');
-	getCacheInstance().clear(`waitlist-${id}`);
-}

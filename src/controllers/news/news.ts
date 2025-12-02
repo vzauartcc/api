@@ -1,7 +1,7 @@
 import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { getCacheInstance } from '../../app.js';
 import { sanitizeInput } from '../../helpers/html.js';
+import { clearCachePrefix } from '../../helpers/redis.js';
 import { isStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
@@ -60,8 +60,8 @@ router.post('/', getUser, isStaff, async (req: Request, res: Response, next: Nex
 			uriSlug,
 			createdBy,
 		});
-		await getCacheInstance().clear('news-count');
-		await getCacheInstance().clear('news');
+
+		await clearCachePrefix('news');
 
 		if (!news) {
 			throw {
@@ -155,8 +155,8 @@ router.patch(
 
 			newsItem.content = sanitizeInput(content);
 			await newsItem.save();
-			await getCacheInstance().clear(`news-${req.params['slug']}`);
-			await getCacheInstance().clear(`news`);
+
+			await clearCachePrefix('news');
 
 			await DossierModel.create({
 				by: req.user.cid,
@@ -199,9 +199,8 @@ router.delete(
 			}
 
 			const deleted = await newsItem.delete();
-			await getCacheInstance().clear(`news-${req.params['slug']}`);
-			await getCacheInstance().clear(`news-count`);
-			await getCacheInstance().clear(`news`);
+
+			await clearCachePrefix('news');
 
 			if (!deleted) {
 				throw {

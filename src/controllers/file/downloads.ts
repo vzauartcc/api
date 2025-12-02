@@ -4,6 +4,7 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import * as fs from 'fs';
 import multer from 'multer';
 import { getCacheInstance } from '../../app.js';
+import { clearCachePrefix } from '../../helpers/redis.js';
 import { deleteFromS3, setUploadStatus, uploadToS3 } from '../../helpers/s3.js';
 import { isFacilityTeam } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
@@ -241,8 +242,8 @@ router.patch(
 				}).exec();
 			}
 
-			await getCacheInstance().clear(`downloads`);
-			await getCacheInstance().clear(`download-${req.params['id']}`);
+			await clearCachePrefix('download');
+
 			await DossierModel.create({
 				by: req.user.cid,
 				affected: -1,
@@ -286,8 +287,8 @@ router.delete(
 			}
 
 			await DownloadModel.findByIdAndDelete(req.params['id']).exec();
-			await getCacheInstance().clear('downloads');
-			await getCacheInstance().clear(`download-${req.params['id']}`);
+
+			await clearCachePrefix('download');
 
 			await DossierModel.create({
 				by: req.user.cid,

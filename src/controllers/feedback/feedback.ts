@@ -2,6 +2,7 @@ import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { getCacheInstance } from '../../app.js';
 import { getUsersWithPrivacy } from '../../helpers/mongodb.js';
+import { clearCachePrefix } from '../../helpers/redis.js';
 import { isSeniorStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
@@ -242,9 +243,7 @@ router.patch(
 				};
 			}
 
-			await getCacheInstance().clear(`feedback-${approved.id}`);
-			await getCacheInstance().clear('feedback-unapproved');
-			await getCacheInstance().clear('feedback-count');
+			await clearCachePrefix('feedback');
 
 			await NotificationModel.create({
 				recipient: approved.controller!.cid,
@@ -296,9 +295,8 @@ router.patch(
 			}
 
 			await feedback.delete();
-			await getCacheInstance().clear(`feedback-${feedback.id}`);
-			await getCacheInstance().clear('feedback-unapproved');
-			await getCacheInstance().clear('feedback-count');
+
+			await clearCachePrefix('feedback');
 
 			await DossierModel.create({
 				by: req.user.cid,

@@ -21,7 +21,7 @@ import statsRouter from './controllers/stats/stats.js';
 import trainingRouter from './controllers/training/training.js';
 import userRouter from './controllers/user/user.js';
 import vatusaRouter from './controllers/vatusa/vatusa.js';
-import { clearCacheKeys, parseRedisConnectionString } from './helpers/redis.js';
+import { clearCacheKeys, parseRedisConnectionString, setRedis } from './helpers/redis.js';
 import { setupS3 } from './helpers/s3.js';
 import zau from './helpers/zau.js';
 import { soloExpiringNotifications, syncVatusaSoloEndorsements } from './tasks/solo.js';
@@ -55,7 +55,11 @@ app.redis = new Redis(REDIS_URI, { family: 4, connectionName: 'api' });
 app.redis.on('error', (err) => {
 	throw new Error(`Redis error: ${err}`);
 });
-app.redis.on('connect', () => console.log('Successfully connected to Redis'));
+app.redis.on('connect', () => {
+	console.log('Successfully connected to Redis');
+	setRedis(app.redis);
+	clearCacheKeys();
+});
 
 const CORS_ORIGIN = process.env['CORS_ORIGIN'];
 
@@ -110,8 +114,6 @@ const cacheInstance = cache.init(mongoose, {
 	debug: zau.isDev,
 });
 
-await clearCacheKeys(app.redis);
-
 export const getCacheInstance = () => {
 	return cacheInstance;
 };
@@ -133,6 +135,8 @@ app.use('/vatusa', vatusaRouter);
 
 // Sentry user middleware
 app.use((req: Request, _res: Response, _next: NextFunction) => {
+	console.log(req.ip);
+	console.log(req.headers);
 	if (req.user) {
 		Sentry.getCurrentScope().setUser({
 			id: req.user.cid,

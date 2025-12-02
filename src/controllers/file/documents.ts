@@ -4,6 +4,7 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import * as fs from 'fs';
 import multer from 'multer';
 import { getCacheInstance } from '../../app.js';
+import { clearCachePrefix } from '../../helpers/redis.js';
 import { deleteFromS3, setUploadStatus, uploadToS3 } from '../../helpers/s3.js';
 import { isFacilityTeam } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
@@ -160,7 +161,6 @@ router.post(
 					type: 'file',
 					fileName: req.file.filename,
 				});
-				await getCacheInstance().clear('documents');
 			} else {
 				await DocumentModel.create({
 					name,
@@ -172,6 +172,7 @@ router.post(
 					type: 'doc',
 				});
 			}
+
 			await getCacheInstance().clear('documents');
 
 			await DossierModel.create({
@@ -304,8 +305,7 @@ router.put(
 				}
 			}
 
-			await getCacheInstance().clear('documents');
-			await getCacheInstance().clear(`document-${req.params['slug']}`);
+			await clearCachePrefix('document');
 
 			await DossierModel.create({
 				by: req.user.cid,
@@ -350,8 +350,8 @@ router.delete(
 			}
 
 			await DocumentModel.findByIdAndDelete(req.params['id']).exec();
-			await getCacheInstance().clear('documents');
-			await getCacheInstance().clear(`document-${req.params['id']}`);
+
+			await clearCachePrefix('document');
 
 			await DossierModel.create({
 				by: req.user.cid,

@@ -4,6 +4,7 @@ import { DateTime } from 'luxon';
 import { getCacheInstance } from '../../app.js';
 import { sendMail } from '../../helpers/mailer.js';
 import { getUsersWithPrivacy } from '../../helpers/mongodb.js';
+import { clearCachePrefix } from '../../helpers/redis.js';
 import { vatusaApi } from '../../helpers/vatusa.js';
 import zau from '../../helpers/zau.js';
 import {

@@ -2,6 +2,7 @@ import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import { getCacheInstance } from '../../app.js';
+import { clearCachePrefix } from '../../helpers/redis.js';
 import { isInstructor, isSeniorStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { ExamModel, type IExam } from '../../models/exam.js';
@@ -507,8 +508,8 @@ router.delete(
 			}
 
 			await deletedExam.delete();
-			await getCacheInstance().clear('exams');
-			await getCacheInstance().clear(`exam-${deletedExam.id}`);
+
+			await clearCachePrefix('exam');
 
 			return res.status(status.NO_CONTENT).json();
 			// Respond with success message
