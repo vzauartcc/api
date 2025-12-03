@@ -1,5 +1,5 @@
-import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
+import { logException } from '../../app.js';
 import discord from '../../helpers/discord.js';
 import internalAuth from '../../middleware/internalAuth.js';
 import getUser from '../../middleware/user.js';
@@ -18,9 +18,8 @@ router.get('/users', internalAuth, async (_req: Request, res: Response, next: Ne
 
 		return res.status(status.OK).json(users);
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -29,9 +28,8 @@ router.get('/user', getUser, async (req: Request, res: Response, next: NextFunct
 	try {
 		return res.status(status.OK).json(!!req.user.discordInfo?.clientId);
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -121,9 +119,8 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -142,9 +139,8 @@ router.delete('/user', getUser, async (req: Request, res: Response, next: NextFu
 
 		res.status(status.OK).json();
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });

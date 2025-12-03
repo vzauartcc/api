@@ -1,7 +1,6 @@
-import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
-import { getCacheInstance } from '../../app.js';
+import { getCacheInstance, logException } from '../../app.js';
 import { sendMail } from '../../helpers/mailer.js';
 import { getUsersWithPrivacy } from '../../helpers/mongodb.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
@@ -48,9 +47,7 @@ router.get('/', getUser, async (req: Request, res: Response, next: NextFunction)
 
 		return res.status(status.OK).json({ home, visiting });
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
 
 		return next(e);
 	}
@@ -146,9 +143,8 @@ router.get('/staff', async (_req: Request, res: Response, next: NextFunction) =>
 
 		return res.status(status.OK).json(staff);
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -159,9 +155,8 @@ router.get('/role', async (_req: Request, res: Response, next: NextFunction) => 
 
 		return res.status(status.OK).json(roles);
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -172,9 +167,8 @@ router.get('/certifications', async (_req: Request, res: Response, next: NextFun
 
 		return res.status(status.OK).json(certifications);
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -196,9 +190,8 @@ router.get('/oi', async (_req: Request, res: Response, next: NextFunction) => {
 
 		return res.status(status.OK).json(oi.map((o) => o.oi));
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -230,9 +223,8 @@ router.get('/log', getUser, isStaff, async (req: Request, res: Response, next: N
 
 		return res.status(status.OK).json({ amount, dossier });
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -292,9 +284,8 @@ router.get(
 					'Erase User Data',
 				]);
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -336,9 +327,8 @@ router.get('/:cid', userOrInternal, async (req: Request, res: Response, next: Ne
 
 		return res.status(status.OK).json(user[0]);
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -398,9 +388,8 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -505,9 +494,8 @@ router.get('/stats/:cid', async (req: Request, res: Response, next: NextFunction
 
 		return res.status(status.OK).json(hours);
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -587,9 +575,8 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response, next: Nex
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -681,9 +668,8 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -747,9 +733,8 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -854,9 +839,8 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -897,11 +881,8 @@ router.patch(
 
 			return res.status(status.OK).json({ message: 'Certs removed successfully' });
 		} catch (e) {
-			console.error('Error removing certs', e);
+			logException(e);
 
-			if (!(e as any).code) {
-				captureException(e);
-			}
 			return next(e);
 		}
 	},
@@ -981,9 +962,8 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},

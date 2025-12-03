@@ -1,7 +1,6 @@
-import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
-import { getCacheInstance } from '../../app.js';
+import { getCacheInstance, logException } from '../../app.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { vatusaApi } from '../../helpers/vatusa.js';
 import zau from '../../helpers/zau.js';
@@ -34,9 +33,8 @@ router.get(
 
 			return res.status(status.OK).json(solos);
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -66,9 +64,8 @@ router.get(
 
 			return res.status(status.OK).json(solos);
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -161,9 +158,8 @@ router.post(
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -282,9 +278,7 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
 
 			return next(e);
 		}
@@ -341,9 +335,8 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},

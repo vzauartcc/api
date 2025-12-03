@@ -1,9 +1,8 @@
-import { captureException } from '@sentry/node';
 import axios from 'axios';
 import { randomUUID } from 'crypto';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { getCacheInstance } from '../../app.js';
+import { getCacheInstance, logException } from '../../app.js';
 import { uploadToS3 } from '../../helpers/s3.js';
 import zau from '../../helpers/zau.js';
 import { userOrInternal } from '../../middleware/auth.js';
@@ -88,9 +87,8 @@ router.get('/', userOrInternal, async (req: Request, res: Response, next: NextFu
 
 		return res.status(status.OK).json({ home, visiting, removed });
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -126,8 +124,8 @@ router.get('/self', async (req: Request, res: Response, next: NextFunction) => {
 	} catch (e) {
 		deleteAuthCookie(res);
 
-		if (!(e as any).code || (e as any).name !== 'JsonWebTokenError') {
-			captureException(e);
+		if ((e as any).name !== 'JsonWebTokenError') {
+			logException(e);
 		}
 
 		return next(e);
@@ -157,9 +155,8 @@ router.post('/idsToken', getUser, async (req: Request, res: Response, next: Next
 
 		return res.status(status.CREATED).json(idsToken);
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -269,9 +266,8 @@ router.post('/login', oAuth, async (req: Request, res: Response, next: NextFunct
 
 		return res.status(status.OK).json();
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -289,9 +285,8 @@ router.get('/logout', getUser, async (req: Request, res: Response, next: NextFun
 
 		return res.status(status.OK).json();
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -324,9 +319,8 @@ router.get('/sessions', getUser, async (req: Request, res: Response, next: NextF
 			requirements: zau.activity.requirements,
 		});
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -369,9 +363,8 @@ router.get('/notifications', getUser, async (req: Request, res: Response, next: 
 			notif,
 		});
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -392,9 +385,8 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -419,9 +411,8 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -439,9 +430,8 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -475,9 +465,8 @@ router.patch('/profile', getUser, async (req: Request, res: Response, next: Next
 
 		return res.status(status.OK).json();
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -500,9 +489,8 @@ router.patch('/:cid', internalAuth, async (req: Request, res: Response, next: Ne
 
 		return res.status(status.OK).json();
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });

@@ -1,5 +1,5 @@
-import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
+import { logException } from '../../app.js';
 import { AtcOnlineModel } from '../../models/atcOnline.js';
 import { ControllerHoursModel } from '../../models/controllerHours.js';
 import { PilotOnlineModel } from '../../models/pilotOnline.js';
@@ -59,9 +59,8 @@ router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 
 		return res.status(status.OK).json({ pilots, atc });
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -134,9 +133,8 @@ router.get('/top', async (_req: Request, res: Response, next: NextFunction) => {
 				.slice(0, 5),
 		});
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });

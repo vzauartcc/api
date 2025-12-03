@@ -1,7 +1,6 @@
-import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { getCacheInstance } from '../../app.js';
+import { getCacheInstance, logException } from '../../app.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { isInstructor, isSeniorStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
@@ -105,9 +104,8 @@ router.post(
 
 			return res.status(status.CREATED).json({ examId: newExam.id });
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -152,9 +150,8 @@ router.patch(
 				.status(status.OK)
 				.json({ message: 'Exam updated successfully', exam: updatedExam });
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -257,9 +254,8 @@ router.post('/:examId/start', getUser, async (req: Request, res: Response, next:
 			.status(status.CREATED)
 			.json({ message: 'Exam started successfully', attemptId: newAttempt.id, timeRemaining });
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -327,9 +323,8 @@ router.post('/:examId/submit', getUser, async (req: Request, res: Response, next
 			responses: scoredResponses,
 		});
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -365,9 +360,8 @@ router.get(
 
 			return res.status(status.OK).json(examsWithQuestionCountAndCreator);
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -393,9 +387,8 @@ router.get(
 
 			return res.status(status.OK).json(exam);
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -420,9 +413,8 @@ router.get('/:id/results', getUser, async (req: Request, res: Response, next: Ne
 
 		return res.status(status.OK).json(examAttempt);
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -466,9 +458,8 @@ router.patch(
 					.json({ message: 'Question not found in the current attempt.' });
 			}
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -514,9 +505,8 @@ router.delete(
 			return res.status(status.NO_CONTENT).json();
 			// Respond with success message
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},

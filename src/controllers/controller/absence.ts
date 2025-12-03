@@ -1,6 +1,5 @@
-import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { getCacheInstance } from '../../app.js';
+import { getCacheInstance, logException } from '../../app.js';
 import { isManagement } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { AbsenceModel } from '../../models/absence.js';
@@ -28,7 +27,7 @@ router.get('/', getUser, isManagement, async (_req: Request, res: Response, next
 
 		return res.status(status.OK).json(absences);
 	} catch (e) {
-		captureException(e);
+		logException(e);
 
 		return next(e);
 	}
@@ -81,9 +80,8 @@ router.post('/', getUser, isManagement, async (req: Request, res: Response, next
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -121,9 +119,8 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},

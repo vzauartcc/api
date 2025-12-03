@@ -160,6 +160,13 @@ if (process.env['NODE_ENV'] === 'production') {
 }
 console.log('Is Sentry initialized and enabled', Sentry.isInitialized(), Sentry.isEnabled());
 
+export function logException(e: any) {
+	if (e.code) {
+		return;
+	}
+
+	Sentry.captureException(e);
+}
 app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
 	if (res.headersSent) {
 		return next(err);

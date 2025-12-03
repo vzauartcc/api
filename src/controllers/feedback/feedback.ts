@@ -1,6 +1,5 @@
-import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { getCacheInstance } from '../../app.js';
+import { getCacheInstance, logException } from '../../app.js';
 import { getUsersWithPrivacy } from '../../helpers/mongodb.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { isSeniorStaff } from '../../middleware/auth.js';
@@ -35,9 +34,8 @@ router.get('/', getUser, isSeniorStaff, async (req: Request, res: Response, next
 
 		return res.status(status.OK).json({ amount, feedback });
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -80,9 +78,8 @@ router.get('/own', getUser, async (req: Request, res: Response, next: NextFuncti
 
 		return res.status(status.OK).json({ feedback, amount });
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -135,9 +132,8 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -182,9 +178,8 @@ router.get('/controllers', getUser, async (req: Request, res: Response, next: Ne
 
 		return res.status(status.OK).json(controllers);
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -205,9 +200,8 @@ router.get(
 
 			return res.status(status.OK).json(feedback);
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -262,9 +256,8 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -307,9 +300,8 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},

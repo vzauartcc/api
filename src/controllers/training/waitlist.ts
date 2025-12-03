@@ -1,5 +1,5 @@
-import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
+import { logException } from '../../app.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { isMember, isSeniorStaff, isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
@@ -31,9 +31,7 @@ router.get('/', getUser, isMember, async (_req: Request, res: Response, next: Ne
 
 		return res.status(status.OK).json(waitlist);
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
 
 		return next(e);
 	}
@@ -85,9 +83,7 @@ router.post('/', getUser, isMember, async (req: Request, res: Response, next: Ne
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
 
 		return next(e);
 	}
@@ -166,9 +162,7 @@ router.post(
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
 
 			return next(e);
 		}
@@ -223,9 +217,7 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
 
 			return next(e);
 		}
@@ -258,9 +250,7 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
 
 			return next(e);
 		}
@@ -276,9 +266,7 @@ router.get('/instructors', getUser, async (_req: Request, res: Response, next: N
 
 		return res.status(status.OK).json(instructors);
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
 
 		return next(e);
 	}
@@ -311,9 +299,7 @@ router.get(
 
 			return res.status(status.OK).json(waitlist);
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
 
 			return next(e);
 		}
