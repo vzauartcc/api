@@ -282,6 +282,10 @@ router.get(
 					'Disconnect Discord',
 					'Requested GDRP Data',
 					'Erase User Data',
+					'Training Waitlist Signup',
+					'Manual Training Waitlist Signup',
+					'Edited Training Waitlist Signup',
+					'Deleted Training Waitlist Signup',
 				]);
 		} catch (e) {
 			logException(e);

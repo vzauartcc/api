@@ -4,6 +4,7 @@ import { clearCachePrefix } from '../../helpers/redis.js';
 import { isMember, isSeniorStaff, isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { CertificationModel } from '../../models/certification.js';
+import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { TrainingWaitlistModel } from '../../models/trainingWaitlist.js';
 import { UserModel } from '../../models/user.js';
 import status from '../../types/status.js';
@@ -77,6 +78,13 @@ router.post('/', getUser, isMember, async (req: Request, res: Response, next: Ne
 			instructorCid: -1,
 			certCode: certification.code,
 			availability: req.body.availability,
+		});
+
+		await DossierModel.create({
+			affected: -1,
+			by: req.user.cid,
+			action: '%b joined the training waitlist.',
+			actionType: ACTION_TYPE.CREATE_WAITLIST_SIGNUP,
 		});
 
 		clearCachePrefix('waitlist');
@@ -158,6 +166,13 @@ router.post(
 				availability: req.body.availability,
 			});
 
+			await DossierModel.create({
+				affected: student.cid,
+				by: req.user.cid,
+				action: '%a was added to the training waitlist by %b',
+				actionType: ACTION_TYPE.MANUAL_WAITLIST_SIGNUP,
+			});
+
 			clearCachePrefix('waitlist');
 
 			return res.status(status.CREATED).json();
@@ -213,6 +228,13 @@ router.patch(
 				+req.body.instructor === -1 ? null : waitlist.assignedDate || new Date();
 			await waitlist.save();
 
+			await DossierModel.create({
+				affected: waitlist.studentCid,
+				by: req.user.cid,
+				action: 'Training waitlist signup for %a was updated by %b.',
+				actionType: ACTION_TYPE.EDIT_WAITLIST_SIGNUP,
+			});
+
 			clearCachePrefix('waitlist');
 
 			return res.status(status.OK).json();
@@ -245,6 +267,13 @@ router.delete(
 					message: 'Waitlist entry not found.',
 				};
 			}
+
+			await DossierModel.create({
+				affected: waitlist.studentCid,
+				by: req.user.cid,
+				action: '%b deleted training waitlist signup for %a.',
+				actionType: ACTION_TYPE.DELETE_WAITLIST_SIGNUP,
+			});
 
 			clearCachePrefix('waitlist');
 
