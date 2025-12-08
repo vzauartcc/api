@@ -210,3 +210,17 @@ if (process.env['NODE_ENV'] === 'production') {
 		() => syncVatusaTrainingRecords(),
 	);
 }
+
+process.on('uncaughtException', (err: any, _origin) => {
+	console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+	console.log('                 Uncaught Exception               ');
+	console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+	console.error(err);
+});
+
+process.on('unhandledRejection', (reason) => {
+	console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+	console.log('                Unhandled Rejection               ');
+	console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+	console.error(reason);
+});
