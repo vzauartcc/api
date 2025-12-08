@@ -1,11 +1,11 @@
 import type { Progress } from '@aws-sdk/lib-storage';
-import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { fileTypeFromFile } from 'file-type';
 import * as fs from 'fs';
 import multer from 'multer';
-import { getCacheInstance } from '../../app.js';
+import { getCacheInstance, logException } from '../../app.js';
 import { sendMail } from '../../helpers/mailer.js';
+import { clearCachePrefix } from '../../helpers/redis.js';
 import { deleteFromS3, setUploadStatus, uploadToS3 } from '../../helpers/s3.js';
 import { isEventsTeam } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
@@ -50,9 +50,8 @@ router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 
 		return res.status(status.OK).json(events);
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -85,9 +84,8 @@ router.get('/archive', async (req: Request, res: Response, next: NextFunction) =
 
 		return res.status(status.OK).json({ amount: count, events });
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -111,9 +109,8 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
 
 		return res.status(status.OK).json(event);
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -143,9 +140,8 @@ router.get('/:slug/positions', async (req: Request, res: Response, next: NextFun
 
 		return res.status(status.OK).json(event);
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -216,9 +212,8 @@ router.patch('/:slug/signup', getUser, async (req: Request, res: Response, next:
 
 		return res.status(status.OK).json();
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -262,9 +257,8 @@ router.delete('/:slug/signup', getUser, async (req: Request, res: Response, next
 
 		return res.status(status.NO_CONTENT).json();
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -335,9 +329,8 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -422,9 +415,8 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -496,9 +488,8 @@ router.patch(
 
 			return res.status(status.OK).json(assignedPosition);
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -654,9 +645,8 @@ router.post(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -718,7 +708,7 @@ router.post(
 					},
 				);
 			} catch (e) {
-				captureException(e);
+				logException(e);
 
 				setUploadStatus(req.body.uploadId, -1);
 
@@ -758,9 +748,8 @@ router.post(
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -902,7 +891,7 @@ router.put(
 						},
 					);
 				} catch (e) {
-					captureException(e);
+					logException(e);
 
 					setUploadStatus(req.body.uploadId, -1);
 
@@ -923,9 +912,8 @@ router.put(
 			}
 
 			await eventData.save();
-			await getCacheInstance().clear(`event-${req.params['slug']}`);
-			await getCacheInstance().clear(`event-positions-${req.params['slug']}`);
-			await getCacheInstance().clear('events');
+
+			await clearCachePrefix('event');
 
 			await DossierModel.create({
 				by: req.user.cid,
@@ -936,9 +924,8 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -974,9 +961,8 @@ router.delete(
 			}
 
 			await deleteEvent.delete();
-			await getCacheInstance().clear(`event-${req.params['slug']}`);
-			await getCacheInstance().clear(`event-positions-${req.params['slug']}`);
-			await getCacheInstance().clear(`events`);
+
+			await clearCachePrefix('event');
 
 			await DossierModel.create({
 				by: req.user.cid,
@@ -987,9 +973,8 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -1053,9 +1038,8 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -1083,9 +1067,7 @@ router.put(
 				},
 			).exec();
 
-			await getCacheInstance().clear(`events`);
-			await getCacheInstance().clear(`event-${req.params['slug']}`);
-			await getCacheInstance().clear(`event-positions-${req.params['slug']}`);
+			await clearCachePrefix('event');
 
 			if (!event) {
 				throw {
@@ -1096,9 +1078,8 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},

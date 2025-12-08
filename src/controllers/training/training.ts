@@ -1,5 +1,5 @@
-import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
+import { logException } from '../../app.js';
 import getUser from '../../middleware/user.js';
 import { TrainingRequestMilestoneModel } from '../../models/trainingMilestone.js';
 import { UserModel } from '../../models/user.js';
@@ -7,12 +7,14 @@ import status from '../../types/status.js';
 import requestRouter from './requests.js';
 import sessionRouter from './sessions.js';
 import soloRouter from './soloendorsements.js';
+import waitlistRouter from './waitlist.js';
 
 const router = Router();
 
 router.use('/request', requestRouter);
 router.use('/session', sessionRouter);
 router.use('/solo', soloRouter);
+router.use('/waitlist', waitlistRouter);
 
 router.get('/milestones', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
@@ -31,9 +33,8 @@ router.get('/milestones', getUser, async (req: Request, res: Response, next: Nex
 
 		return res.status(status.OK).json({ user, milestones });
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });

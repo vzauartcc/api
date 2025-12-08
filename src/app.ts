@@ -21,7 +21,7 @@ import statsRouter from './controllers/stats/stats.js';
 import trainingRouter from './controllers/training/training.js';
 import userRouter from './controllers/user/user.js';
 import vatusaRouter from './controllers/vatusa/vatusa.js';
-import { clearCacheKeys, parseRedisConnectionString } from './helpers/redis.js';
+import { clearCacheKeys, parseRedisConnectionString, setRedis } from './helpers/redis.js';
 import { setupS3 } from './helpers/s3.js';
 import zau from './helpers/zau.js';
 import { soloExpiringNotifications, syncVatusaSoloEndorsements } from './tasks/solo.js';
@@ -55,7 +55,11 @@ app.redis = new Redis(REDIS_URI, { family: 4, connectionName: 'api' });
 app.redis.on('error', (err) => {
 	throw new Error(`Redis error: ${err}`);
 });
-app.redis.on('connect', () => console.log('Successfully connected to Redis'));
+app.redis.on('connect', () => {
+	console.log('Successfully connected to Redis');
+	setRedis(app.redis);
+	clearCacheKeys();
+});
 
 const CORS_ORIGIN = process.env['CORS_ORIGIN'];
 
@@ -110,11 +114,29 @@ const cacheInstance = cache.init(mongoose, {
 	debug: zau.isDev,
 });
 
-await clearCacheKeys(app.redis);
-
 export const getCacheInstance = () => {
 	return cacheInstance;
 };
+
+// Sentry user middleware
+app.use((req: Request, _res: Response, next: NextFunction) => {
+	const ips = req.headers['x-original-forwarded-for'];
+	let clientIp = req.ip;
+
+	if (typeof ips === 'string') {
+		clientIp = ips.split(',')[0]?.trim();
+	}
+
+	if (req.user) {
+		Sentry.getCurrentScope().setUser({
+			id: req.user.cid,
+			name: req.user.fname + ' ' + req.user.lname,
+			ip: clientIp,
+		});
+	}
+
+	return next();
+});
 
 console.log('Setting up routes. . . .');
 app.use('/online', onlineRouter);
@@ -138,6 +160,13 @@ if (process.env['NODE_ENV'] === 'production') {
 }
 console.log('Is Sentry initialized and enabled', Sentry.isInitialized(), Sentry.isEnabled());
 
+export function logException(e: any) {
+	if (e.code) {
+		return;
+	}
+
+	Sentry.captureException(e);
+}
 app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
 	if (res.headersSent) {
 		return next(err);
@@ -181,3 +210,17 @@ if (process.env['NODE_ENV'] === 'production') {
 		() => syncVatusaTrainingRecords(),
 	);
 }
+
+process.on('uncaughtException', (err: any, _origin) => {
+	console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+	console.log('                 Uncaught Exception               ');
+	console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+	console.error(err);
+});
+
+process.on('unhandledRejection', (reason) => {
+	console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+	console.log('                Unhandled Rejection               ');
+	console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+	console.error(reason);
+});

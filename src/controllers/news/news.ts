@@ -1,7 +1,7 @@
-import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { getCacheInstance } from '../../app.js';
+import { logException } from '../../app.js';
 import { sanitizeInput } from '../../helpers/html.js';
+import { clearCachePrefix } from '../../helpers/redis.js';
 import { isStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
@@ -29,9 +29,8 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 
 		return res.status(status.OK).json({ amount, news });
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -60,8 +59,8 @@ router.post('/', getUser, isStaff, async (req: Request, res: Response, next: Nex
 			uriSlug,
 			createdBy,
 		});
-		await getCacheInstance().clear('news-count');
-		await getCacheInstance().clear('news');
+
+		await clearCachePrefix('news');
 
 		if (!news) {
 			throw {
@@ -79,9 +78,8 @@ router.post('/', getUser, isStaff, async (req: Request, res: Response, next: Nex
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -110,9 +108,8 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
 
 		return res.status(status.OK).json(newsItem);
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -155,8 +152,8 @@ router.patch(
 
 			newsItem.content = sanitizeInput(content);
 			await newsItem.save();
-			await getCacheInstance().clear(`news-${req.params['slug']}`);
-			await getCacheInstance().clear(`news`);
+
+			await clearCachePrefix('news');
 
 			await DossierModel.create({
 				by: req.user.cid,
@@ -167,9 +164,8 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -199,9 +195,8 @@ router.delete(
 			}
 
 			const deleted = await newsItem.delete();
-			await getCacheInstance().clear(`news-${req.params['slug']}`);
-			await getCacheInstance().clear(`news-count`);
-			await getCacheInstance().clear(`news`);
+
+			await clearCachePrefix('news');
 
 			if (!deleted) {
 				throw {
@@ -219,9 +214,8 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},

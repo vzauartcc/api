@@ -1,8 +1,8 @@
-import { captureException } from '@sentry/node';
 import axios from 'axios';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
 import type { FlattenMaps } from 'mongoose';
+import { logException } from '../../app.js';
 import zau from '../../helpers/zau.js';
 import { hasRole, isStaff, isTrainingStaff } from '../../middleware/auth.js';
 import internalAuth from '../../middleware/internalAuth.js';
@@ -144,9 +144,8 @@ router.get('/admin', getUser, isStaff, async (_req: Request, res: Response, next
 			},
 		});
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -214,9 +213,8 @@ router.get(
 				controllersWithoutTraining,
 			});
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -495,9 +493,8 @@ router.get(
 			// SECTION: Return Final Data
 			res.status(status.OK).json(Object.values(userData));
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -527,9 +524,8 @@ router.post(
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},

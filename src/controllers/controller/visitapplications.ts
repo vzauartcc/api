@@ -1,6 +1,5 @@
-import { captureException } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { getCacheInstance } from '../../app.js';
+import { getCacheInstance, logException } from '../../app.js';
 import { sendMail } from '../../helpers/mailer.js';
 import { vatusaApi, type IVisitingStatus } from '../../helpers/vatusa.js';
 import { isManagement } from '../../middleware/auth.js';
@@ -69,9 +68,8 @@ router.get('/', getUser, isManagement, async (_req: Request, res: Response, next
 
 		return res.status(status.OK).json(retval);
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -114,7 +112,7 @@ router.post('/', getUser, async (req: Request, res: Response, next: NextFunction
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		captureException(e);
+		logException(e);
 
 		return next(e);
 	}
@@ -147,9 +145,8 @@ router.get('/status', getUser, async (req: Request, res: Response, next: NextFun
 			} as IVisitingStatus,
 		});
 	} catch (e) {
-		if (!(e as any).code) {
-			captureException(e);
-		}
+		logException(e);
+
 		return next(e);
 	}
 });
@@ -234,9 +231,8 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},
@@ -301,9 +297,8 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			if (!(e as any).code) {
-				captureException(e);
-			}
+			logException(e);
+
 			return next(e);
 		}
 	},

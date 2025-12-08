@@ -68,6 +68,14 @@ export function isNotSelf(managementBypass: boolean = true) {
 	};
 }
 
+export function isMember(req: Request, res: Response, next: NextFunction) {
+	if (req.user && req.user.isMember === true) {
+		return next();
+	}
+
+	return res.status(status.FORBIDDEN).json();
+}
+
 export function isTrainingStaff(req: Request, res: Response, next: NextFunction) {
 	if (req.user && req.user.isTrainingStaff) {
 		return next();
