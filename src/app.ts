@@ -133,6 +133,12 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
 			name: req.user.fname + ' ' + req.user.lname,
 			ip: clientIp,
 		});
+	} else {
+		Sentry.getCurrentScope().setUser({
+			id: -1,
+			name: 'Unauthenticated User',
+			ip: clientIp,
+		});
 	}
 
 	return next();
