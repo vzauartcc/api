@@ -17,6 +17,7 @@ import fileRouter from './controllers/file/file.js';
 import idsRouter from './controllers/ids/ids.js';
 import newsRouter from './controllers/news/news.js';
 import onlineRouter from './controllers/online/online.js';
+import splitRouter, { resetSplit } from './controllers/split/split.js';
 import statsRouter from './controllers/stats/stats.js';
 import trainingRouter from './controllers/training/training.js';
 import userRouter from './controllers/user/user.js';
@@ -158,6 +159,7 @@ app.use('/discord', discordRouter);
 app.use('/stats', statsRouter);
 app.use('/exam', examRouter);
 app.use('/vatusa', vatusaRouter);
+app.use('/split', splitRouter);
 
 // Sentry error capturing should be after all routes are registered.
 if (process.env['NODE_ENV'] === 'production') {
@@ -195,6 +197,11 @@ console.log('Starting Express listener. . . .');
 app.listen(process.env['PORT'], () => {
 	console.log('Listening on port ' + process.env['PORT']);
 });
+
+console.log(`Starting Reset Split task. . . .`);
+new Cron('0 9 * * *', { name: 'Reset Split Map', timezone: 'Etc/UTC', catch: true }, () =>
+	resetSplit(app.redis),
+);
 
 console.log(`Starting Solo Expiration Notification task. . . .`);
 new Cron(
