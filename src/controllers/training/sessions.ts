@@ -452,7 +452,7 @@ router.delete(
 				};
 			}
 
-			if (session.instructorCid !== req.user.cid) {
+			if (session.instructorCid !== req.user.cid && !req.user.isSeniorStaff) {
 				throw {
 					code: status.FORBIDDEN,
 					message: 'Not your session',
