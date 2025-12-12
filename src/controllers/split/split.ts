@@ -203,19 +203,24 @@ router.put(
 	},
 );
 
-router.delete('/ownership', getUser, async (req: Request, res: Response, next: NextFunction) => {
-	try {
-		await resetSplit(req.app.redis);
+router.delete(
+	'/ownership',
+	getUser,
+	isEventsTeam,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			await resetSplit(req.app.redis);
 
-		const ownership = await getOwnership(req.app.redis);
+			const ownership = await getOwnership(req.app.redis);
 
-		return res.status(status.OK).json(ownership);
-	} catch (e) {
-		logException(e);
+			return res.status(status.OK).json(ownership);
+		} catch (e) {
+			logException(e);
 
-		return next(e);
-	}
-});
+			return next(e);
+		}
+	},
+);
 
 export default router;
 
