@@ -180,6 +180,14 @@ router.put(
 
 			for (const id of Object.keys(req.body.high)) {
 				await req.app.redis.set(`split:high:${id}`, req.body.high[id]);
+				// Boiler Climb Corridor
+				if (id === '1') {
+					await req.app.redis.set(`split:high:9`, req.body.high[id]);
+				}
+				// IOW Climb Corridor
+				if (id === '8') {
+					await req.app.redis.set(`split:high:6`, req.body.high[id]);
+				}
 			}
 
 			for (const id of Object.keys(req.body.low)) {
