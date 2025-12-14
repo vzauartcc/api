@@ -593,11 +593,13 @@ router.patch(
 			if (
 				!req.params['cid'] ||
 				req.params['cid'] === 'undefined' ||
-				isNaN(Number(req.params['cid']))
+				isNaN(Number(req.params['cid'])) ||
+				!Object.hasOwn(req.body, 'member') ||
+				!Object.hasOwn(req.body, 'joinDate')
 			) {
 				throw {
 					code: status.BAD_REQUEST,
-					message: 'Invalid CID.',
+					message: 'Invalid request',
 				};
 			}
 

@@ -129,16 +129,16 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
 	}
 
 	if (req.user) {
-		Sentry.getCurrentScope().setUser({
+		Sentry.setUser({
 			id: req.user.cid,
-			name: req.user.fname + ' ' + req.user.lname,
-			ip: clientIp,
+			name: `${req.user.fname} ${req.user.lname}`,
+			ip_address: clientIp ?? null,
 		});
 	} else {
-		Sentry.getCurrentScope().setUser({
+		Sentry.setUser({
 			id: -1,
-			name: 'Unauthenticated User',
-			ip: clientIp,
+			name: `Unauthenticated User`,
+			ip_address: clientIp ?? null,
 		});
 	}
 
