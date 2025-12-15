@@ -122,6 +122,7 @@ export const getCacheInstance = () => {
 // Sentry user middleware
 app.use((req: Request, _res: Response, next: NextFunction) => {
 	const ips = req.headers['x-original-forwarded-for'];
+	console.log('Forwarded for:', ips);
 	let clientIp = req.ip;
 
 	if (typeof ips === 'string') {
