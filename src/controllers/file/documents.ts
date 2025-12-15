@@ -5,7 +5,7 @@ import multer from 'multer';
 import { getCacheInstance, logException } from '../../app.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { deleteFromS3, setUploadStatus, uploadToS3 } from '../../helpers/s3.js';
-import { isFacilityTeam } from '../../middleware/auth.js';
+import { isStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { DocumentModel } from '../../models/document.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
@@ -77,7 +77,7 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
 router.post(
 	'/',
 	getUser,
-	isFacilityTeam,
+	isStaff,
 	upload.single('download'),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
@@ -192,7 +192,7 @@ router.put(
 	'/:slug',
 	upload.single('download'),
 	getUser,
-	isFacilityTeam,
+	isStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['slug'] || req.params['slug'] === 'undefined') {
@@ -319,49 +319,44 @@ router.put(
 	},
 );
 
-router.delete(
-	'/:id',
-	getUser,
-	isFacilityTeam,
-	async (req: Request, res: Response, next: NextFunction) => {
-		try {
-			if (!req.params['id'] || req.params['id'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid ID.',
-				};
-			}
-
-			const doc = await DocumentModel.findById(req.params['id']).lean().exec();
-			if (!doc) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Document not found',
-				};
-			}
-
-			if (doc.fileName) {
-				deleteFromS3(`documents/${doc.fileName}`);
-			}
-
-			await DocumentModel.findByIdAndDelete(req.params['id']).exec();
-
-			await clearCachePrefix('document');
-
-			await DossierModel.create({
-				by: req.user.cid,
-				affected: -1,
-				action: `%b deleted the document *${doc.name}*.`,
-				actionType: ACTION_TYPE.DELETE_DOCUMENT,
-			});
-
-			return res.status(status.NO_CONTENT).json();
-		} catch (e) {
-			logException(e);
-
-			return next(e);
+router.delete('/:id', getUser, isStaff, async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		if (!req.params['id'] || req.params['id'] === 'undefined') {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Invalid ID.',
+			};
 		}
-	},
-);
+
+		const doc = await DocumentModel.findById(req.params['id']).lean().exec();
+		if (!doc) {
+			throw {
+				code: status.NOT_FOUND,
+				message: 'Document not found',
+			};
+		}
+
+		if (doc.fileName) {
+			deleteFromS3(`documents/${doc.fileName}`);
+		}
+
+		await DocumentModel.findByIdAndDelete(req.params['id']).exec();
+
+		await clearCachePrefix('document');
+
+		await DossierModel.create({
+			by: req.user.cid,
+			affected: -1,
+			action: `%b deleted the document *${doc.name}*.`,
+			actionType: ACTION_TYPE.DELETE_DOCUMENT,
+		});
+
+		return res.status(status.NO_CONTENT).json();
+	} catch (e) {
+		logException(e);
+
+		return next(e);
+	}
+});
 
 export default router;
