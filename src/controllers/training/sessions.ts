@@ -459,6 +459,13 @@ router.delete(
 				};
 			}
 
+			if (session.ots && session.ots > 0 && session.ots < 3) {
+				throw {
+					code: status.FORBIDDEN,
+					message: 'Cannot delete OTS sessions',
+				};
+			}
+
 			await session.delete();
 			await getCacheInstance().clear(`student-session-${req.params['id']}`);
 			await getCacheInstance().clear(`instructor-session-${req.params['id']}`);
