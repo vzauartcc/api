@@ -594,8 +594,7 @@ router.patch(
 				!req.params['cid'] ||
 				req.params['cid'] === 'undefined' ||
 				isNaN(Number(req.params['cid'])) ||
-				!Object.hasOwn(req.body, 'member') ||
-				!Object.hasOwn(req.body, 'joinDate')
+				!Object.hasOwn(req.body, 'member')
 			) {
 				throw {
 					code: status.BAD_REQUEST,
@@ -615,6 +614,13 @@ router.patch(
 			}
 
 			if (req.body.member === true) {
+				if (!Object.hasOwn(req.body, 'joinDate')) {
+					throw {
+						code: status.BAD_REQUEST,
+						message: 'Invalid request',
+					};
+				}
+
 				const userOi = await checkOI(user);
 
 				if (!userOi) {
