@@ -25,9 +25,62 @@
 			"automerge": false
 		},
 		{
-			"description": "Group minor and patch updates together, but do not automerge",
+			"description": "Group minor and patch updates together for MongoDB/Redis, but do not automerge",
 			"matchUpdateTypes": ["minor", "patch"],
-			"groupName": "all minor and patch updates",
+			"groupName": "mongoose and redis minor and patch updates",
+			"matchPackagePatterns": ["mongoose", "ioredis"],
+			"automerge": false
+		},
+		{
+			"description": "Group minor and patch updates together for express, but do not automerge",
+			"matchUpdateTypes": ["minor", "patch"],
+			"groupName": "express related minor and patch updates",
+			"matchPackageNames": [
+				"express",
+				"express-validator",
+				"cors",
+				"helmet",
+				"cookie-parser",
+				"multer",
+				"multer-s3"
+			],
+			"automerge": false
+		},
+		{
+			"description": "Group minor and patch updates together for AWS/storage, but do not automerge",
+			"matchUpdateTypes": ["minor", "patch"],
+			"groupName": "aws and storage minor and patch updates",
+			"matchPackagePatterns": ["^@aws-sdk/", "file-type", "tar-stream"],
+			"automerge": false
+		},
+		{
+			"description": "Group minor and patch updates together for services/utilities, but do not automerge",
+			"matchUpdateTypes": ["minor", "patch"],
+			"groupName": "services and utilities minor and patch updates",
+			"matchPackagePatterns": [
+				"^@sentry/",
+				"nodemailer",
+				"axios",
+				"luxon",
+				"croner",
+				"jsonwebtoken",
+				"dompurify"
+			],
+			"automerge": false
+		},
+		{
+			"description": "Group minor and patch updates together for tooling/types, but do not automerge",
+			"matchUpdateTypes": ["minor", "patch"],
+			"groupName": "tooling and types minor and patch updates",
+			"matchPackagePatterns": [
+				"^@types/",
+				"eslint",
+				"prettier",
+				"typescript",
+				"nodemon",
+				"ts-node",
+				"globals"
+			],
 			"automerge": false
 		},
 		{

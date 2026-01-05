@@ -15,7 +15,8 @@
 		"lint": "eslint . --fix",
 		"format": "prettier --write .",
 		"start:ryan": "doppler run -p api -c dev_ryan -- nodemon --exec \"npx tsx --import ./src/instrument.ts src/app.ts\"",
-		"build": "tsc && cp -R src/email dist/email"
+		"build": "tsc && cp -R src/email dist/email",
+		"test:renovate": "npx --yes --package renovate -- renovate-config-validator"
 	},
 	"license": "CC-BY-NC-SA-4.0",
 	"type": "module",
