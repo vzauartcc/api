@@ -119,6 +119,22 @@ export const getCacheInstance = () => {
 	return cacheInstance;
 };
 
+console.log('Setting up routes. . . .');
+app.use('/online', onlineRouter);
+app.use('/user', userRouter);
+app.use('/controller', controllerRouter);
+app.use('/news', newsRouter);
+app.use('/event', eventRouter);
+app.use('/file', fileRouter);
+app.use('/feedback', feedbackRouter);
+app.use('/ids', idsRouter);
+app.use('/training', trainingRouter);
+app.use('/discord', discordRouter);
+app.use('/stats', statsRouter);
+app.use('/exam', examRouter);
+app.use('/vatusa', vatusaRouter);
+app.use('/split', splitRouter);
+
 // Sentry user middleware
 app.use((req: Request, _res: Response, next: NextFunction) => {
 	const ips = req.headers['x-original-forwarded-for'];
@@ -145,22 +161,6 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
 
 	return next();
 });
-
-console.log('Setting up routes. . . .');
-app.use('/online', onlineRouter);
-app.use('/user', userRouter);
-app.use('/controller', controllerRouter);
-app.use('/news', newsRouter);
-app.use('/event', eventRouter);
-app.use('/file', fileRouter);
-app.use('/feedback', feedbackRouter);
-app.use('/ids', idsRouter);
-app.use('/training', trainingRouter);
-app.use('/discord', discordRouter);
-app.use('/stats', statsRouter);
-app.use('/exam', examRouter);
-app.use('/vatusa', vatusaRouter);
-app.use('/split', splitRouter);
 
 // Sentry error capturing should be after all routes are registered.
 if (process.env['NODE_ENV'] === 'production') {
