@@ -1,7 +1,8 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
-import { getCacheInstance, logException } from '../../app.js';
+import { logException } from '../../app.js';
 import { sanitizeInput } from '../../helpers/html.js';
+import { clearCachePrefix } from '../../helpers/redis.js';
 import { vatusaApi } from '../../helpers/vatusa.js';
 import zau from '../../helpers/zau.js';
 import { isTrainingStaff } from '../../middleware/auth.js';
@@ -29,7 +30,7 @@ router.get(
 				submitted: true,
 				deleted: false,
 			})
-				.cache('10 minutes', 'session-count')
+				.cache('10 minutes', 'sessions-count')
 				.exec();
 			const sessions = await TrainingSessionModel.find({
 				deleted: false,
@@ -44,7 +45,7 @@ router.get(
 				.populate('instructor', 'fname lname')
 				.populate('milestone', 'name code')
 				.lean()
-				.cache()
+				.cache('10 minutes', 'sessions')
 				.exec();
 
 			return res.status(status.OK).json({ count: amount, sessions });
@@ -66,7 +67,7 @@ router.get('/past', getUser, async (req: Request, res: Response, next: NextFunct
 			deleted: false,
 			submitted: true,
 		})
-			.cache('10 minutes', `past-sessions-${req.user.cid}`)
+			.cache('10 minutes', `sessions-past-sessions-${req.user.cid}-count`)
 			.exec();
 		const sessions = await TrainingSessionModel.find({
 			studentCid: req.user.cid,
@@ -82,7 +83,7 @@ router.get('/past', getUser, async (req: Request, res: Response, next: NextFunct
 			.populate('student', 'fname lname')
 			.populate('milestone', 'name code')
 			.lean()
-			.cache()
+			.cache('10 minutes', `sessions-past-session-${req.user.cid}`)
 			.exec();
 
 		return res.status(status.OK).json({ count: amount, sessions });
@@ -130,7 +131,7 @@ router.get(
 				submitted: true,
 				deleted: false,
 			})
-				.cache()
+				.cache('10 minutes', `sessions-student-sessions-${req.params['cid']}-count`)
 				.exec();
 			const sessions = await TrainingSessionModel.find({
 				studentCid: req.params['cid'],
@@ -145,7 +146,7 @@ router.get(
 				.populate('instructor', 'fname lname')
 				.populate('milestone', 'name code')
 				.lean()
-				.cache()
+				.cache('10 minutes', `sessions-student-${req.params['cid']}`)
 				.exec();
 
 			return res.status(status.OK).json({
@@ -175,7 +176,7 @@ router.get(
 				.populate('student', 'fname lname cid vis')
 				.populate('milestone', 'name code')
 				.lean()
-				.cache('10 minutes', `instructor-sessions-${req.user.cid}`)
+				.cache('10 minutes', `sessions-instructor-${req.user.cid}`)
 				.exec();
 
 			return res.status(status.OK).json(sessions);
@@ -207,7 +208,7 @@ router.get('/:id', getUser, async (req: Request, res: Response, next: NextFuncti
 				.populate('instructor', 'fname lname cid')
 				.populate('milestone', 'name code')
 				.lean()
-				.cache('10 minutes', `instructor-session-${req.params['id']}`)
+				.cache('10 minutes', `sessions-instructor-session-${req.params['id']}`)
 				.exec();
 		} else {
 			session = await TrainingSessionModel.findById(req.params['id'])
@@ -216,7 +217,7 @@ router.get('/:id', getUser, async (req: Request, res: Response, next: NextFuncti
 				.populate('instructor', 'fname lname cid')
 				.populate('milestone', 'name code')
 				.lean()
-				.cache('10 minutes', `student-session-${req.params['id']}`)
+				.cache('10 minutes', `sessions-student-session-${req.params['id']}`)
 				.exec();
 		}
 
@@ -261,10 +262,7 @@ router.patch(
 				};
 			}
 
-			await getCacheInstance().clear(`student-session-${req.params['id']}`);
-			await getCacheInstance().clear(`instructor-session-${req.params['id']}`);
-			await getCacheInstance().clear(`session-${req.params['id']}`);
-			await getCacheInstance().clear(`instructor-sessions-${req.user.cid}`);
+			await clearCachePrefix('session');
 
 			return res.status(status.OK).json();
 		} catch (e) {
@@ -312,7 +310,7 @@ router.patch(
 			}
 
 			const session = await TrainingSessionModel.findById(req.params['id'])
-				.cache('10 minutes', `session-${req.params['id']}`)
+				.cache('10 minutes', `sessions-session-${req.params['id']}`)
 				.exec();
 
 			if (!session) {
@@ -393,10 +391,7 @@ router.patch(
 				});
 			}
 
-			await getCacheInstance().clear(`student-session-${req.params['id']}`);
-			await getCacheInstance().clear(`instructor-session-${req.params['id']}`);
-			await getCacheInstance().clear(`session-${req.params['id']}`);
-			await getCacheInstance().clear(`instructor-sessions-${req.user.cid}`);
+			await clearCachePrefix('session');
 
 			const instructor = await UserModel.findOne({ cid: session.instructorCid })
 				.select('fname lname')
@@ -442,7 +437,7 @@ router.delete(
 			}
 
 			const session = await TrainingSessionModel.findById(req.params['id'])
-				.cache('10 minutes', `session-${req.params['id']}`)
+				.cache('10 minutes', `sessions-session-${req.params['id']}`)
 				.exec();
 
 			if (!session) {
@@ -467,10 +462,8 @@ router.delete(
 			}
 
 			await session.delete();
-			await getCacheInstance().clear(`student-session-${req.params['id']}`);
-			await getCacheInstance().clear(`instructor-session-${req.params['id']}`);
-			await getCacheInstance().clear(`session-${req.params['id']}`);
-			await getCacheInstance().clear(`instructor-sessions-${req.user.cid}`);
+
+			await clearCachePrefix('session');
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
@@ -561,7 +554,7 @@ router.post(
 				submitted: false,
 			});
 
-			await getCacheInstance().clear(`instructor-sessions-${req.user.cid}`);
+			await clearCachePrefix('session');
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
@@ -670,7 +663,7 @@ router.post(
 				vatusaId: vatusaRes.data.id,
 			});
 
-			await getCacheInstance().clear(`instructor-sessions-${req.user.cid}`);
+			await clearCachePrefix('session');
 
 			await NotificationModel.create({
 				recipient: doc.studentCid,
