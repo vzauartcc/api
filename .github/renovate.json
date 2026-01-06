@@ -74,13 +74,20 @@
 			"groupName": "tooling and types minor and patch updates",
 			"matchPackagePatterns": [
 				"^@types/",
-				"eslint",
+				"^eslint",
+				"^@eslint",
 				"prettier",
 				"typescript",
 				"nodemon",
 				"ts-node",
 				"globals"
 			],
+			"automerge": false
+		},
+		{
+			"description": "Group all remaining minor and patch updates together, but do not automerge",
+			"matchUpdateTypes": ["minor", "patch"],
+			"groupName": "minor and patch updates",
 			"automerge": false
 		},
 		{
