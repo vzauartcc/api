@@ -400,4 +400,5 @@ router.delete('/:id', getUser, async (req: Request, res: Response, next: NextFun
 		return next(e);
 	}
 });
+
 export default router;
