@@ -29,7 +29,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 
 		return res.status(status.OK).json({ amount, news });
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -78,7 +78,7 @@ router.post('/', getUser, isStaff, async (req: Request, res: Response, next: Nex
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -108,7 +108,7 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
 
 		return res.status(status.OK).json(newsItem);
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -164,7 +164,7 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -214,7 +214,7 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}

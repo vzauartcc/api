@@ -33,7 +33,7 @@ router.get('/milestones', getUser, async (req: Request, res: Response, next: Nex
 
 		return res.status(status.OK).json({ user, milestones });
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}

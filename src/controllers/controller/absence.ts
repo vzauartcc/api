@@ -9,7 +9,7 @@ import status from '../../types/status.js';
 
 const router = Router();
 
-router.get('/', getUser, isManagement, async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/', getUser, isManagement, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const absences = await AbsenceModel.find({
 			expirationDate: {
@@ -27,7 +27,7 @@ router.get('/', getUser, isManagement, async (_req: Request, res: Response, next
 
 		return res.status(status.OK).json(absences);
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -80,7 +80,7 @@ router.post('/', getUser, isManagement, async (req: Request, res: Response, next
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -119,7 +119,7 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}

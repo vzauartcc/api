@@ -30,7 +30,7 @@ router.get('/upcoming', getUser, async (req: Request, res: Response, next: NextF
 
 		return res.status(status.OK).json(upcoming);
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -161,7 +161,7 @@ router.post('/new', getUser, async (req: Request, res: Response, next: NextFunct
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -194,7 +194,7 @@ router.get(
 
 			return res.status(status.OK).json(requests);
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -237,7 +237,7 @@ router.get(
 
 			return res.status(status.OK).json(requests);
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -339,7 +339,7 @@ router.post(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -395,7 +395,7 @@ router.delete('/:id', getUser, async (req: Request, res: Response, next: NextFun
 
 		return res.status(status.NO_CONTENT).json();
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
