@@ -51,7 +51,7 @@ router.post('/request', getUser, async (req: Request, res: Response, next: NextF
 
 		getGdrpData(req.user.cid);
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -77,7 +77,7 @@ router.post(
 
 			getGdrpData(Number(req.params['cid']));
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -430,7 +430,7 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json({ message: 'User erased successfully!' });
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}

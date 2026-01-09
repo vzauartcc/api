@@ -25,6 +25,12 @@
 			"automerge": false
 		},
 		{
+			"description": "Group all remaining minor and patch updates together, but do not automerge",
+			"matchUpdateTypes": ["minor", "patch"],
+			"groupName": "minor and patch updates",
+			"automerge": false
+		},
+		{
 			"description": "Group minor and patch updates together for MongoDB/Redis, but do not automerge",
 			"matchUpdateTypes": ["minor", "patch"],
 			"groupName": "mongoose and redis minor and patch updates",
@@ -74,7 +80,8 @@
 			"groupName": "tooling and types minor and patch updates",
 			"matchPackagePatterns": [
 				"^@types/",
-				"eslint",
+				"^eslint",
+				"^@eslint",
 				"prettier",
 				"typescript",
 				"nodemon",

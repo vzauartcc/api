@@ -11,7 +11,7 @@ import status from '../../types/status.js';
 
 const router = Router();
 
-router.get('/', getUser, isMember, async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/', getUser, isMember, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const waitlist = await TrainingWaitlistModel.find({})
 			.populate([
@@ -32,7 +32,7 @@ router.get('/', getUser, isMember, async (_req: Request, res: Response, next: Ne
 
 		return res.status(status.OK).json(waitlist);
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -91,7 +91,7 @@ router.post('/', getUser, isMember, async (req: Request, res: Response, next: Ne
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -177,7 +177,7 @@ router.post(
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -239,7 +239,7 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -279,14 +279,14 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
 	},
 );
 
-router.get('/instructors', getUser, async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/instructors', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const instructors = await UserModel.find({ roleCodes: { $in: ['ins', 'mtr'] } })
 			.select('fname lname cid')
@@ -295,7 +295,7 @@ router.get('/instructors', getUser, async (_req: Request, res: Response, next: N
 
 		return res.status(status.OK).json(instructors);
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -328,7 +328,7 @@ router.get(
 
 			return res.status(status.OK).json(waitlist);
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}

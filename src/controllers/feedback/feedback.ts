@@ -34,7 +34,7 @@ router.get('/', getUser, isSeniorStaff, async (req: Request, res: Response, next
 
 		return res.status(status.OK).json({ amount, feedback });
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -78,7 +78,7 @@ router.get('/own', getUser, async (req: Request, res: Response, next: NextFuncti
 
 		return res.status(status.OK).json({ feedback, amount });
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -132,7 +132,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -178,7 +178,7 @@ router.get('/controllers', getUser, async (req: Request, res: Response, next: Ne
 
 		return res.status(status.OK).json(controllers);
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -188,7 +188,7 @@ router.get(
 	'/unapproved',
 	getUser,
 	isSeniorStaff,
-	async (_req: Request, res: Response, next: NextFunction) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		// Get all unapproved feedback
 		try {
 			const feedback = await FeedbackModel.find({ deletedAt: null, approved: false })
@@ -200,7 +200,7 @@ router.get(
 
 			return res.status(status.OK).json(feedback);
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -256,7 +256,7 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -300,7 +300,7 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}

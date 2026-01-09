@@ -60,7 +60,7 @@ export default async function (req: Request, res: Response, next: NextFunction) 
 		req.oauth = response.data;
 		return next();
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}

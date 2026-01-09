@@ -30,7 +30,7 @@ router.get('/checkStatus/:id', async (req: Request, res: Response, next: NextFun
 
 		return res.status(status.OK).json({ progress });
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}

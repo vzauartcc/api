@@ -50,7 +50,7 @@ router.get(
 
 			return res.status(status.OK).json({ count: amount, sessions });
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -88,7 +88,7 @@ router.get('/past', getUser, async (req: Request, res: Response, next: NextFunct
 
 		return res.status(status.OK).json({ count: amount, sessions });
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -155,7 +155,7 @@ router.get(
 				controller,
 			});
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -181,7 +181,7 @@ router.get(
 
 			return res.status(status.OK).json(sessions);
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -230,7 +230,7 @@ router.get('/:id', getUser, async (req: Request, res: Response, next: NextFuncti
 
 		return res.status(status.OK).json(session);
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -266,7 +266,7 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -409,7 +409,7 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -467,7 +467,7 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -558,7 +558,7 @@ router.post(
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -675,7 +675,7 @@ router.post(
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}

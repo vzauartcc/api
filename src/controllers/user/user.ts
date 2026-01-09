@@ -87,7 +87,7 @@ router.get('/', userOrInternal, async (req: Request, res: Response, next: NextFu
 
 		return res.status(status.OK).json({ home, visiting, removed });
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -125,7 +125,7 @@ router.get('/self', async (req: Request, res: Response, next: NextFunction) => {
 		deleteAuthCookie(res);
 
 		if ((e as any).name !== 'JsonWebTokenError') {
-			logException(e);
+			logException(req, e);
 		}
 
 		return next(e);
@@ -155,7 +155,7 @@ router.post('/idsToken', getUser, async (req: Request, res: Response, next: Next
 
 		return res.status(status.CREATED).json(idsToken);
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -266,7 +266,7 @@ router.post('/login', oAuth, async (req: Request, res: Response, next: NextFunct
 
 		return res.status(status.OK).json();
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -285,7 +285,7 @@ router.get('/logout', getUser, async (req: Request, res: Response, next: NextFun
 
 		return res.status(status.OK).json();
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -319,7 +319,7 @@ router.get('/sessions', getUser, async (req: Request, res: Response, next: NextF
 			requirements: zau.activity.requirements,
 		});
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -363,7 +363,7 @@ router.get('/notifications', getUser, async (req: Request, res: Response, next: 
 			notif,
 		});
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -385,7 +385,7 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -411,7 +411,7 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -430,7 +430,7 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -465,7 +465,7 @@ router.patch('/profile', getUser, async (req: Request, res: Response, next: Next
 
 		return res.status(status.OK).json();
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -489,7 +489,7 @@ router.patch('/:cid', internalAuth, async (req: Request, res: Response, next: Ne
 
 		return res.status(status.OK).json();
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
