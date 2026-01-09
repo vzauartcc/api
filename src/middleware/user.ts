@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import zau from '../helpers/zau.js';
 import type { IUser } from '../models/user.js';
 import { UserModel } from '../models/user.js';
 import status from '../types/status.js';
@@ -25,7 +26,8 @@ export default async function (req: Request, res: Response, next: NextFunction) 
 }
 
 export async function isUserValid(req: Request) {
-	const token = req.cookies['token'];
+	const cookie = zau.isProd ? 'token' : 'dev-token';
+	const token = req.cookies[cookie];
 	if (!token || token.trim() === '') {
 		return false;
 	}
@@ -63,7 +65,8 @@ export async function isUserValid(req: Request) {
 }
 
 export function deleteAuthCookie(res: Response) {
-	res.cookie('token', '', {
+	const cookie = zau.isProd ? 'token' : 'dev-token';
+	res.cookie(cookie, '', {
 		httpOnly: true,
 		maxAge: 0,
 		sameSite: true,

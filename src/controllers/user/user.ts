@@ -96,14 +96,15 @@ router.get('/', userOrInternal, async (req: Request, res: Response, next: NextFu
 // Logged in check
 router.get('/self', async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		if (!req.cookies['token']) {
+		const cookie = zau.isProd ? 'token' : 'dev-token';
+		if (!req.cookies[cookie]) {
 			throw {
 				code: status.UNAUTHORIZED,
 				message: 'Token cookie not found',
 			};
 		}
 
-		const decoded = jwt.verify(req.cookies['token'], process.env['JWT_SECRET']!) as UserPayload;
+		const decoded = jwt.verify(req.cookies[cookie], process.env['JWT_SECRET']!) as UserPayload;
 
 		const user = await UserModel.findOne({ cid: decoded.cid })
 			.select('-createdAt -updatedAt')
@@ -257,7 +258,9 @@ router.post('/login', oAuth, async (req: Request, res: Response, next: NextFunct
 			expiresIn: '30d',
 		});
 
-		res.cookie('token', apiToken, {
+		const cookie = zau.isProd ? 'token' : 'dev-token';
+
+		res.cookie(cookie, apiToken, {
 			httpOnly: true,
 			maxAge: 2592000000,
 			sameSite: true,
