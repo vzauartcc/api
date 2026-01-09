@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/node';
+import axios from 'axios';
 import cookie from 'cookie-parser';
 import cors from 'cors';
 import { Cron } from 'croner';
@@ -134,6 +135,20 @@ app.use('/stats', statsRouter);
 app.use('/exam', examRouter);
 app.use('/vatusa', vatusaRouter);
 app.use('/split', splitRouter);
+
+app.get('/charts', async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const { data } = await axios.get(
+			`https://api.aviationapi.com/v1/charts?apt=${req.query['apt']}`,
+		);
+
+		return res.status(200).json(data);
+	} catch (e) {
+		logException(req, e);
+
+		return next(e);
+	}
+});
 
 // Sentry error capturing should be after all routes are registered.
 if (process.env['NODE_ENV'] === 'production') {
