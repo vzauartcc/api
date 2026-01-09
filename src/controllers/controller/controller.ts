@@ -47,7 +47,7 @@ router.get('/', getUser, async (req: Request, res: Response, next: NextFunction)
 
 		return res.status(status.OK).json({ home, visiting });
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -70,7 +70,7 @@ interface IStaffDirectory {
 	[key: string]: IRoleGroup;
 }
 
-router.get('/staff', async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/staff', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const users = await UserModel.find()
 			.select('fname lname cid roleCodes')
@@ -143,37 +143,37 @@ router.get('/staff', async (_req: Request, res: Response, next: NextFunction) =>
 
 		return res.status(status.OK).json(staff);
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
 });
 
-router.get('/role', async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/role', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const roles = await RoleModel.find().lean().cache('5 minutes').exec();
 
 		return res.status(status.OK).json(roles);
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
 });
 
-router.get('/certifications', async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/certifications', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const certifications = await CertificationModel.find().lean().cache('10 minutes').exec();
 
 		return res.status(status.OK).json(certifications);
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
 });
 
-router.get('/oi', async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/oi', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const oi = await UserModel.find({ deletedAt: null, member: true })
 			.select('oi')
@@ -190,7 +190,7 @@ router.get('/oi', async (_req: Request, res: Response, next: NextFunction) => {
 
 		return res.status(status.OK).json(oi.map((o) => o.oi));
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -223,7 +223,7 @@ router.get('/log', getUser, isStaff, async (req: Request, res: Response, next: N
 
 		return res.status(status.OK).json({ amount, dossier });
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -233,7 +233,7 @@ router.get(
 	'/log/types',
 	getUser,
 	isStaff,
-	async (_req: Request, res: Response, next: NextFunction) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			return res
 				.status(status.OK)
@@ -288,7 +288,7 @@ router.get(
 					'Deleted Training Waitlist Signup',
 				]);
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -331,7 +331,7 @@ router.get('/:cid', userOrInternal, async (req: Request, res: Response, next: Ne
 
 		return res.status(status.OK).json(user[0]);
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -392,7 +392,7 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -498,7 +498,7 @@ router.get('/stats/:cid', async (req: Request, res: Response, next: NextFunction
 
 		return res.status(status.OK).json(hours);
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -579,7 +579,7 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response, next: Nex
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -680,7 +680,7 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -745,7 +745,7 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -851,7 +851,7 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -893,7 +893,7 @@ router.patch(
 
 			return res.status(status.OK).json({ message: 'Certs removed successfully' });
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -974,7 +974,7 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}

@@ -27,7 +27,7 @@ const upload = multer({
 	},
 });
 
-router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const documents = await DocumentModel.find({ deletedAt: null })
 			.select('-content')
@@ -39,7 +39,7 @@ router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 
 		return res.status(status.OK).json(documents);
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -68,7 +68,7 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
 
 		return res.status(status.OK).json(document);
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -132,7 +132,7 @@ router.post(
 						},
 					);
 				} catch (e) {
-					logException(e);
+					logException(req, e);
 
 					setUploadStatus(req.body.uploadId, -1);
 
@@ -181,7 +181,7 @@ router.post(
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -271,7 +271,7 @@ router.put(
 							},
 						);
 					} catch (e) {
-						logException(e);
+						logException(req, e);
 
 						setUploadStatus(req.body.uploadId, -1);
 
@@ -312,7 +312,7 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -353,7 +353,7 @@ router.delete('/:id', getUser, isStaff, async (req: Request, res: Response, next
 
 		return res.status(status.NO_CONTENT).json();
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}

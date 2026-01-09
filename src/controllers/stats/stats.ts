@@ -35,7 +35,7 @@ const months = [
 let testUserCID = 0;
 
 //#region Dashboards
-router.get('/admin', getUser, isStaff, async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/admin', getUser, isStaff, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const d = new Date();
 		const thisMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
@@ -144,7 +144,7 @@ router.get('/admin', getUser, isStaff, async (_req: Request, res: Response, next
 			},
 		});
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -154,7 +154,7 @@ router.get(
 	'/ins',
 	getUser,
 	isTrainingStaff,
-	async (_req: Request, res: Response, next: NextFunction) => {
+	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			let lastTraining = await TrainingSessionModel.aggregate([
 				{
@@ -213,7 +213,7 @@ router.get(
 				controllersWithoutTraining,
 			});
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -493,7 +493,7 @@ router.get(
 			// SECTION: Return Final Data
 			res.status(status.OK).json(Object.values(userData));
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -524,7 +524,7 @@ router.post(
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}

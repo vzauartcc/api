@@ -12,7 +12,7 @@ import { checkOI, clearUserCache, grantCerts } from './utils.js';
 
 const router = Router();
 
-router.get('/', getUser, isManagement, async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/', getUser, isManagement, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const applications = await VisitApplicationModel.find({
 			deleted: false,
@@ -68,7 +68,7 @@ router.get('/', getUser, isManagement, async (_req: Request, res: Response, next
 
 		return res.status(status.OK).json(retval);
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -112,7 +112,7 @@ router.post('/', getUser, async (req: Request, res: Response, next: NextFunction
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -145,7 +145,7 @@ router.get('/status', getUser, async (req: Request, res: Response, next: NextFun
 			} as IVisitingStatus,
 		});
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -231,7 +231,7 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -297,7 +297,7 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}

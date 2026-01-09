@@ -35,7 +35,7 @@ const upload = multer({
 
 router.use('/staffingrequest', staffingRequestRouter);
 
-router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const events = await EventModel.find({
 			eventEnd: {
@@ -50,7 +50,7 @@ router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 
 		return res.status(status.OK).json(events);
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -84,7 +84,7 @@ router.get('/archive', async (req: Request, res: Response, next: NextFunction) =
 
 		return res.status(status.OK).json({ amount: count, events });
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -109,7 +109,7 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
 
 		return res.status(status.OK).json(event);
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -140,7 +140,7 @@ router.get('/:slug/positions', async (req: Request, res: Response, next: NextFun
 
 		return res.status(status.OK).json(event);
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -212,7 +212,7 @@ router.patch('/:slug/signup', getUser, async (req: Request, res: Response, next:
 
 		return res.status(status.OK).json();
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -257,7 +257,7 @@ router.delete('/:slug/signup', getUser, async (req: Request, res: Response, next
 
 		return res.status(status.NO_CONTENT).json();
 	} catch (e) {
-		logException(e);
+		logException(req, e);
 
 		return next(e);
 	}
@@ -329,7 +329,7 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -415,7 +415,7 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -488,7 +488,7 @@ router.patch(
 
 			return res.status(status.OK).json(assignedPosition);
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -645,7 +645,7 @@ router.post(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -708,7 +708,7 @@ router.post(
 					},
 				);
 			} catch (e) {
-				logException(e);
+				logException(req, e);
 
 				setUploadStatus(req.body.uploadId, -1);
 
@@ -748,7 +748,7 @@ router.post(
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -891,7 +891,7 @@ router.put(
 						},
 					);
 				} catch (e) {
-					logException(e);
+					logException(req, e);
 
 					setUploadStatus(req.body.uploadId, -1);
 
@@ -924,7 +924,7 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -973,7 +973,7 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -1038,7 +1038,7 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}
@@ -1078,7 +1078,7 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(e);
+			logException(req, e);
 
 			return next(e);
 		}

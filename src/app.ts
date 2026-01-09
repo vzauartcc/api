@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/node';
+import axios from 'axios';
 import cookie from 'cookie-parser';
 import cors from 'cors';
 import { Cron } from 'croner';
@@ -135,8 +136,32 @@ app.use('/exam', examRouter);
 app.use('/vatusa', vatusaRouter);
 app.use('/split', splitRouter);
 
-// Sentry user middleware
-app.use((req: Request, _res: Response, next: NextFunction) => {
+app.get('/charts', async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const { data } = await axios.get(
+			`https://api.aviationapi.com/v1/charts?apt=${req.query['apt']}`,
+		);
+
+		return res.status(200).json(data);
+	} catch (e) {
+		logException(req, e);
+
+		return next(e);
+	}
+});
+
+// Sentry error capturing should be after all routes are registered.
+if (process.env['NODE_ENV'] === 'production') {
+	console.log('Setting up Sentry Express error handler. . . .');
+	Sentry.setupExpressErrorHandler(app);
+}
+console.log('Is Sentry initialized and enabled', Sentry.isInitialized(), Sentry.isEnabled());
+
+export function logException(req: Request, e: any) {
+	if (e.code) {
+		return;
+	}
+
 	const ips = req.headers['x-original-forwarded-for'];
 	console.log('Forwarded for:', ips);
 	let clientIp = req.ip;
@@ -159,22 +184,33 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
 		});
 	}
 
-	return next();
-});
-
-// Sentry error capturing should be after all routes are registered.
-if (process.env['NODE_ENV'] === 'production') {
-	console.log('Setting up Sentry Express error handler. . . .');
-	Sentry.setupExpressErrorHandler(app);
+	Sentry.captureException(e);
 }
-console.log('Is Sentry initialized and enabled', Sentry.isInitialized(), Sentry.isEnabled());
 
-export function logException(e: any) {
-	if (e.code) {
-		return;
+export function logMessage(req: Request, msg: string) {
+	const ips = req.headers['x-original-forwarded-for'];
+	console.log('Forwarded for:', ips);
+	let clientIp = req.ip;
+
+	if (typeof ips === 'string') {
+		clientIp = ips.split(',')[0]?.trim();
 	}
 
-	Sentry.captureException(e);
+	if (req.user) {
+		Sentry.setUser({
+			id: req.user.cid,
+			name: `${req.user.fname} ${req.user.lname}`,
+			ip_address: clientIp ?? null,
+		});
+	} else {
+		Sentry.setUser({
+			id: -1,
+			name: `Unauthenticated User`,
+			ip_address: clientIp ?? null,
+		});
+	}
+
+	Sentry.captureMessage(msg);
 }
 app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
 	if (res.headersSent) {
