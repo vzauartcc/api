@@ -1,6 +1,6 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
-import { getCacheInstance, logException } from '../../app.js';
+import { getCacheInstance } from '../../app.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { vatusaApi } from '../../helpers/vatusa.js';
 import zau from '../../helpers/zau.js';
@@ -18,7 +18,7 @@ router.get(
 	'/',
 	getUser,
 	isTrainingStaff,
-	async (req: Request, res: Response, next: NextFunction) => {
+	async (_req: Request, res: Response, next: NextFunction) => {
 		try {
 			const solos = await SoloEndorsementModel.find({
 				deleted: false,
@@ -33,8 +33,6 @@ router.get(
 
 			return res.status(status.OK).json(solos);
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -64,8 +62,6 @@ router.get(
 
 			return res.status(status.OK).json(solos);
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -158,8 +154,6 @@ router.post(
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -278,8 +272,6 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -335,8 +327,6 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},

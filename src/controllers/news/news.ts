@@ -1,5 +1,4 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { logException } from '../../app.js';
 import { sanitizeInput } from '../../helpers/html.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { isStaff } from '../../middleware/auth.js';
@@ -29,8 +28,6 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 
 		return res.status(status.OK).json({ amount, news });
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -78,8 +75,6 @@ router.post('/', getUser, isStaff, async (req: Request, res: Response, next: Nex
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -108,8 +103,6 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
 
 		return res.status(status.OK).json(newsItem);
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -164,8 +157,6 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -214,8 +205,6 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},

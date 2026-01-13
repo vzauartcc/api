@@ -1,6 +1,5 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
-import { logException } from '../../app.js';
 import { sanitizeInput } from '../../helpers/html.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { vatusaApi } from '../../helpers/vatusa.js';
@@ -50,8 +49,6 @@ router.get(
 
 			return res.status(status.OK).json({ count: amount, sessions });
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -88,8 +85,6 @@ router.get('/past', getUser, async (req: Request, res: Response, next: NextFunct
 
 		return res.status(status.OK).json({ count: amount, sessions });
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -155,8 +150,6 @@ router.get(
 				controller,
 			});
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -181,8 +174,6 @@ router.get(
 
 			return res.status(status.OK).json(sessions);
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -230,8 +221,6 @@ router.get('/:id', getUser, async (req: Request, res: Response, next: NextFuncti
 
 		return res.status(status.OK).json(session);
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -266,8 +255,6 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -409,8 +396,6 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -467,8 +452,6 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -558,8 +541,6 @@ router.post(
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -675,8 +656,6 @@ router.post(
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},

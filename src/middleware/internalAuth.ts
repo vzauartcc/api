@@ -1,5 +1,5 @@
+import { captureMessage } from '@sentry/node';
 import type { NextFunction, Request, Response } from 'express';
-import { logMessage } from '../app.js';
 import status from '../types/status.js';
 
 export default function (req: Request, res: Response, next: NextFunction) {
@@ -12,7 +12,7 @@ export default function (req: Request, res: Response, next: NextFunction) {
 
 export function isKeyValid(req: Request): boolean {
 	if (!process.env['MICRO_ACCESS_KEY']) {
-		logMessage(req, 'MICRO_ACCESS_KEY not set.');
+		captureMessage('MICRO_ACCESS_KEY not set.');
 
 		req.internal = false;
 		return false;
@@ -21,7 +21,7 @@ export function isKeyValid(req: Request): boolean {
 	const key = req.headers.authorization;
 
 	if (!key || key !== `Bearer ${process.env['MICRO_ACCESS_KEY']}`) {
-		logMessage(req, 'Attempted access to an internal protected route');
+		captureMessage('Attempted access to an internal protected route');
 
 		req.internal = false;
 		return false;

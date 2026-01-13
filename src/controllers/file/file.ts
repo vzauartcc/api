@@ -1,5 +1,4 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { logException } from '../../app.js';
 import { getUploadStatus } from '../../helpers/s3.js';
 import status from '../../types/status.js';
 import documentsRouter from './documents.js';
@@ -30,8 +29,6 @@ router.get('/checkStatus/:id', async (req: Request, res: Response, next: NextFun
 
 		return res.status(status.OK).json({ progress });
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });

@@ -4,7 +4,6 @@ import { PassThrough } from 'stream';
 import { pipeline } from 'stream/promises';
 import tar from 'tar-stream';
 import zlib from 'zlib';
-import { logException } from '../../app.js';
 import { sendMail } from '../../helpers/mailer.js';
 import { clearCacheKeys } from '../../helpers/redis.js';
 import { isManagement } from '../../middleware/auth.js';
@@ -51,8 +50,6 @@ router.post('/request', getUser, async (req: Request, res: Response, next: NextF
 
 		getGdrpData(req.user.cid);
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -77,8 +74,6 @@ router.post(
 
 			getGdrpData(Number(req.params['cid']));
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -430,8 +425,6 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json({ message: 'User erased successfully!' });
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},

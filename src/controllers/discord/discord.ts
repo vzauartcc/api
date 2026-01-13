@@ -1,5 +1,4 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { logException } from '../../app.js';
 import discord from '../../helpers/discord.js';
 import internalAuth from '../../middleware/internalAuth.js';
 import getUser from '../../middleware/user.js';
@@ -10,7 +9,7 @@ import { clearUserCache } from '../controller/utils.js';
 
 const router = Router();
 
-router.get('/users', internalAuth, async (req: Request, res: Response, next: NextFunction) => {
+router.get('/users', internalAuth, async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const users = await UserModel.find({ discordInfo: { $ne: null } })
 			.select('fname lname cid discordInfo roleCodes oi rating member vis')
@@ -18,8 +17,6 @@ router.get('/users', internalAuth, async (req: Request, res: Response, next: Nex
 
 		return res.status(status.OK).json(users);
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -28,8 +25,6 @@ router.get('/user', getUser, async (req: Request, res: Response, next: NextFunct
 	try {
 		return res.status(status.OK).json(!!req.user.discordInfo?.clientId);
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -119,8 +114,6 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -139,8 +132,6 @@ router.delete('/user', getUser, async (req: Request, res: Response, next: NextFu
 
 		res.status(status.OK).json();
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });

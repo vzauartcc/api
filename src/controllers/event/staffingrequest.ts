@@ -1,5 +1,5 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { getCacheInstance, logException } from '../../app.js';
+import { getCacheInstance } from '../../app.js';
 import { sendMail } from '../../helpers/mailer.js';
 import { isEventsTeam } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
@@ -31,8 +31,6 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 
 		return res.status(status.OK).json({ amount: count, requests });
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -58,8 +56,6 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 		}
 		return res.status(status.OK).json(staffingRequest);
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -138,8 +134,6 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -213,8 +207,6 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -249,8 +241,6 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},

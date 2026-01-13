@@ -2,7 +2,6 @@ import axios from 'axios';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
 import type { FlattenMaps } from 'mongoose';
-import { logException } from '../../app.js';
 import zau from '../../helpers/zau.js';
 import { hasRole, isStaff, isTrainingStaff } from '../../middleware/auth.js';
 import internalAuth from '../../middleware/internalAuth.js';
@@ -35,7 +34,7 @@ const months = [
 let testUserCID = 0;
 
 //#region Dashboards
-router.get('/admin', getUser, isStaff, async (req: Request, res: Response, next: NextFunction) => {
+router.get('/admin', getUser, isStaff, async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const d = new Date();
 		const thisMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
@@ -144,8 +143,6 @@ router.get('/admin', getUser, isStaff, async (req: Request, res: Response, next:
 			},
 		});
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -154,7 +151,7 @@ router.get(
 	'/ins',
 	getUser,
 	isTrainingStaff,
-	async (req: Request, res: Response, next: NextFunction) => {
+	async (_req: Request, res: Response, next: NextFunction) => {
 		try {
 			let lastTraining = await TrainingSessionModel.aggregate([
 				{
@@ -213,8 +210,6 @@ router.get(
 				controllersWithoutTraining,
 			});
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -493,8 +488,6 @@ router.get(
 			// SECTION: Return Final Data
 			res.status(status.OK).json(Object.values(userData));
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -524,8 +517,6 @@ router.post(
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},

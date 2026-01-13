@@ -1,5 +1,5 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { getCacheInstance, logException } from '../../app.js';
+import { getCacheInstance } from '../../app.js';
 import { sendMail } from '../../helpers/mailer.js';
 import { isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
@@ -30,8 +30,6 @@ router.get('/upcoming', getUser, async (req: Request, res: Response, next: NextF
 
 		return res.status(status.OK).json(upcoming);
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -161,8 +159,6 @@ router.post('/new', getUser, async (req: Request, res: Response, next: NextFunct
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -194,8 +190,6 @@ router.get(
 
 			return res.status(status.OK).json(requests);
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -237,8 +231,6 @@ router.get(
 
 			return res.status(status.OK).json(requests);
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -339,8 +331,6 @@ router.post(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -395,8 +385,6 @@ router.delete('/:id', getUser, async (req: Request, res: Response, next: NextFun
 
 		return res.status(status.NO_CONTENT).json();
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
