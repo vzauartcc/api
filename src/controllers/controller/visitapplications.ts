@@ -292,7 +292,7 @@ router.delete(
 				by: req.user.cid,
 				affected: user.cid,
 				action: `%b rejected the visiting application for %a: ${req.body.reason}`,
-				type: ACTION_TYPE.REJECT_VISIT,
+				actionType: ACTION_TYPE.REJECT_VISIT,
 			});
 
 			return res.status(status.NO_CONTENT).json();

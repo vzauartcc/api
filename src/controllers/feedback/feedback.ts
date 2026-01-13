@@ -295,7 +295,7 @@ router.patch(
 				by: req.user.cid,
 				affected: feedback.controllerCid,
 				action: `%b rejected feedback for %a.`,
-				type: ACTION_TYPE.REJECT_FEEDBACK,
+				actionType: ACTION_TYPE.REJECT_FEEDBACK,
 			});
 
 			return res.status(status.OK).json();
