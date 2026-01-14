@@ -56,8 +56,9 @@ router.use('/attempt', examAttemptRouter);
 router.get('/', getUser, isExamEditor, async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		// Fetch all exams, populate createdBy, and exclude questions
-		const exams = await ExamModel.find({})
+		const exams = await ExamModel.find({ deleted: false })
 			.populate('user', 'fname lname')
+			.populate('certification', 'name')
 			.lean({ virtuals: true })
 			.cache('10 minutes', 'exams')
 			.exec();
@@ -131,13 +132,16 @@ router.patch(
 			if (!errors.isEmpty()) {
 				throw {
 					code: status.BAD_REQUEST,
-					message: errors.array().join(', '),
+					message: errors
+						.array()
+						.map((e) => e.msg)
+						.join(', '),
 				};
 			}
 
-			const exam = await ExamModel.findById(id);
+			const exam = await ExamModel.findById(id).populate('user').populate('certification').exec();
 
-			if (!exam || exam.deleted) {
+			if (!exam || exam.deleted === true) {
 				throw {
 					code: status.NOT_FOUND,
 					message: 'Exam not found',
@@ -148,6 +152,7 @@ router.patch(
 			exam.description = req.body.description;
 			exam.certCode = req.body.certCode;
 			exam.questions = req.body.questions;
+			exam.isActive = req.body.isActive;
 
 			const updated = await exam.save();
 
