@@ -19,14 +19,17 @@ export interface IExam extends SoftDeleteDocument, ITimestamps {
 	certification?: PopulatedDoc<ICertification & Document>;
 }
 
-const ExamSchema = new Schema<IExam>({
-	title: { type: String, required: true },
-	description: { type: String },
-	questions: [QuestionSchema],
-	createdBy: { type: Number, ref: 'User', required: true },
-	certCode: { type: String, required: true },
-	isActive: { type: Boolean, required: true },
-});
+const ExamSchema = new Schema<IExam>(
+	{
+		title: { type: String, required: true },
+		description: { type: String },
+		questions: [QuestionSchema],
+		createdBy: { type: Number, ref: 'User', required: true },
+		certCode: { type: String, required: true },
+		isActive: { type: Boolean, required: true },
+	},
+	{ timestamps: true },
+);
 
 ExamSchema.virtual('user', {
 	ref: 'User',

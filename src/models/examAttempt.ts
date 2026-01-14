@@ -26,7 +26,7 @@ const ExamAttemptSchema = new Schema<IExamAttempt>(
 	{
 		examId: { type: Schema.Types.ObjectId, required: true, ref: 'Exam' },
 		student: { type: Number, required: true, ref: 'User' },
-		questionOrder: [{ type: [QuestionSchema] }],
+		questionOrder: [{ type: QuestionSchema }],
 		responses: [ResponseSchema],
 		startTime: { type: Date },
 		endTime: { type: Date },
@@ -39,7 +39,7 @@ const ExamAttemptSchema = new Schema<IExamAttempt>(
 			required: true,
 		},
 	},
-	{ collection: 'examAttempts' },
+	{ collection: 'examAttempts', timestamps: true },
 );
 
 ExamAttemptSchema.virtual('user', {
@@ -50,8 +50,8 @@ ExamAttemptSchema.virtual('user', {
 });
 
 ExamAttemptSchema.virtual('exam', {
-	ref: 'User',
-	localField: 'exam',
+	ref: 'Exam',
+	localField: 'examId',
 	foreignField: '_id',
 	justOne: true,
 });

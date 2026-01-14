@@ -103,7 +103,7 @@ router.post(
 				};
 			}
 
-			const availableQuestions = exam.questions.filter((q) => q.isActive).map((q) => q._id);
+			const availableQuestions = exam.questions.filter((q) => q.isActive);
 
 			const attempt = await ExamAttemptModel.create({
 				examId: exam._id,
@@ -117,8 +117,8 @@ router.post(
 			await NotificationModel.create({
 				recipient: student.cid,
 				title: 'New Exam Assigned',
-				content: `You have been assigned the <b>${exam.title}</b> exam. Please start the exam by clicking on the link below.`,
-				link: `/exam/${attempt._id}`,
+				content: `You have been assigned the <b>${exam.title}</b> exam.`,
+				link: `dash/training/exams/${attempt._id}`,
 			});
 
 			await DossierModel.create({
