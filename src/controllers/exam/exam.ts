@@ -173,9 +173,8 @@ router.get(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const exam = await ExamModel.findById(req.params['id'])
-				.populate('createdBy', 'fname lname')
-				.lean()
-				.cache('1 minute', `exam-${req.params['id']}`)
+				.lean({ virtuals: true })
+				.cache('10 minutes', `exam-${req.params['id']}`)
 				.exec();
 			if (!exam) {
 				throw {
