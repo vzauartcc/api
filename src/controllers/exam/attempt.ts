@@ -12,6 +12,45 @@ import status from '../../types/status.js';
 
 const router = Router();
 
+router.get('/by-user/:cid', getUser, async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const { cid } = req.params;
+
+		if (Number(cid) !== req.user.cid) {
+			if (!req.user.isTrainingStaff) {
+				throw {
+					code: status.FORBIDDEN,
+					message: 'Forbidden',
+				};
+			}
+		}
+
+		const attempts = await ExamAttemptModel.find({ student: cid })
+			.populate({
+				path: 'exam',
+				select: 'title certCode',
+				populate: {
+					path: 'certification',
+				},
+			})
+			.lean({ virtuals: true })
+			.exec();
+
+		if (req.user.cid === Number(cid)) {
+			attempts.forEach((attempt) => {
+				(attempt.questionOrder as any) = attempt.questionOrder.map((q) => ({
+					...q,
+					options: q.options.map(({ isCorrect, ...rest }) => rest),
+				}));
+			});
+		}
+
+		return res.status(status.OK).json(attempts);
+	} catch (e) {
+		return next(e);
+	}
+});
+
 router.get('/:attemptId', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const { attemptId } = req.params;
