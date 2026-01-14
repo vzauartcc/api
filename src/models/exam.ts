@@ -12,6 +12,7 @@ export interface IExam extends SoftDeleteDocument, ITimestamps {
 	questions: IQuestion[];
 	createdBy: number;
 	certCode: string;
+	isActive: boolean;
 
 	// Virtuals
 	user?: PopulatedDoc<IUser & ITimestamps & Document>;
@@ -23,6 +24,8 @@ const ExamSchema = new Schema<IExam>({
 	description: { type: String },
 	questions: [QuestionSchema],
 	createdBy: { type: Number, ref: 'User', required: true },
+	certCode: { type: String, required: true },
+	isActive: { type: Boolean, required: true },
 });
 
 ExamSchema.virtual('user', {

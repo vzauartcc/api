@@ -13,7 +13,7 @@ const router = Router();
 const createExamValidation = [
 	body('title').trim().notEmpty().withMessage('Title is required'),
 	body('description').trim().optional(),
-	body('milestone').trim().notEmpty().withMessage('Milestone is required'),
+	body('certCode').trim().notEmpty().withMessage('Milestone is required'),
 	body('questions.*.text').notEmpty().withMessage('Question text is required'),
 	body('questions.*.isActive').isBoolean().withMessage('isActive must be a boolean'),
 	body('questions.*.options.*.text').notEmpty().withMessage('Option text is required'),
@@ -85,7 +85,10 @@ router.post(
 			if (!errors.isEmpty()) {
 				throw {
 					code: status.BAD_REQUEST,
-					message: errors.array().join(', '),
+					message: errors
+						.array()
+						.map((e) => e.msg)
+						.join(', '),
 				};
 			}
 
@@ -95,6 +98,7 @@ router.post(
 				certCode: req.body.certCode,
 				questions: req.body.questions,
 				createdBy: req.user.cid,
+				isActive: true,
 			});
 
 			await getCacheInstance().clear('exams');
