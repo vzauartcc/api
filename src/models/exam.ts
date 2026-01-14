@@ -5,12 +5,10 @@ import { QuestionSchema, type IQuestion } from './examQuestion.js';
 import type { ITimestamps } from './timestamps.js';
 import type { IUser } from './user.js';
 
-export interface IExam extends SoftDeleteDocument {
+export interface IExam extends SoftDeleteDocument, ITimestamps {
 	title: string;
 	description: string;
 	questions: IQuestion[];
-	questionSubsetSize: number;
-	timeLimit: number;
 	createdBy: number;
 
 	// Virtuals
@@ -21,8 +19,6 @@ const ExamSchema = new Schema<IExam>({
 	title: { type: String, required: true },
 	description: { type: String },
 	questions: [QuestionSchema],
-	questionSubsetSize: { type: Number, required: true },
-	timeLimit: { type: Number, required: true },
 	createdBy: { type: Number, ref: 'User', required: true },
 });
 

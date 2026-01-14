@@ -274,6 +274,11 @@ router.get(
 					'Manual Training Waitlist Signup',
 					'Edited Training Waitlist Signup',
 					'Deleted Training Waitlist Signup',
+					'Created Exam',
+					'Edited Exam',
+					'Deleted Exam',
+					'Assigned Exam',
+					'Deleted Exam Attempt',
 				]);
 		} catch (e) {
 			return next(e);

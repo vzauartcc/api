@@ -1,4 +1,4 @@
-import { Document, model, Schema } from 'mongoose';
+import { Document, Schema } from 'mongoose';
 
 interface IOption extends Document {
 	text: string;
@@ -7,7 +7,7 @@ interface IOption extends Document {
 
 export interface IQuestion extends Document {
 	text: string;
-	isTrueFalse: boolean;
+	isActive: boolean;
 	options: IOption[];
 }
 
@@ -18,8 +18,6 @@ const OptionSchema = new Schema<IOption>({
 
 export const QuestionSchema = new Schema<IQuestion>({
 	text: { type: String, required: true },
-	isTrueFalse: { type: Boolean, default: false, required: true },
+	isActive: { type: Boolean, default: true, required: true },
 	options: { type: [OptionSchema], required: true, default: [] },
 });
-
-export const QuestionModel = model<IQuestion>('Question', QuestionSchema);

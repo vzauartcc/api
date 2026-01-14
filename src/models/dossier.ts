@@ -51,6 +51,11 @@ export const ACTION_TYPE = {
 	MANUAL_WAITLIST_SIGNUP: 45,
 	EDIT_WAITLIST_SIGNUP: 46,
 	DELETE_WAITLIST_SIGNUP: 47,
+	CREATE_EXAM: 48,
+	EDIT_EXAM: 49,
+	DELETE_EXAM: 50,
+	ASSIGN_EXAM: 51,
+	DELETE_EXAM_ATTEMPT: 52,
 } as const;
 
 interface IDossier extends Document, ITimestamps {
