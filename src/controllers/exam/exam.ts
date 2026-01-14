@@ -1,6 +1,6 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { getCacheInstance, logException } from '../../app.js';
+import { getCacheInstance } from '../../app.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { isInstructor, isSeniorStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
@@ -104,8 +104,6 @@ router.post(
 
 			return res.status(status.CREATED).json({ examId: newExam.id });
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -150,8 +148,6 @@ router.patch(
 				.status(status.OK)
 				.json({ message: 'Exam updated successfully', exam: updatedExam });
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -254,8 +250,6 @@ router.post('/:examId/start', getUser, async (req: Request, res: Response, next:
 			.status(status.CREATED)
 			.json({ message: 'Exam started successfully', attemptId: newAttempt.id, timeRemaining });
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -323,8 +317,6 @@ router.post('/:examId/submit', getUser, async (req: Request, res: Response, next
 			responses: scoredResponses,
 		});
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -334,33 +326,36 @@ interface IExamPopulated extends Omit<IExam, 'createdBy'> {
 	createdBy: PopulatedCreator;
 }
 
-router.get('/', getUser, isSeniorStaff, async (req: Request, res: Response, next: NextFunction) => {
-	try {
-		// Fetch all exams, populate createdBy, and exclude questions
-		const exams = (await ExamModel.find()
-			.populate('createdBy', 'fname lname')
-			.lean()
-			.cache('1 minute', `exams`)
-			.exec()) as unknown as IExamPopulated[];
+router.get(
+	'/',
+	getUser,
+	isSeniorStaff,
+	async (_req: Request, res: Response, next: NextFunction) => {
+		try {
+			// Fetch all exams, populate createdBy, and exclude questions
+			const exams = (await ExamModel.find()
+				.populate('createdBy', 'fname lname')
+				.lean()
+				.cache('1 minute', `exams`)
+				.exec()) as unknown as IExamPopulated[];
 
-		// Transform exams to include questions count (assuming questions are embedded)
-		const examsWithQuestionCountAndCreator = exams.map((exam) => ({
-			...exam,
-			questionsCount: exam.questions ? exam.questions.length : 0, // Add questions count
-			createdBy: {
-				// Only include fname and lname of the creator
-				fname: exam.createdBy.fname,
-				lname: exam.createdBy.lname,
-			},
-		}));
+			// Transform exams to include questions count (assuming questions are embedded)
+			const examsWithQuestionCountAndCreator = exams.map((exam) => ({
+				...exam,
+				questionsCount: exam.questions ? exam.questions.length : 0, // Add questions count
+				createdBy: {
+					// Only include fname and lname of the creator
+					fname: exam.createdBy.fname,
+					lname: exam.createdBy.lname,
+				},
+			}));
 
-		return res.status(status.OK).json(examsWithQuestionCountAndCreator);
-	} catch (e) {
-		logException(req, e);
-
-		return next(e);
-	}
-});
+			return res.status(status.OK).json(examsWithQuestionCountAndCreator);
+		} catch (e) {
+			return next(e);
+		}
+	},
+);
 
 router.get(
 	'/:id',
@@ -382,8 +377,6 @@ router.get(
 
 			return res.status(status.OK).json(exam);
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -408,8 +401,6 @@ router.get('/:id/results', getUser, async (req: Request, res: Response, next: Ne
 
 		return res.status(status.OK).json(examAttempt);
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -453,8 +444,6 @@ router.patch(
 					.json({ message: 'Question not found in the current attempt.' });
 			}
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -500,8 +489,6 @@ router.delete(
 			return res.status(status.NO_CONTENT).json();
 			// Respond with success message
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},

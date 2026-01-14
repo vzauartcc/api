@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { Redis } from 'ioredis';
-import { logException } from '../../app.js';
 import zau from '../../helpers/zau.js';
 import { ConfigModel } from '../../models/config.js';
 import { PirepModel } from '../../models/pirep.js';
@@ -34,8 +33,6 @@ router.post('/checktoken', async (req: Request, res: Response, next: NextFunctio
 
 		return res.status(status.OK).json(user);
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -46,8 +43,6 @@ router.get('/aircraft', async (req: Request, res: Response, next: NextFunction) 
 
 		return res.status(status.OK).json(pilots.split('|'));
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -83,8 +78,6 @@ router.get('/aircraft/feed', (req: Request, res: Response, next: NextFunction) =
 			sub.disconnect();
 		});
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -95,8 +88,6 @@ router.get('/aircraft/:callsign', async (req: Request, res: Response, next: Next
 
 		return res.status(status.OK).json(data);
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -133,8 +124,6 @@ router.get('/atis', (req: Request, res: Response, next: NextFunction) => {
 			sub.disconnect();
 		});
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -192,8 +181,6 @@ router.post('/vatis', async (req: Request, res: Response, next: NextFunction) =>
 		console.log('Successfully processed the request and set the ATIS in Redis');
 		return res.status(status.OK).json();
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -205,8 +192,6 @@ router.get('/stations', async (req: Request, res: Response, next: NextFunction) 
 
 		return res.status(status.OK).json(airports.split('|'));
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -224,8 +209,6 @@ router.get('/stations/:station', async (req: Request, res: Response, next: NextF
 			letter: atisInfo['letter'] || null,
 		});
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -236,25 +219,21 @@ router.get('/neighbors', async (req: Request, res: Response, next: NextFunction)
 
 		return res.status(status.OK).json(neighbors.length ? neighbors.split('|') : '');
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
 
-router.get('/pireps', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/pireps', async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const pirep = await PirepModel.find().sort('-reportTime').lean().exec();
 
 		return res.status(status.OK).json(pirep);
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
 
-router.get('/vatsim-data', (req: Request, res: Response, next: NextFunction) => {
+router.get('/vatsim-data', (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		axios
 			.get('https://status.vatsim.net/status.json')
@@ -275,8 +254,6 @@ router.get('/vatsim-data', (req: Request, res: Response, next: NextFunction) => 
 				res.status(status.INTERNAL_SERVER_ERROR).send('Error fetching data from external API.');
 			});
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -289,8 +266,6 @@ router.get('/charts/:airportCode', async (req: Request, res: Response, next: Nex
 
 		return res.status(status.OK).json(charts);
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -321,8 +296,6 @@ router.post('/pireps', async (req: Request, res: Response, next: NextFunction) =
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -333,8 +306,6 @@ router.delete('/pireps/:id', async (req: Request, res: Response, next: NextFunct
 
 		return res.status(status.NO_CONTENT).json();
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -354,8 +325,6 @@ router.put('/config/:id', async (req: Request, res: Response, next: NextFunction
 
 		return res.status(status.OK).json(updatedConfig);
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -372,8 +341,6 @@ router.get('/config/:id', async (req: Request, res: Response, next: NextFunction
 
 		return res.status(status.OK).json(config);
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });

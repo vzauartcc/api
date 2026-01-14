@@ -1,5 +1,4 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { logException } from '../../app.js';
 import { AtcOnlineModel } from '../../models/atcOnline.js';
 import { ControllerHoursModel } from '../../models/controllerHours.js';
 import { PilotOnlineModel } from '../../models/pilotOnline.js';
@@ -52,20 +51,18 @@ const positions = new Map([
 	['CTR', 'Center'],
 ]);
 
-router.get('/', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const pilots = await PilotOnlineModel.find().lean().cache().exec();
 		const atc = await AtcOnlineModel.find().lean({ virtuals: true }).cache().exec();
 
 		return res.status(status.OK).json({ pilots, atc });
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
 
-router.get('/top', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/top', async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const d = new Date();
 		const thisMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
@@ -133,8 +130,6 @@ router.get('/top', async (req: Request, res: Response, next: NextFunction) => {
 				.slice(0, 5),
 		});
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });

@@ -1,5 +1,5 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { getCacheInstance, logException } from '../../app.js';
+import { getCacheInstance } from '../../app.js';
 import { isManagement } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { AbsenceModel } from '../../models/absence.js';
@@ -9,7 +9,7 @@ import status from '../../types/status.js';
 
 const router = Router();
 
-router.get('/', getUser, isManagement, async (req: Request, res: Response, next: NextFunction) => {
+router.get('/', getUser, isManagement, async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const absences = await AbsenceModel.find({
 			expirationDate: {
@@ -27,8 +27,6 @@ router.get('/', getUser, isManagement, async (req: Request, res: Response, next:
 
 		return res.status(status.OK).json(absences);
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -80,8 +78,6 @@ router.post('/', getUser, isManagement, async (req: Request, res: Response, next
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -119,8 +115,6 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},

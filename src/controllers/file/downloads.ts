@@ -2,7 +2,7 @@ import type { Progress } from '@aws-sdk/lib-storage';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import * as fs from 'fs';
 import multer from 'multer';
-import { getCacheInstance, logException } from '../../app.js';
+import { getCacheInstance } from '../../app.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { deleteFromS3, setUploadStatus, uploadToS3 } from '../../helpers/s3.js';
 import { isStaff } from '../../middleware/auth.js';
@@ -27,7 +27,7 @@ const upload = multer({
 	},
 });
 
-router.get('/', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const downloads = await DownloadModel.find({ deletedAt: null })
 			.sort({ category: 'asc', name: 'asc' })
@@ -37,8 +37,6 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 
 		return res.status(status.OK).json(downloads);
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -66,8 +64,6 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 
 		return res.status(status.OK).json(download);
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -114,8 +110,6 @@ router.post(
 					},
 				);
 			} catch (e) {
-				logException(req, e);
-
 				setUploadStatus(req.body.uploadId, -1);
 
 				throw {
@@ -150,8 +144,6 @@ router.post(
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -212,8 +204,6 @@ router.patch(
 						},
 					);
 				} catch (e) {
-					logException(req, e);
-
 					setUploadStatus(req.body.uploadId, -1);
 
 					throw {
@@ -249,8 +239,6 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -290,8 +278,6 @@ router.delete('/:id', getUser, isStaff, async (req: Request, res: Response, next
 
 		return res.status(status.NO_CONTENT).json();
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });

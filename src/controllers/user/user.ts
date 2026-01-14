@@ -2,7 +2,7 @@ import axios from 'axios';
 import { randomUUID } from 'crypto';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { getCacheInstance, logException } from '../../app.js';
+import { getCacheInstance } from '../../app.js';
 import { uploadToS3 } from '../../helpers/s3.js';
 import zau from '../../helpers/zau.js';
 import { userOrInternal } from '../../middleware/auth.js';
@@ -87,8 +87,6 @@ router.get('/', userOrInternal, async (req: Request, res: Response, next: NextFu
 
 		return res.status(status.OK).json({ home, visiting, removed });
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -96,14 +94,15 @@ router.get('/', userOrInternal, async (req: Request, res: Response, next: NextFu
 // Logged in check
 router.get('/self', async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		if (!req.cookies['token']) {
+		const cookie = zau.isProd ? 'token' : 'dev-token';
+		if (!req.cookies[cookie]) {
 			throw {
 				code: status.UNAUTHORIZED,
 				message: 'Token cookie not found',
 			};
 		}
 
-		const decoded = jwt.verify(req.cookies['token'], process.env['JWT_SECRET']!) as UserPayload;
+		const decoded = jwt.verify(req.cookies[cookie], process.env['JWT_SECRET']!) as UserPayload;
 
 		const user = await UserModel.findOne({ cid: decoded.cid })
 			.select('-createdAt -updatedAt')
@@ -123,10 +122,6 @@ router.get('/self', async (req: Request, res: Response, next: NextFunction) => {
 		return res.status(status.OK).json(user);
 	} catch (e) {
 		deleteAuthCookie(res);
-
-		if ((e as any).name !== 'JsonWebTokenError') {
-			logException(req, e);
-		}
 
 		return next(e);
 	}
@@ -155,8 +150,6 @@ router.post('/idsToken', getUser, async (req: Request, res: Response, next: Next
 
 		return res.status(status.CREATED).json(idsToken);
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -257,7 +250,9 @@ router.post('/login', oAuth, async (req: Request, res: Response, next: NextFunct
 			expiresIn: '30d',
 		});
 
-		res.cookie('token', apiToken, {
+		const cookie = zau.isProd ? 'token' : 'dev-token';
+
+		res.cookie(cookie, apiToken, {
 			httpOnly: true,
 			maxAge: 2592000000,
 			sameSite: true,
@@ -266,8 +261,6 @@ router.post('/login', oAuth, async (req: Request, res: Response, next: NextFunct
 
 		return res.status(status.OK).json();
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -285,8 +278,6 @@ router.get('/logout', getUser, async (req: Request, res: Response, next: NextFun
 
 		return res.status(status.OK).json();
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -319,8 +310,6 @@ router.get('/sessions', getUser, async (req: Request, res: Response, next: NextF
 			requirements: zau.activity.requirements,
 		});
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -363,8 +352,6 @@ router.get('/notifications', getUser, async (req: Request, res: Response, next: 
 			notif,
 		});
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -385,8 +372,6 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -411,8 +396,6 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -430,8 +413,6 @@ router.delete(
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -465,8 +446,6 @@ router.patch('/profile', getUser, async (req: Request, res: Response, next: Next
 
 		return res.status(status.OK).json();
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -489,8 +468,6 @@ router.patch('/:cid', internalAuth, async (req: Request, res: Response, next: Ne
 
 		return res.status(status.OK).json();
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });

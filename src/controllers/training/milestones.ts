@@ -1,5 +1,5 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { getCacheInstance, logException } from '../../app.js';
+import { getCacheInstance } from '../../app.js';
 import { isSeniorStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { TrainingRequestMilestoneModel } from '../../models/trainingMilestone.js';
@@ -25,8 +25,6 @@ router.get('/', getUser, async (req: Request, res: Response, next: NextFunction)
 
 		return res.status(status.OK).json({ user, milestones });
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -73,8 +71,6 @@ router.post(
 
 			return res.status(status.CREATED).json(milestone);
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -107,8 +103,6 @@ router.patch(
 			getCacheInstance().clear('milestones');
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -154,8 +148,6 @@ router.patch(
 
 			return res.status(status.OK).json(updated);
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},

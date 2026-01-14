@@ -144,8 +144,6 @@ app.get('/charts', async (req: Request, res: Response, next: NextFunction) => {
 
 		return res.status(200).json(data);
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -157,62 +155,12 @@ if (process.env['NODE_ENV'] === 'production') {
 }
 console.log('Is Sentry initialized and enabled', Sentry.isInitialized(), Sentry.isEnabled());
 
-export function logException(req: Request, e: any) {
-	if (e.code) {
-		return;
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+	if (!zau.isProd) {
+		if (!((err as any).code || (err as any).name === 'JsonWebTokenError')) {
+			console.trace({ path: req.path, name: err.name, message: err.message });
+		}
 	}
-
-	const ips = req.headers['x-original-forwarded-for'];
-	console.log('Forwarded for:', ips);
-	let clientIp = req.ip;
-
-	if (typeof ips === 'string') {
-		clientIp = ips.split(',')[0]?.trim();
-	}
-
-	if (req.user) {
-		Sentry.setUser({
-			id: req.user.cid,
-			name: `${req.user.fname} ${req.user.lname}`,
-			ip_address: clientIp ?? null,
-		});
-	} else {
-		Sentry.setUser({
-			id: -1,
-			name: `Unauthenticated User`,
-			ip_address: clientIp ?? null,
-		});
-	}
-
-	Sentry.captureException(e);
-}
-
-export function logMessage(req: Request, msg: string) {
-	const ips = req.headers['x-original-forwarded-for'];
-	console.log('Forwarded for:', ips);
-	let clientIp = req.ip;
-
-	if (typeof ips === 'string') {
-		clientIp = ips.split(',')[0]?.trim();
-	}
-
-	if (req.user) {
-		Sentry.setUser({
-			id: req.user.cid,
-			name: `${req.user.fname} ${req.user.lname}`,
-			ip_address: clientIp ?? null,
-		});
-	} else {
-		Sentry.setUser({
-			id: -1,
-			name: `Unauthenticated User`,
-			ip_address: clientIp ?? null,
-		});
-	}
-
-	Sentry.captureMessage(msg);
-}
-app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
 	if (res.headersSent) {
 		return next(err);
 	}

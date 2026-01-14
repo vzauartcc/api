@@ -1,5 +1,5 @@
+import { captureMessage } from '@sentry/node';
 import type { NextFunction, Request, Response } from 'express';
-import { logMessage } from '../app.js';
 import status from '../types/status.js';
 import { isKeyValid } from './internalAuth.js';
 import { isUserValid } from './user.js';
@@ -26,8 +26,7 @@ export function hasRole(roles: string[]) {
 
 		const hasPermission = roles.some((r) => roleCodes.includes(r));
 		if (!hasPermission) {
-			logMessage(
-				req,
+			captureMessage(
 				`${req.user.cid} attempted to access an auth route without having necessary role.`,
 			);
 

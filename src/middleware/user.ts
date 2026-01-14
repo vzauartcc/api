@@ -1,5 +1,7 @@
+import * as Sentry from '@sentry/node';
 import type { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import zau from '../helpers/zau.js';
 import type { IUser } from '../models/user.js';
 import { UserModel } from '../models/user.js';
 import status from '../types/status.js';
@@ -13,9 +15,12 @@ export interface UserPayload {
 export default async function (req: Request, res: Response, next: NextFunction) {
 	if (!(await isUserValid(req))) {
 		deleteAuthCookie(res);
+		setupSentry(req);
 
 		return res.status(status.FORBIDDEN).json();
 	}
+
+	setupSentry(req);
 
 	if (!req.user) {
 		return res.status(status.FORBIDDEN).json();
@@ -24,8 +29,30 @@ export default async function (req: Request, res: Response, next: NextFunction) 
 	return next();
 }
 
+function setupSentry(req: Request) {
+	const ips = req.headers['x-original-forwarded-for'];
+	let clientIp = req.ip;
+
+	if (typeof ips === 'string') {
+		clientIp = ips?.split(',')[0]?.trim() || req.ip;
+	}
+
+	if (req.user) {
+		Sentry.setUser({
+			id: req.user.cid,
+			name: `${req.user.fname} ${req.user.lname}`,
+			ip_address: clientIp ?? null,
+		});
+	} else {
+		Sentry.setUser({
+			ip_address: clientIp ?? null,
+		});
+	}
+}
+
 export async function isUserValid(req: Request) {
-	const token = req.cookies['token'];
+	const cookie = zau.isProd ? 'token' : 'dev-token';
+	const token = req.cookies[cookie];
 	if (!token || token.trim() === '') {
 		return false;
 	}
@@ -63,7 +90,8 @@ export async function isUserValid(req: Request) {
 }
 
 export function deleteAuthCookie(res: Response) {
-	res.cookie('token', '', {
+	const cookie = zau.isProd ? 'token' : 'dev-token';
+	res.cookie(cookie, '', {
 		httpOnly: true,
 		maxAge: 0,
 		sameSite: true,

@@ -1,5 +1,5 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { getCacheInstance, logException } from '../../app.js';
+import { getCacheInstance } from '../../app.js';
 import { getUsersWithPrivacy } from '../../helpers/mongodb.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { isSeniorStaff } from '../../middleware/auth.js';
@@ -34,8 +34,6 @@ router.get('/', getUser, isSeniorStaff, async (req: Request, res: Response, next
 
 		return res.status(status.OK).json({ amount, feedback });
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -78,8 +76,6 @@ router.get('/own', getUser, async (req: Request, res: Response, next: NextFuncti
 
 		return res.status(status.OK).json({ feedback, amount });
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -132,8 +128,6 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -178,8 +172,6 @@ router.get('/controllers', getUser, async (req: Request, res: Response, next: Ne
 
 		return res.status(status.OK).json(controllers);
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -188,7 +180,7 @@ router.get(
 	'/unapproved',
 	getUser,
 	isSeniorStaff,
-	async (req: Request, res: Response, next: NextFunction) => {
+	async (_req: Request, res: Response, next: NextFunction) => {
 		// Get all unapproved feedback
 		try {
 			const feedback = await FeedbackModel.find({ deletedAt: null, approved: false })
@@ -200,8 +192,6 @@ router.get(
 
 			return res.status(status.OK).json(feedback);
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -256,8 +246,6 @@ router.patch(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -295,13 +283,11 @@ router.patch(
 				by: req.user.cid,
 				affected: feedback.controllerCid,
 				action: `%b rejected feedback for %a.`,
-				type: ACTION_TYPE.REJECT_FEEDBACK,
+				actionType: ACTION_TYPE.REJECT_FEEDBACK,
 			});
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},

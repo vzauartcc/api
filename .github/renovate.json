@@ -34,8 +34,8 @@
 			"description": "Group minor and patch updates together for MongoDB/Redis, but do not automerge",
 			"matchUpdateTypes": ["minor", "patch"],
 			"groupName": "mongoose and redis minor and patch updates",
-			"matchPackagePatterns": ["mongoose", "ioredis"],
-			"automerge": false
+			"automerge": false,
+			"matchPackageNames": ["/mongoose/", "/ioredis/"]
 		},
 		{
 			"description": "Group minor and patch updates together for express, but do not automerge",
@@ -56,39 +56,38 @@
 			"description": "Group minor and patch updates together for AWS/storage, but do not automerge",
 			"matchUpdateTypes": ["minor", "patch"],
 			"groupName": "aws and storage minor and patch updates",
-			"matchPackagePatterns": ["^@aws-sdk/", "file-type", "tar-stream"],
-			"automerge": false
+			"automerge": false,
+			"matchPackageNames": ["/^@aws-sdk//", "/file-type/", "/tar-stream/"]
 		},
 		{
 			"description": "Group minor and patch updates together for services/utilities, but do not automerge",
 			"matchUpdateTypes": ["minor", "patch"],
 			"groupName": "services and utilities minor and patch updates",
-			"matchPackagePatterns": [
-				"^@sentry/",
-				"nodemailer",
-				"axios",
-				"luxon",
-				"croner",
-				"jsonwebtoken",
-				"dompurify"
-			],
-			"automerge": false
+			"automerge": false,
+			"matchPackageNames": [
+				"/^@sentry//",
+				"/nodemailer/",
+				"/axios/",
+				"/luxon/",
+				"/croner/",
+				"/jsonwebtoken/",
+				"/dompurify/"
+			]
 		},
 		{
 			"description": "Group minor and patch updates together for tooling/types, but do not automerge",
 			"matchUpdateTypes": ["minor", "patch"],
 			"groupName": "tooling and types minor and patch updates",
-			"matchPackagePatterns": [
-				"^@types/",
-				"^eslint",
-				"^@eslint",
-				"prettier",
-				"typescript",
-				"nodemon",
-				"ts-node",
-				"globals"
-			],
-			"automerge": false
+			"automerge": false,
+			"matchPackageNames": [
+				"/^@types//",
+				"/eslint/",
+				"/prettier/",
+				"/typescript/",
+				"/nodemon/",
+				"/ts-node/",
+				"/globals/"
+			]
 		},
 		{
 			"description": "Don't group major updates",

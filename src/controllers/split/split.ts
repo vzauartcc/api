@@ -1,6 +1,5 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { Redis } from 'ioredis';
-import { logException } from '../../app.js';
 import { isEventsTeam } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import status from '../../types/status.js';
@@ -133,7 +132,7 @@ const sectors = [
 	},
 ];
 
-router.get('/geojson', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/geojson', async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		return res.status(status.OK).json({
 			borders: {
@@ -148,8 +147,6 @@ router.get('/geojson', async (req: Request, res: Response, next: NextFunction) =
 			},
 		});
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -159,8 +156,6 @@ router.get('/ownership', async (req: Request, res: Response, next: NextFunction)
 		const ownership = await getOwnership(req.app.redis);
 		return res.status(status.OK).json({ positions: sectors, ownership: ownership });
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -196,8 +191,6 @@ router.put(
 
 			return res.status(status.OK).json(req.body);
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -215,8 +208,6 @@ router.delete(
 
 			return res.status(status.OK).json(ownership);
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},

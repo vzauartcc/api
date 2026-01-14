@@ -1,5 +1,5 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { getCacheInstance, logException } from '../../app.js';
+import { getCacheInstance } from '../../app.js';
 import { sendMail } from '../../helpers/mailer.js';
 import { vatusaApi, type IVisitingStatus } from '../../helpers/vatusa.js';
 import { isManagement } from '../../middleware/auth.js';
@@ -12,7 +12,7 @@ import { checkOI, clearUserCache, grantCerts } from './utils.js';
 
 const router = Router();
 
-router.get('/', getUser, isManagement, async (req: Request, res: Response, next: NextFunction) => {
+router.get('/', getUser, isManagement, async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const applications = await VisitApplicationModel.find({
 			deleted: false,
@@ -68,8 +68,6 @@ router.get('/', getUser, isManagement, async (req: Request, res: Response, next:
 
 		return res.status(status.OK).json(retval);
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -112,8 +110,6 @@ router.post('/', getUser, async (req: Request, res: Response, next: NextFunction
 
 		return res.status(status.CREATED).json();
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -145,8 +141,6 @@ router.get('/status', getUser, async (req: Request, res: Response, next: NextFun
 			} as IVisitingStatus,
 		});
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 });
@@ -231,8 +225,6 @@ router.put(
 
 			return res.status(status.OK).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},
@@ -292,13 +284,11 @@ router.delete(
 				by: req.user.cid,
 				affected: user.cid,
 				action: `%b rejected the visiting application for %a: ${req.body.reason}`,
-				type: ACTION_TYPE.REJECT_VISIT,
+				actionType: ACTION_TYPE.REJECT_VISIT,
 			});
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
-			logException(req, e);
-
 			return next(e);
 		}
 	},

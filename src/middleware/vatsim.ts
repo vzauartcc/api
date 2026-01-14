@@ -1,6 +1,5 @@
 import axios from 'axios';
 import type { NextFunction, Request, Response } from 'express';
-import { logException } from '../app.js';
 import status from '../types/status.js';
 
 export default async function (req: Request, res: Response, next: NextFunction) {
@@ -60,8 +59,6 @@ export default async function (req: Request, res: Response, next: NextFunction) 
 		req.oauth = response.data;
 		return next();
 	} catch (e) {
-		logException(req, e);
-
 		return next(e);
 	}
 }
