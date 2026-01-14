@@ -4,8 +4,7 @@ import { isValidObjectId } from 'mongoose';
 import { getCacheInstance } from '../../app.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import getUser from '../../middleware/user.js';
-import { ExamModel, type IExam } from '../../models/exam.js';
-import { type IUser } from '../../models/user.js';
+import { ExamModel } from '../../models/exam.js';
 import status from '../../types/status.js';
 import examAttemptRouter from './attempt.js';
 
@@ -14,6 +13,7 @@ const router = Router();
 const createExamValidation = [
 	body('title').trim().notEmpty().withMessage('Title is required'),
 	body('description').trim().optional(),
+	body('milestone').trim().notEmpty().withMessage('Milestone is required'),
 	body('questions.*.text').notEmpty().withMessage('Question text is required'),
 	body('questions.*.isActive').isBoolean().withMessage('isActive must be a boolean'),
 	body('questions.*.options.*.text').notEmpty().withMessage('Option text is required'),
@@ -21,26 +21,22 @@ const createExamValidation = [
 	// Custom validation logic here
 	(req: Request, res: Response, next: NextFunction) => {
 		const questions = req.body.questions || [];
-		const errors: { msg: string }[] = [];
+		const errors: string[] = [];
 
-		questions.forEach((question: { isTrueFalse: any; options: any[] }, index: number) => {
-			if (!question.options || question.options.length !== 2 || question.options.length < 4) {
-				errors.push({
-					msg: `Question ${index + 1}: questions must have either two or four options`,
-				});
+		questions.forEach((question: { options: any[] }, index: number) => {
+			if (!question.options || question.options.length < 2) {
+				errors.push(`Question ${index + 1}: questions must have either two or four options`);
 			}
 			const correctOptions = question.options.filter(
 				(option: { isCorrect: unknown }) => option.isCorrect,
 			);
 			if (correctOptions.length < 1) {
-				errors.push({
-					msg: `Question ${index + 1}: Multiple-choice questions must have at least one correct option`,
-				});
+				errors.push(`Question ${index + 1}: questions must have at least one correct option`);
 			}
 		});
 
 		if (errors.length > 0) {
-			return res.status(status.BAD_REQUEST).json({ errors });
+			return res.status(status.BAD_REQUEST).json(errors.join(', '));
 		}
 
 		return next();
@@ -57,29 +53,18 @@ function isExamEditor(req: Request, res: Response, next: NextFunction) {
 
 router.use('/attempt', examAttemptRouter);
 
-type PopulatedCreator = Pick<IUser, 'fname' | 'lname'>;
-interface IExamPopulated extends Omit<IExam, 'createdBy'> {
-	createdBy: PopulatedCreator;
-}
-
 router.get('/', getUser, isExamEditor, async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		// Fetch all exams, populate createdBy, and exclude questions
-		const exams = (await ExamModel.find()
-			.populate('createdBy', 'fname lname')
-			.lean()
-			.cache('1 minute', `exams`)
-			.exec()) as unknown as IExamPopulated[];
+		const exams = await ExamModel.find({})
+			.populate('user', 'fname lname')
+			.lean({ virtuals: true })
+			.cache('10 minutes', 'exams')
+			.exec();
 
-		// Transform exams to include questions count (assuming questions are embedded)
 		const examsWithQuestionCountAndCreator = exams.map((exam) => ({
 			...exam,
-			questionsCount: exam.questions ? exam.questions.length : 0, // Add questions count
-			createdBy: {
-				// Only include fname and lname of the creator
-				fname: exam.createdBy.fname,
-				lname: exam.createdBy.lname,
-			},
+			questionsCount: exam.questions ? exam.questions.length : 0,
 		}));
 
 		return res.status(status.OK).json(examsWithQuestionCountAndCreator);
@@ -104,17 +89,17 @@ router.post(
 				};
 			}
 
-			const newExam = new ExamModel({
+			const exam = await ExamModel.create({
 				title: req.body.title,
 				description: req.body.description,
+				certCode: req.body.certCode,
 				questions: req.body.questions,
 				createdBy: req.user.cid,
 			});
 
-			await newExam.save();
 			await getCacheInstance().clear('exams');
 
-			return res.status(status.CREATED).json({ examId: newExam.id });
+			return res.status(status.CREATED).json({ examId: exam.id });
 		} catch (e) {
 			return next(e);
 		}
@@ -157,6 +142,7 @@ router.patch(
 
 			exam.title = req.body.title;
 			exam.description = req.body.description;
+			exam.certCode = req.body.certCode;
 			exam.questions = req.body.questions;
 
 			const updated = await exam.save();
