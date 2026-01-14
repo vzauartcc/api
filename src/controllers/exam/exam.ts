@@ -63,12 +63,7 @@ router.get('/', getUser, isExamEditor, async (_req: Request, res: Response, next
 			.cache('10 minutes', 'exams')
 			.exec();
 
-		const examsWithQuestionCountAndCreator = exams.map((exam) => ({
-			...exam,
-			questionsCount: exam.questions ? exam.questions.length : 0,
-		}));
-
-		return res.status(status.OK).json(examsWithQuestionCountAndCreator);
+		return res.status(status.OK).json(exams);
 	} catch (e) {
 		return next(e);
 	}
