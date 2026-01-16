@@ -1,7 +1,7 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { isValidObjectId, Types } from 'mongoose';
+import { isValidObjectId } from 'mongoose';
 import { getCacheInstance } from '../../app.js';
-import { isTrainingStaff } from '../../middleware/auth.js';
+import { isInstructor } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { ExamModel } from '../../models/exam.js';
@@ -85,6 +85,10 @@ router.get('/:attemptId', getUser, async (req: Request, res: Response, next: Nex
 
 		if (req.user.cid === attempt.student) {
 			attempt.responses = attempt.responses.map(({ isCorrect, ...rest }) => rest);
+			(attempt.questionOrder as any) = attempt.questionOrder.map((q) => ({
+				...q,
+				options: q.options.map(({ isCorrect, ...rest }) => rest),
+			}));
 		}
 
 		return res.status(status.OK).json(attempt);
@@ -96,7 +100,7 @@ router.get('/:attemptId', getUser, async (req: Request, res: Response, next: Nex
 router.post(
 	'/:id/assign',
 	getUser,
-	isTrainingStaff,
+	isInstructor,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const { id } = req.params;
@@ -233,22 +237,28 @@ router.patch('/:id', getUser, async (req: Request, res: Response, next: NextFunc
 			};
 		}
 
-		const keepResponses = attempt.responses.filter((r) => r.questionId !== questionId);
+		const keepResponses = attempt.responses.filter((r) => r.questionId.toString() !== questionId);
+
+		let existingTime = 0;
+		const duplicate = attempt.responses.find((r) => r.questionId.toString() === questionId);
+		if (duplicate) {
+			existingTime = duplicate.timeSpent;
+		}
 
 		attempt.responses = [
 			...keepResponses,
 			{
 				questionId: questionId,
 				selectedOptions: selectedOptions,
-				timeSpent: timeSpent || 0,
+				timeSpent: (timeSpent || 0) + existingTime,
 			},
 		];
 
-		await attempt.save();
+		const updated = await attempt.save();
 
-		return res.status(status.OK).json({
-			message: 'Response updated successfully',
-		});
+		getCacheInstance().clear(`exam-attempt-${id}`);
+
+		return res.status(status.OK).json(updated);
 	} catch (e) {
 		return next(e);
 	}
@@ -257,7 +267,6 @@ router.patch('/:id', getUser, async (req: Request, res: Response, next: NextFunc
 // Submit Exam Attempt
 router.post('/:id/submit', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		const { responses } = req.body; // Expected format: [{ questionId, selectedOption }]
 		const { id } = req.params;
 
 		const attempt = await ExamAttemptModel.findOne({ _id: id, student: req.user.cid }).exec();
@@ -270,26 +279,31 @@ router.post('/:id/submit', getUser, async (req: Request, res: Response, next: Ne
 
 		let correctAnswers = 0;
 		const questions = attempt.questionOrder;
+		let totalTime = 0;
+
+		if (!questions.every((q) => attempt.responses.some((r) => r.questionId.toString() === q.id))) {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Not all questions are answered',
+			};
+		}
 
 		// Validate and score responses
-		const scoredResponses = responses.map(
-			(response: { questionId: Types.ObjectId; selectedOptions: Types.ObjectId[] }) => {
-				const question = questions.find((q) => q.id!.equals(response.questionId));
-				if (!question) {
-					return { ...response, isCorrect: false };
-				}
+		const scoredResponses = attempt.responses.map((response) => {
+			totalTime += response.timeSpent;
+			const question = questions.find((q) => q.id!.equals(response.questionId));
+			if (!question) {
+				return { ...response, isCorrect: false };
+			}
 
-				const correctOptions = question.options
-					.filter((x) => x.isCorrect === true)
-					.map((x) => x._id);
+			const correctOptions = question.options.filter((x) => x.isCorrect === true).map((x) => x._id);
 
-				const isCorrect = correctOptions.every((x) =>
-					response.selectedOptions.some((y) => y._id === x),
-				);
-				if (isCorrect) correctAnswers++;
-				return { ...response, isCorrect };
-			},
-		);
+			const isCorrect = correctOptions.every((x) =>
+				response.selectedOptions.some((y) => y._id === x),
+			);
+			if (isCorrect) correctAnswers++;
+			return { ...response, isCorrect };
+		});
 
 		const score = (correctAnswers / questions.length) * 100;
 		const passingScore = 80;

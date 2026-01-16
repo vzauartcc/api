@@ -2,7 +2,7 @@ import { Schema, Types } from 'mongoose';
 
 export interface IResponse {
 	questionId: Types.ObjectId;
-	selectedOptions?: Types.ObjectId[];
+	selectedOptions: Types.ObjectId[];
 	timeSpent: number;
 	isCorrect?: boolean;
 }
@@ -10,7 +10,7 @@ export interface IResponse {
 export const ResponseSchema = new Schema<IResponse>(
 	{
 		questionId: { type: Schema.Types.ObjectId, ref: 'ExamQuestion' },
-		selectedOptions: [{ type: Schema.Types.ObjectId }],
+		selectedOptions: [{ type: Schema.Types.ObjectId, required: true }],
 		timeSpent: { type: Number, default: 0, required: true },
 		isCorrect: { type: Boolean },
 	},
