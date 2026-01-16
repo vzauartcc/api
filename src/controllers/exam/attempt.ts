@@ -1,13 +1,8 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { isValidObjectId } from 'mongoose';
 import { getCacheInstance } from '../../app.js';
-import { isInstructor } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
-import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
-import { ExamModel } from '../../models/exam.js';
 import { ExamAttemptModel } from '../../models/examAttempt.js';
-import { NotificationModel } from '../../models/notification.js';
-import { UserModel } from '../../models/user.js';
 import status from '../../types/status.js';
 
 const router = Router();
@@ -96,87 +91,6 @@ router.get('/:attemptId', getUser, async (req: Request, res: Response, next: Nex
 		return next(e);
 	}
 });
-
-router.post(
-	'/:id/assign',
-	getUser,
-	isInstructor,
-	async (req: Request, res: Response, next: NextFunction) => {
-		try {
-			const { id } = req.params;
-
-			if (!isValidObjectId(id)) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid exam ID',
-				};
-			}
-
-			const exam = await ExamModel.findById(id)
-				.populate('questions')
-				.cache('10 minutes', `exam-${id}`)
-				.exec();
-			if (!exam) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Exam not found',
-				};
-			}
-
-			const student = await UserModel.findOne({ cid: req.body.cid }).exec();
-			if (!student) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Student not found',
-				};
-			}
-
-			const attempts = await ExamAttemptModel.find({ examId: id, student: student.cid }).exec();
-			if (
-				attempts.length > 0 &&
-				attempts.some(
-					(attempt) =>
-						(attempt.endTime && attempt.endTime.getTime() >= Date.now() - 25 * 60 * 60 * 1000) ||
-						attempt.status !== 'completed',
-				)
-			) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Exam attempted in the past 24 hours or there is an outstanding attempt',
-				};
-			}
-
-			const availableQuestions = exam.questions.filter((q) => q.isActive);
-
-			const attempt = await ExamAttemptModel.create({
-				examId: exam._id,
-				student: req.body.cid,
-				questionOrder: shuffleArray(availableQuestions),
-				responses: [],
-				attemptNumber: attempts.length + 1,
-				status: 'in_progress',
-			});
-
-			await NotificationModel.create({
-				recipient: student.cid,
-				title: 'New Exam Assigned',
-				content: `You have been assigned the <b>${exam.title}</b> exam.`,
-				link: `dash/training/exams/${attempt._id}`,
-			});
-
-			await DossierModel.create({
-				by: req.user.cid,
-				affected: student.cid,
-				action: `%b assigned exam ${exam.title} to %a`,
-				actionType: ACTION_TYPE.ASSIGN_EXAM,
-			});
-
-			return res.status(status.CREATED).json(attempt._id);
-		} catch (e) {
-			return next(e);
-		}
-	},
-);
 
 // Start Exam Attempt
 router.post('/:id/start', getUser, async (req: Request, res: Response, next: NextFunction) => {
@@ -331,15 +245,3 @@ router.post('/:id/submit', getUser, async (req: Request, res: Response, next: Ne
 });
 
 export default router;
-
-const shuffleArray = <T>(array: T[]): T[] => {
-	const shuffled = [...array];
-	for (let i = shuffled.length - 1; i > 0; i--) {
-		const j = Math.floor(Math.random() * (i + 1));
-
-		const temp = shuffled[i]!;
-		shuffled[i] = shuffled[j]!;
-		shuffled[j] = temp;
-	}
-	return shuffled;
-};
