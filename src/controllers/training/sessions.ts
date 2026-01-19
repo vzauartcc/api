@@ -29,7 +29,7 @@ router.get(
 				submitted: true,
 				deleted: false,
 			})
-				.cache('10 minutes', 'sessions-count')
+				.cache('10 minutes', 'sessions-all-count')
 				.exec();
 			const sessions = await TrainingSessionModel.find({
 				deleted: false,
@@ -44,7 +44,7 @@ router.get(
 				.populate('instructor', 'fname lname')
 				.populate('milestone', 'name code')
 				.lean()
-				.cache('10 minutes', 'sessions')
+				.cache('10 minutes', `sessions-all-page-${page}`)
 				.exec();
 
 			return res.status(status.OK).json({ count: amount, sessions });
@@ -80,7 +80,7 @@ router.get('/past', getUser, async (req: Request, res: Response, next: NextFunct
 			.populate('student', 'fname lname')
 			.populate('milestone', 'name code')
 			.lean()
-			.cache('10 minutes', `sessions-past-session-${req.user.cid}`)
+			.cache('10 minutes', `sessions-past-session-${req.user.cid}-page-${page}`)
 			.exec();
 
 		return res.status(status.OK).json({ count: amount, sessions });
@@ -141,7 +141,7 @@ router.get(
 				.populate('instructor', 'fname lname')
 				.populate('milestone', 'name code')
 				.lean()
-				.cache('10 minutes', `sessions-student-${req.params['cid']}`)
+				.cache('10 minutes', `sessions-student-${req.params['cid']}-page-${page}`)
 				.exec();
 
 			return res.status(status.OK).json({
@@ -251,7 +251,7 @@ router.patch(
 				};
 			}
 
-			await clearCachePrefix('session');
+			await clearCachePrefix(`sessions-instructor-${req.user.cid}`);
 
 			return res.status(status.OK).json();
 		} catch (e) {
@@ -393,7 +393,12 @@ router.patch(
 			session.duration = duration;
 			await session.save();
 
-			await clearCachePrefix('session');
+			await clearCachePrefix('sessions-all');
+			await clearCachePrefix(`sessions-past-sessions-${session.studentCid}`);
+			await clearCachePrefix(`sessions-student-sessions-${session.studentCid}`);
+			await clearCachePrefix(`sessions-student-session-${session._id}`);
+			await clearCachePrefix(`sessions-instructor-session-${session._id}`);
+			await clearCachePrefix(`sessions-instructor-${session.instructorCid}`);
 
 			const instructor = await UserModel.findOne({ cid: session.instructorCid })
 				.select('fname lname')
@@ -552,7 +557,7 @@ router.post(
 				submitted: false,
 			});
 
-			await clearCachePrefix('session');
+			await clearCachePrefix(`sessions-instructor-${req.user.cid}`);
 
 			return res.status(status.CREATED).json();
 		} catch (e) {
