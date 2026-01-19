@@ -343,6 +343,7 @@ router.patch(
 			const duration = `${('00' + hours).slice(-2)}:${('00' + minutes).slice(-2)}`;
 
 			if (!session.vatusaId || session.vatusaId === 0) {
+				console.log('Creating VATUSA record');
 				let vatusaRes = { data: { id: 0 } };
 				// Send the training record to vatusa
 				if (!zau.isDev) {
@@ -359,24 +360,38 @@ router.patch(
 						is_cbt: false,
 						solo_granted: false,
 					});
+
+					console.log('vatusa gave us an id of', vatusaRes?.data?.id);
 				}
 
 				// store the vatusa id for updating it later
 				session.vatusaId = vatusaRes.data.id;
 				session.submitted = true; // submitted sessions show in a different section of the UI
-				await session.save();
 			} else {
+				console.log('Updating VATUSA record', session.vatusaId);
 				await vatusaApi.put(`/training/record/${session.vatusaId}`, {
 					session_date: DateTime.fromJSDate(start).toFormat('y-MM-dd HH:mm'),
 					position: req.body.position,
 					duration: duration,
 					movements: req.body.movements,
 					score: req.body.progress,
-					notes: req.body.studentNotes,
+					notes: sanitizeInput(req.body.studentNotes),
 					ots_status: req.body.ots,
 					location: req.body.location,
 				});
 			}
+
+			session.position = req.body.position;
+			session.movements = req.body.movements;
+			session.progress = req.body.progress;
+			session.ots = req.body.ots;
+			session.location = req.body.location;
+			session.startTime = start;
+			session.endTime = end;
+			session.studentNotes = sanitizeInput(req.body.studentNotes);
+			session.insNotes = req.body.insNotes;
+			session.duration = duration;
+			await session.save();
 
 			await clearCachePrefix('session');
 
@@ -624,6 +639,8 @@ router.post(
 					is_cbt: false,
 					solo_granted: false,
 				});
+
+				console.log('SUBMIT vatusa session gave id', vatusaRes?.data?.id);
 			}
 
 			const doc = await TrainingSessionModel.create({
