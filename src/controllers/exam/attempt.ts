@@ -1,5 +1,5 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { isValidObjectId } from 'mongoose';
+import { isValidObjectId, Types } from 'mongoose';
 import { getCacheInstance } from '../../app.js';
 import getUser from '../../middleware/user.js';
 import { ExamAttemptModel } from '../../models/examAttempt.js';
@@ -205,17 +205,21 @@ router.post('/:id/submit', getUser, async (req: Request, res: Response, next: Ne
 		// Validate and score responses
 		const scoredResponses = attempt.responses.map((response) => {
 			totalTime += response.timeSpent;
-			const question = questions.find((q) => q.id!.equals(response.questionId));
+
+			const question = questions.find((q) => q.id === response.questionId.toString());
 			if (!question) {
 				return { ...response, isCorrect: false };
 			}
 
-			const correctOptions = question.options.filter((x) => x.isCorrect === true).map((x) => x._id);
+			const correctOptions = question.options
+				.filter((x) => x.isCorrect === true)
+				.map((x) => x._id) as Types.ObjectId[];
 
-			const isCorrect = correctOptions.every((x) =>
-				response.selectedOptions.some((y) => y._id === x),
+			const isCorrect = correctOptions.every((x: Types.ObjectId) =>
+				response.selectedOptions.some((y) => y.equals(x)),
 			);
 			if (isCorrect) correctAnswers++;
+
 			return { ...response, isCorrect };
 		});
 
