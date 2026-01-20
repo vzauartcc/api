@@ -58,8 +58,14 @@ router.get('/:attemptId', getUser, async (req: Request, res: Response, next: Nex
 		}
 
 		const attempt = await ExamAttemptModel.findById(attemptId)
-			.populate('exam')
 			.populate('user')
+			.populate({
+				path: 'exam',
+				select: 'title certCode',
+				populate: {
+					path: 'certification',
+				},
+			})
 			.lean({ virtuals: true })
 			.cache('10 minutes', `exam-attempt-${attemptId}`)
 			.exec();
@@ -83,6 +89,7 @@ router.get('/:attemptId', getUser, async (req: Request, res: Response, next: Nex
 			(attempt.questionOrder as any) = attempt.questionOrder.map((q) => ({
 				...q,
 				options: q.options.map(({ isCorrect, ...rest }) => rest),
+				multiCorrect: q.options.filter((o) => o.isCorrect === true).length > 1,
 			}));
 		}
 
