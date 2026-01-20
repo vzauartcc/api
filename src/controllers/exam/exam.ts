@@ -200,7 +200,9 @@ router.post(
 				};
 			}
 
-			const attempts = await ExamAttemptModel.find({ examId: id, student: student.cid }).exec();
+			const attempts = await ExamAttemptModel.find({ examId: id, student: student.cid })
+				.lean()
+				.exec();
 			if (
 				attempts.length > 0 &&
 				attempts.some(

@@ -100,31 +100,6 @@ router.get('/:attemptId', getUser, async (req: Request, res: Response, next: Nex
 });
 
 // Start Exam Attempt
-router.post('/:id/start', getUser, async (req: Request, res: Response, next: NextFunction) => {
-	try {
-		const { id } = req.params;
-
-		const existingAttempt = await ExamAttemptModel.findOne({
-			_id: id,
-			user: req.user.cid,
-			$or: [{ status: 'in_progress' }, { status: 'not_started' }],
-		})
-			.cache('1 minute', `exam-attempt-${id}`)
-			.exec();
-
-		if (!existingAttempt) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Attempt not found or already in progress',
-			};
-		}
-
-		return res.status(status.OK).json();
-	} catch (e) {
-		return next(e);
-	}
-});
-
 router.patch('/:id', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const { id } = req.params;
@@ -150,7 +125,11 @@ router.patch('/:id', getUser, async (req: Request, res: Response, next: NextFunc
 			};
 		}
 
-		const attempt = await ExamAttemptModel.findOne({ _id: id, student: req.user.cid }).exec();
+		const attempt = await ExamAttemptModel.findOne({
+			_id: id,
+			student: req.user.cid,
+			status: { $ne: 'completed' },
+		}).exec();
 		if (!attempt) {
 			throw {
 				code: status.NOT_FOUND,
@@ -190,7 +169,11 @@ router.post('/:id/submit', getUser, async (req: Request, res: Response, next: Ne
 	try {
 		const { id } = req.params;
 
-		const attempt = await ExamAttemptModel.findOne({ _id: id, student: req.user.cid }).exec();
+		const attempt = await ExamAttemptModel.findOne({
+			_id: id,
+			student: req.user.cid,
+			status: { $ne: 'completed' },
+		}).exec();
 		if (!attempt) {
 			throw {
 				code: status.NOT_FOUND,
@@ -209,7 +192,6 @@ router.post('/:id/submit', getUser, async (req: Request, res: Response, next: Ne
 			};
 		}
 
-		// Validate and score responses
 		const scoredResponses = attempt.responses.map((response) => {
 			totalTime += response.timeSpent;
 
@@ -238,17 +220,16 @@ router.post('/:id/submit', getUser, async (req: Request, res: Response, next: Ne
 		attempt.totalScore = score;
 		attempt.passed = passed;
 		attempt.endTime = new Date();
+		attempt.totalTime = totalTime;
 		attempt.status = 'completed';
 
 		await attempt.save();
 		await getCacheInstance().clear(`exam-attempt-${id}`);
 
-		// Respond with score and detailed results
 		return res.status(status.OK).json({
 			message: 'Exam submitted successfully',
 			score,
 			passed,
-			responses: scoredResponses,
 		});
 	} catch (e) {
 		return next(e);
