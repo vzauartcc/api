@@ -233,7 +233,7 @@ router.patch('/:id', getUser, async (req: Request, res: Response, next: NextFunc
 			};
 		}
 
-		const question = attempt.questionOrder.find((q) => q._id === questionId);
+		const question = attempt.questionOrder.find((q) => q.id === questionId);
 
 		if (!question) {
 			throw {
@@ -242,7 +242,7 @@ router.patch('/:id', getUser, async (req: Request, res: Response, next: NextFunc
 			};
 		}
 
-		const validResponses = question.options.map((o) => o._id);
+		const validResponses = question.options.map((o) => o.id);
 
 		if (!selectedOptions.every((o) => validResponses.includes(o))) {
 			throw {

@@ -237,8 +237,10 @@ router.post(
 				recipient: student.cid,
 				title: 'New Exam Assigned',
 				content: `You have been assigned the <b>${exam.title}</b> exam.`,
-				link: `dash/training/exams/${attempt._id}`,
+				link: `/dash/training/exams`,
 			});
+
+			clearCachePrefix(`notifications-${student.cid}`);
 
 			await DossierModel.create({
 				by: req.user.cid,
