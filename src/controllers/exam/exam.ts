@@ -206,14 +206,16 @@ router.post(
 			}
 
 			const attempts = await ExamAttemptModel.find({ examId: id, student: student.cid })
-				.lean()
+				.lean({ virtuals: true })
 				.exec();
 			if (
 				attempts.length > 0 &&
 				attempts.some(
 					(attempt) =>
-						(attempt.endTime && attempt.endTime.getTime() >= Date.now() - 25 * 60 * 60 * 1000) ||
-						attempt.status !== 'completed',
+						(attempt.endTime &&
+							attempt.endTime.getTime() >= Date.now() - 25 * 60 * 60 * 1000 &&
+							attempt.status !== 'timed_out') ||
+						!attempt.isComplete,
 				)
 			) {
 				throw {
@@ -264,6 +266,13 @@ router.get(
 	isExamEditor,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (!req.params['id'] || req.params['id'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid ID',
+				};
+			}
+
 			const exam = await ExamModel.findById(req.params['id'])
 				.lean({ virtuals: true })
 				.cache('10 minutes', `exam-${req.params['id']}`)
@@ -288,6 +297,13 @@ router.delete(
 	isExamEditor,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			if (!req.params['id'] || req.params['id'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid ID',
+				};
+			}
+
 			const deletedExam = await ExamModel.findById(req.params['id'])
 				.cache('10 minutes', `exam-${req.params['id']}`)
 				.exec();

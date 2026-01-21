@@ -4,7 +4,7 @@ import { getCacheInstance } from '../../app.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
-import { ExamAttemptModel } from '../../models/examAttempt.js';
+import { ExamAttemptModel, type IExamAttempt } from '../../models/examAttempt.js';
 import status from '../../types/status.js';
 
 const router = Router();
@@ -189,7 +189,7 @@ router.get(
 						},
 					})
 					.sort({ updatedAt: 'desc' })
-					.lean()
+					.lean({ virtuals: true })
 					.exec();
 			}
 
@@ -228,7 +228,7 @@ router.patch('/:id', getUser, async (req: Request, res: Response, next: NextFunc
 		const attempt = await ExamAttemptModel.findOne({
 			_id: id,
 			student: req.user.cid,
-			status: { $ne: 'completed' },
+			status: { $nin: ['completed', 'timed_out'] },
 			deleted: { $ne: true },
 		}).exec();
 		if (!attempt) {
@@ -301,7 +301,7 @@ router.post('/:id/submit', getUser, async (req: Request, res: Response, next: Ne
 		const attempt = await ExamAttemptModel.findOne({
 			_id: id,
 			student: req.user.cid,
-			status: { $ne: 'completed' },
+			status: { $nin: ['completed', 'timed_out'] },
 			deleted: { $ne: true },
 		}).exec();
 		if (!attempt) {
@@ -311,62 +311,9 @@ router.post('/:id/submit', getUser, async (req: Request, res: Response, next: Ne
 			};
 		}
 
-		let correctAnswers = 0;
-		const questions = attempt.questionOrder;
-		let totalTime = 0;
+		await submitExam(attempt, false);
 
-		if (
-			!questions.every((q) => attempt.responses.some((r) => r.questionId.toString() === q.id)) ||
-			attempt.responses.some((r) => r.selectedOptions.length === 0)
-		) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Not all questions are answered',
-			};
-		}
-
-		const scoredResponses = attempt.responses.map((response) => {
-			totalTime += response.timeSpent;
-
-			const question = questions.find((q) => q.id === response.questionId.toString());
-			if (!question) {
-				return { ...response, isCorrect: false };
-			}
-
-			const correctOptions = question.options
-				.filter((x) => x.isCorrect === true)
-				.map((x) => x._id) as Types.ObjectId[];
-
-			// @TODO: Fix this logic to handle multiple selected options correctly
-			const isCorrect = correctOptions.every((x: Types.ObjectId) =>
-				response.selectedOptions.some((y) => y.equals(x)),
-			);
-			if (isCorrect) correctAnswers++;
-
-			return { ...response, isCorrect };
-		});
-
-		const score = Math.round((correctAnswers / questions.length) * 100);
-		const passed = score >= 80;
-
-		attempt.responses = scoredResponses;
-		attempt.totalScore = correctAnswers;
-		attempt.grade = score;
-		attempt.passed = passed;
-		attempt.endTime = new Date();
-		attempt.totalTime = totalTime;
-		attempt.status = 'completed';
-
-		await attempt.save();
-		await getCacheInstance().clear(`exam-attempt-${id}`);
-		await clearCachePrefix('exam-attempts-all');
-		await clearCachePrefix(`exam-attempts-user-${req.user.cid}`);
-
-		return res.status(status.OK).json({
-			message: 'Exam submitted successfully',
-			score,
-			passed,
-		});
+		return res.status(status.OK).json();
 	} catch (e) {
 		return next(e);
 	}
@@ -387,7 +334,7 @@ router.delete(
 
 			const attempt = await ExamAttemptModel.findOneAndDelete({
 				_id: req.params['id'],
-				status: { $ne: 'completed' },
+				status: { $nin: ['completed', 'timed_out'] },
 			});
 			if (!attempt) {
 				throw {
@@ -404,5 +351,58 @@ router.delete(
 		}
 	},
 );
+
+export async function submitExam(attempt: IExamAttempt, timedOut: boolean) {
+	let correctAnswers = 0;
+	const questions = attempt.questionOrder;
+	let totalTime = 0;
+
+	if (
+		!timedOut &&
+		(!questions.every((q) => attempt.responses.some((r) => r.questionId.toString() === q.id)) ||
+			attempt.responses.some((r) => r.selectedOptions.length === 0))
+	) {
+		throw {
+			code: status.BAD_REQUEST,
+			message: 'Not all questions are answered',
+		};
+	}
+
+	const scoredResponses = attempt.responses.map((response) => {
+		totalTime += response.timeSpent;
+
+		const question = questions.find((q) => q.id === response.questionId.toString());
+		if (!question) {
+			return { ...response, isCorrect: false };
+		}
+
+		const correctOptions = question.options
+			.filter((x) => x.isCorrect === true)
+			.map((x) => x._id) as Types.ObjectId[];
+
+		const isCorrect = correctOptions.every((x: Types.ObjectId) =>
+			response.selectedOptions.some((y) => y.equals(x)),
+		);
+		if (isCorrect) correctAnswers++;
+
+		return { ...response, isCorrect };
+	});
+
+	const score = Math.round((correctAnswers / questions.length) * 100);
+	const passed = score >= 80;
+
+	attempt.responses = scoredResponses;
+	attempt.totalScore = timedOut ? 0 : correctAnswers;
+	attempt.grade = timedOut ? 0 : score;
+	attempt.passed = timedOut ? false : passed;
+	attempt.endTime = new Date();
+	attempt.totalTime = totalTime;
+	attempt.status = timedOut ? 'timed_out' : 'completed';
+
+	await attempt.save();
+	await getCacheInstance().clear(`exam-attempt-${attempt.id}`);
+	await clearCachePrefix('exam-attempts-all');
+	await clearCachePrefix(`exam-attempts-user-${attempt.student}`);
+}
 
 export default router;
