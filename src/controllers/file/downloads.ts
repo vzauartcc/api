@@ -246,7 +246,7 @@ router.patch(
 
 router.delete('/:id', getUser, isStaff, async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		if (!req.params['slug'] || req.params['id'] === 'undefined') {
+		if (!req.params['id'] || req.params['id'] === 'undefined') {
 			throw {
 				code: status.BAD_REQUEST,
 				message: 'Invalid ID.',
