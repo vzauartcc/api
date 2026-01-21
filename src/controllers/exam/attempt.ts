@@ -22,7 +22,7 @@ router.get('/by-user/:cid', getUser, async (req: Request, res: Response, next: N
 			}
 		}
 
-		const attempts = await ExamAttemptModel.find({ student: cid })
+		const attempts = await ExamAttemptModel.find({ student: cid, deleted: { $ne: true } })
 			.populate({
 				path: 'exam',
 				select: 'title certCode',
@@ -64,7 +64,7 @@ router.get(
 				};
 			}
 
-			const attempt = await ExamAttemptModel.findById(attemptId)
+			const attempt = await ExamAttemptModel.findOne({ _id: attemptId, deleted: { $ne: true } })
 				.populate('user')
 				.populate({
 					path: 'exam',
@@ -102,7 +102,7 @@ router.get('/:attemptId', getUser, async (req: Request, res: Response, next: Nex
 			};
 		}
 
-		const attempt = await ExamAttemptModel.findById(attemptId)
+		const attempt = await ExamAttemptModel.findOne({ _id: attemptId, deleted: { $ne: true } })
 			.populate('user')
 			.populate({
 				path: 'exam',
@@ -156,7 +156,7 @@ router.get(
 			const student = +(req.query['user'] as string) || 0;
 
 			const query = {
-				deleted: false,
+				deleted: { $ne: true },
 			} as any;
 
 			if (!isNaN(student) && student > 0) {
@@ -224,6 +224,7 @@ router.patch('/:id', getUser, async (req: Request, res: Response, next: NextFunc
 			_id: id,
 			student: req.user.cid,
 			status: { $ne: 'completed' },
+			deleted: { $ne: true },
 		}).exec();
 		if (!attempt) {
 			throw {
@@ -292,6 +293,7 @@ router.post('/:id/submit', getUser, async (req: Request, res: Response, next: Ne
 			_id: id,
 			student: req.user.cid,
 			status: { $ne: 'completed' },
+			deleted: { $ne: true },
 		}).exec();
 		if (!attempt) {
 			throw {
@@ -357,5 +359,38 @@ router.post('/:id/submit', getUser, async (req: Request, res: Response, next: Ne
 		return next(e);
 	}
 });
+
+router.delete(
+	'/:id',
+	getUser,
+	isTrainingStaff,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			if (!req.params['id'] || req.params['id'] === 'undefined') {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid ID',
+				};
+			}
+
+			const attempt = await ExamAttemptModel.findOneAndDelete({
+				_id: req.params['id'],
+				status: { $ne: 'completed' },
+			});
+			if (!attempt) {
+				throw {
+					code: status.NOT_FOUND,
+					message: 'Attempt not found',
+				};
+			}
+
+			await clearCachePrefix('exam-attempt');
+
+			return res.status(status.NO_CONTENT).json({});
+		} catch (e) {
+			return next(e);
+		}
+	},
+);
 
 export default router;
