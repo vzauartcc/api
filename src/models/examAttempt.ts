@@ -1,4 +1,6 @@
 import { Document, model, Schema, Types, type PopulatedDoc } from 'mongoose';
+import type { SoftDeleteModel } from 'mongoose-delete';
+import MongooseDelete from 'mongoose-delete';
 import type { IExam } from './exam.js';
 import { QuestionSchema, type IQuestion } from './examQuestion.js';
 import { ResponseSchema, type IResponse } from './examQuestionResponse.js';
@@ -60,4 +62,11 @@ ExamAttemptSchema.virtual('exam', {
 	justOne: true,
 });
 
-export const ExamAttemptModel = model<IExamAttempt>('ExamAttempt', ExamAttemptSchema);
+ExamAttemptSchema.plugin(MongooseDelete, {
+	deletedAt: true,
+});
+
+export const ExamAttemptModel = model<IExamAttempt, SoftDeleteModel<IExamAttempt>>(
+	'ExamAttempt',
+	ExamAttemptSchema,
+);
