@@ -3,7 +3,7 @@ import { body, validationResult } from 'express-validator';
 import { isValidObjectId } from 'mongoose';
 import { getCacheInstance } from '../../app.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
-import { isInstructor } from '../../middleware/auth.js';
+import { isInstructor, isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { ExamModel } from '../../models/exam.js';
@@ -58,21 +58,26 @@ function isExamEditor(req: Request, res: Response, next: NextFunction) {
 
 router.use('/attempt', examAttemptRouter);
 
-router.get('/', getUser, isExamEditor, async (_req: Request, res: Response, next: NextFunction) => {
-	try {
-		// Fetch all exams, populate createdBy, and exclude questions
-		const exams = await ExamModel.find({ deleted: false })
-			.populate('user', 'fname lname')
-			.populate('certification', 'name')
-			.lean({ virtuals: true })
-			.cache('10 minutes', 'exams')
-			.exec();
+router.get(
+	'/',
+	getUser,
+	isTrainingStaff,
+	async (_req: Request, res: Response, next: NextFunction) => {
+		try {
+			// Fetch all exams, populate createdBy, and exclude questions
+			const exams = await ExamModel.find({ deleted: false })
+				.populate('user', 'fname lname')
+				.populate('certification', 'name')
+				.lean({ virtuals: true })
+				.cache('10 minutes', 'exams')
+				.exec();
 
-		return res.status(status.OK).json(exams);
-	} catch (e) {
-		return next(e);
-	}
-});
+			return res.status(status.OK).json(exams);
+		} catch (e) {
+			return next(e);
+		}
+	},
+);
 
 // Create Exam
 router.post(
