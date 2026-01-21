@@ -264,14 +264,18 @@ router.patch('/:id', getUser, async (req: Request, res: Response, next: NextFunc
 			existingTime = duplicate.timeSpent;
 		}
 
-		attempt.responses = [
-			...keepResponses,
-			{
-				questionId: questionId,
-				selectedOptions: selectedOptions,
-				timeSpent: (timeSpent || 0) + existingTime,
-			},
-		];
+		if (selectedOptions.length === 0) {
+			attempt.responses = [...keepResponses];
+		} else {
+			attempt.responses = [
+				...keepResponses,
+				{
+					questionId: questionId,
+					selectedOptions: selectedOptions,
+					timeSpent: (timeSpent || 0) + existingTime,
+				},
+			];
+		}
 
 		if (!attempt.startTime) {
 			attempt.startTime = new Date();
@@ -311,7 +315,10 @@ router.post('/:id/submit', getUser, async (req: Request, res: Response, next: Ne
 		const questions = attempt.questionOrder;
 		let totalTime = 0;
 
-		if (!questions.every((q) => attempt.responses.some((r) => r.questionId.toString() === q.id))) {
+		if (
+			!questions.every((q) => attempt.responses.some((r) => r.questionId.toString() === q.id)) ||
+			attempt.responses.some((r) => r.selectedOptions.length === 0)
+		) {
 			throw {
 				code: status.BAD_REQUEST,
 				message: 'Not all questions are answered',
