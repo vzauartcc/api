@@ -153,6 +153,7 @@ router.get(
 			const page = +(req.query['page'] as string) || 1;
 			const limit = +(req.query['limit'] as string) || 10;
 			const exam = (req.query['exam'] as string) || '';
+			const examStatus = (req.query['status'] as string) || '';
 			const student = +(req.query['user'] as string) || 0;
 
 			const query = {
@@ -165,6 +166,10 @@ router.get(
 
 			if (exam && exam !== '') {
 				query.examId = new Types.ObjectId(exam);
+			}
+
+			if (examStatus && examStatus !== '') {
+				query.status = examStatus;
 			}
 
 			const count = await ExamAttemptModel.countDocuments(query).exec();
