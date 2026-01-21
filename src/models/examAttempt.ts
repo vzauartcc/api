@@ -10,8 +10,10 @@ interface IExamAttempt extends Document {
 	student: number;
 	questionOrder: IQuestion[];
 	responses: IResponse[];
+	startTime?: Date;
 	endTime?: Date;
 	totalScore?: number;
+	grade?: number;
 	totalTime?: number;
 	passed?: boolean;
 	attemptNumber: number;
@@ -28,8 +30,10 @@ const ExamAttemptSchema = new Schema<IExamAttempt>(
 		student: { type: Number, required: true, ref: 'User' },
 		questionOrder: [{ type: QuestionSchema }],
 		responses: [ResponseSchema],
+		startTime: { type: Date },
 		endTime: { type: Date },
 		totalScore: { type: Number },
+		grade: { type: Number },
 		totalTime: { type: Number },
 		passed: { type: Boolean },
 		attemptNumber: { type: Number, required: true },

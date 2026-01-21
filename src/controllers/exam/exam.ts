@@ -242,6 +242,8 @@ router.post(
 				actionType: ACTION_TYPE.ASSIGN_EXAM,
 			});
 
+			await clearCachePrefix('exam-attempts-all');
+
 			return res.status(status.CREATED).json(attempt._id);
 		} catch (e) {
 			return next(e);

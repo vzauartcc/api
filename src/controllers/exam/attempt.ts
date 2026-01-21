@@ -1,6 +1,8 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { isValidObjectId, Types } from 'mongoose';
 import { getCacheInstance } from '../../app.js';
+import { clearCachePrefix } from '../../helpers/redis.js';
+import { isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { ExamAttemptModel } from '../../models/examAttempt.js';
 import status from '../../types/status.js';
@@ -29,6 +31,7 @@ router.get('/by-user/:cid', getUser, async (req: Request, res: Response, next: N
 				},
 			})
 			.lean({ virtuals: true })
+			.cache('10 minutes', `exam-attempts-user-${cid}`)
 			.exec();
 
 		if (req.user.cid === Number(cid)) {
@@ -45,6 +48,48 @@ router.get('/by-user/:cid', getUser, async (req: Request, res: Response, next: N
 		return next(e);
 	}
 });
+
+router.get(
+	'/review/:attemptId',
+	getUser,
+	isTrainingStaff,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const { attemptId } = req.params;
+
+			if (!isValidObjectId(attemptId)) {
+				throw {
+					code: status.BAD_REQUEST,
+					message: 'Invalid attempt ID',
+				};
+			}
+
+			const attempt = await ExamAttemptModel.findById(attemptId)
+				.populate('user')
+				.populate({
+					path: 'exam',
+					select: 'title certCode',
+					populate: {
+						path: 'certification',
+					},
+				})
+				.lean({ virtuals: true })
+				.cache('10 minutes', `exam-attempt-${attemptId}`)
+				.exec();
+
+			if (!attempt) {
+				throw {
+					code: status.NOT_FOUND,
+					message: 'Attempt not found',
+				};
+			}
+
+			return res.status(status.OK).json(attempt);
+		} catch (e) {
+			return next(e);
+		}
+	},
+);
 
 router.get('/:attemptId', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
@@ -77,7 +122,7 @@ router.get('/:attemptId', getUser, async (req: Request, res: Response, next: Nex
 			};
 		}
 
-		if (req.user.cid !== attempt.student || !req.user.isTrainingStaff) {
+		if (req.user.cid !== attempt.student && !req.user.isTrainingStaff) {
 			throw {
 				code: status.FORBIDDEN,
 				message: 'Forbidden',
@@ -99,7 +144,57 @@ router.get('/:attemptId', getUser, async (req: Request, res: Response, next: Nex
 	}
 });
 
-// Start Exam Attempt
+router.get(
+	'/',
+	getUser,
+	isTrainingStaff,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const page = +(req.query['page'] as string) || 1;
+			const limit = +(req.query['limit'] as string) || 10;
+			const exam = (req.query['exam'] as string) || '';
+			const student = +(req.query['user'] as string) || 0;
+
+			const query = {
+				deleted: false,
+			} as any;
+
+			if (!isNaN(student) && student > 0) {
+				query.student = student;
+			}
+
+			if (exam && exam !== '') {
+				query.examId = new Types.ObjectId(exam);
+			}
+
+			const count = await ExamAttemptModel.countDocuments(query).exec();
+
+			let attempts: any[] = [];
+
+			if (count > 0) {
+				attempts = await ExamAttemptModel.find(query)
+					.skip(limit * (page - 1))
+					.limit(limit)
+					.populate({ path: 'user', select: 'fname lname' })
+					.populate({
+						path: 'exam',
+						select: 'title certCode',
+						populate: {
+							path: 'certification',
+						},
+					})
+					.sort({ updatedAt: 'desc' })
+					.lean()
+					.exec();
+			}
+
+			return res.status(status.OK).json({ amount: count, attempts: attempts });
+		} catch (e) {
+			return next(e);
+		}
+	},
+);
+
 router.patch('/:id', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const { id } = req.params;
@@ -137,6 +232,24 @@ router.patch('/:id', getUser, async (req: Request, res: Response, next: NextFunc
 			};
 		}
 
+		const question = attempt.questionOrder.find((q) => q._id === questionId);
+
+		if (!question) {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Question is not part of the exam',
+			};
+		}
+
+		const validResponses = question.options.map((o) => o._id);
+
+		if (!selectedOptions.every((o) => validResponses.includes(o))) {
+			throw {
+				code: status.BAD_REQUEST,
+				message: 'Invalid response selected',
+			};
+		}
+
 		const keepResponses = attempt.responses.filter((r) => r.questionId.toString() !== questionId);
 
 		let existingTime = 0;
@@ -154,9 +267,15 @@ router.patch('/:id', getUser, async (req: Request, res: Response, next: NextFunc
 			},
 		];
 
+		if (!attempt.startTime) {
+			attempt.startTime = new Date();
+		}
+
 		const updated = await attempt.save();
 
 		getCacheInstance().clear(`exam-attempt-${id}`);
+		getCacheInstance().clear(`exam-attempts-${req.user.cid}`);
+		getCacheInstance().clear(`exam-attempts-all`);
 
 		return res.status(status.OK).json(updated);
 	} catch (e) {
@@ -204,6 +323,7 @@ router.post('/:id/submit', getUser, async (req: Request, res: Response, next: Ne
 				.filter((x) => x.isCorrect === true)
 				.map((x) => x._id) as Types.ObjectId[];
 
+			// @TODO: Fix this logic to handle multiple selected options correctly
 			const isCorrect = correctOptions.every((x: Types.ObjectId) =>
 				response.selectedOptions.some((y) => y.equals(x)),
 			);
@@ -212,12 +332,12 @@ router.post('/:id/submit', getUser, async (req: Request, res: Response, next: Ne
 			return { ...response, isCorrect };
 		});
 
-		const score = (correctAnswers / questions.length) * 100;
-		const passingScore = 80;
-		const passed = score >= passingScore;
+		const score = Math.round((correctAnswers / questions.length) * 100);
+		const passed = score >= 80;
 
 		attempt.responses = scoredResponses;
-		attempt.totalScore = score;
+		attempt.totalScore = correctAnswers;
+		attempt.grade = score;
 		attempt.passed = passed;
 		attempt.endTime = new Date();
 		attempt.totalTime = totalTime;
@@ -225,6 +345,8 @@ router.post('/:id/submit', getUser, async (req: Request, res: Response, next: Ne
 
 		await attempt.save();
 		await getCacheInstance().clear(`exam-attempt-${id}`);
+		await clearCachePrefix('exam-attempts-all');
+		await clearCachePrefix(`exam-attempts-user-${req.user.cid}`);
 
 		return res.status(status.OK).json({
 			message: 'Exam submitted successfully',
