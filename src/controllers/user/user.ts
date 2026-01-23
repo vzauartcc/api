@@ -2,7 +2,7 @@ import axios from 'axios';
 import { randomUUID } from 'crypto';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { getCacheInstance } from '../../app.js';
+import { clearCachePrefix } from '../../helpers/redis.js';
 import { uploadToS3 } from '../../helpers/s3.js';
 import zau from '../../helpers/zau.js';
 import { userOrInternal } from '../../middleware/auth.js';
@@ -325,14 +325,14 @@ router.get('/notifications', getUser, async (req: Request, res: Response, next: 
 			recipient: req.user.cid,
 			read: false,
 		})
-			.cache('10 minutes', `notifications-unread-${req.user.cid}`)
+			.cache('10 minutes', `notifications-${req.user.cid}-unread`)
 			.exec();
 
 		const amount = await NotificationModel.countDocuments({
 			deleted: false,
 			recipient: req.user.cid,
 		})
-			.cache('10 minutes', `notifications-count-${req.user.cid}`)
+			.cache('10 minutes', `notifications-${req.user.cid}-count`)
 			.exec();
 
 		const notif = await NotificationModel.find({
@@ -343,7 +343,7 @@ router.get('/notifications', getUser, async (req: Request, res: Response, next: 
 			.limit(limit)
 			.sort({ createdAt: 'desc' })
 			.lean()
-			.cache()
+			.cache('10 minutes', `notifications-${req.user.cid}-${page}`)
 			.exec();
 
 		return res.status(status.OK).json({
@@ -368,7 +368,7 @@ router.put(
 				},
 			).exec();
 
-			await getCacheInstance().clear(`notifications-unread-${req.user.cid}`);
+			await clearCachePrefix(`notifications-${req.user.cid}`);
 
 			return res.status(status.OK).json();
 		} catch (e) {
@@ -392,7 +392,7 @@ router.put(
 				read: true,
 			}).exec();
 
-			await getCacheInstance().clear(`notifications-unread-${req.user.cid}`);
+			await clearCachePrefix(`notifications-${req.user.cid}`);
 
 			return res.status(status.OK).json();
 		} catch (e) {
@@ -408,8 +408,7 @@ router.delete(
 		try {
 			await NotificationModel.deleteMany({ recipient: req.user.cid }).exec();
 
-			await getCacheInstance().clear(`notifications-count-${req.user.cid}`);
-			await getCacheInstance().clear(`notifications-unread-${req.user.cid}`);
+			await clearCachePrefix(`notifications-${req.user.cid}`);
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {

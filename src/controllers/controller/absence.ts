@@ -1,5 +1,6 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { getCacheInstance } from '../../app.js';
+import { clearCachePrefix } from '../../helpers/redis.js';
 import { isManagement } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { AbsenceModel } from '../../models/absence.js';
@@ -68,6 +69,8 @@ router.post('/', getUser, isManagement, async (req: Request, res: Response, next
 				timeZone: 'UTC',
 			})}</b>.`,
 		});
+
+		clearCachePrefix(`notifications-${req.body.controller}`);
 
 		await DossierModel.create({
 			by: req.user.cid,
