@@ -17,11 +17,24 @@ const router = Router();
 
 const createExamValidation = [
 	body('title').trim().notEmpty().withMessage('Title is required'),
+	body('title').trim().isLength({ max: 100 }).withMessage('Title should not exceed 100 characters'),
 	body('description').trim().optional(),
+	body('description')
+		.trim()
+		.isLength({ max: 1000 })
+		.withMessage('Description should not exceed 1000 characters'),
 	body('certCode').trim().notEmpty().withMessage('Milestone is required'),
 	body('questions.*.text').notEmpty().withMessage('Question text is required'),
+	body('questions.*.text')
+		.trim()
+		.isLength({ max: 400 })
+		.withMessage('Question text should not exceed 400 characters'),
 	body('questions.*.isActive').isBoolean().withMessage('isActive must be a boolean'),
 	body('questions.*.options.*.text').notEmpty().withMessage('Option text is required'),
+	body('questions.*.options.*.text')
+		.trim()
+		.isLength({ max: 100 })
+		.withMessage('Option text should not exceed 100 characters'),
 	body('questions.*.options.*.isCorrect').isBoolean().withMessage('isCorrect must be a boolean'),
 	// Custom validation logic here
 	(req: Request, res: Response, next: NextFunction) => {
@@ -30,7 +43,7 @@ const createExamValidation = [
 
 		questions.forEach((question: { options: any[] }, index: number) => {
 			if (!question.options || question.options.length < 2) {
-				errors.push(`Question ${index + 1}: questions must have either two or four options`);
+				errors.push(`Question ${index + 1}: questions must at least two options`);
 			}
 			const correctOptions = question.options.filter(
 				(option: { isCorrect: unknown }) => option.isCorrect,
