@@ -346,9 +346,26 @@ const shuffleArray = <T>(array: T[]): T[] => {
 	for (let i = shuffled.length - 1; i > 0; i--) {
 		const j = Math.floor(Math.random() * (i + 1));
 
-		const temp = shuffled[i]!;
-		shuffled[i] = shuffled[j]!;
-		shuffled[j] = temp;
+		const itemI = shuffled[i]!;
+		const itemJ = shuffled[j]!;
+
+		// Shuffle options too if not T/F
+		if (itemI && typeof itemI === 'object' && 'options' in itemI) {
+			const obj = itemI as any; // Cast to access dynamic property
+			if (Array.isArray(obj.options) && obj.options.length > 2) {
+				obj.options = shuffleArray(obj.options);
+			}
+		}
+
+		if (itemJ && typeof itemJ === 'object' && 'options' in itemJ) {
+			const obj = itemJ as any;
+			if (Array.isArray(obj.options) && obj.options.length > 2) {
+				obj.options = shuffleArray(obj.options);
+			}
+		}
+
+		shuffled[i] = itemJ;
+		shuffled[j] = itemI;
 	}
 	return shuffled;
 };
