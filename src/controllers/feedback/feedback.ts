@@ -237,6 +237,8 @@ router.patch(
 				link: '/dash/feedback',
 			});
 
+			clearCachePrefix(`notifications-${approved.controller!.cid}`);
+
 			await DossierModel.create({
 				by: req.user.cid,
 				affected: approved.controllerCid,

@@ -1,6 +1,7 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { getCacheInstance } from '../../app.js';
 import { sendMail } from '../../helpers/mailer.js';
+import { clearCachePrefix } from '../../helpers/redis.js';
 import { isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { NotificationModel } from '../../models/notification.js';
@@ -374,6 +375,8 @@ router.delete('/:id', getUser, async (req: Request, res: Response, next: NextFun
 				title: 'Training Request Cancelled',
 				content: 'You have deleted your training request.',
 			});
+
+			clearCachePrefix(`notifications-${req.user.cid}`);
 		} else {
 			await NotificationModel.create({
 				recipient: request.studentCid,
@@ -381,6 +384,8 @@ router.delete('/:id', getUser, async (req: Request, res: Response, next: NextFun
 				title: 'Training Request Cancelled',
 				content: `Your training request has been deleted by ${req.user.name}.`,
 			});
+
+			clearCachePrefix(`notifications-${request.studentCid}`);
 		}
 
 		return res.status(status.NO_CONTENT).json();

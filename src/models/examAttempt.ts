@@ -1,65 +1,65 @@
 import { Document, model, Schema, Types, type PopulatedDoc } from 'mongoose';
+import type { SoftDeleteModel } from 'mongoose-delete';
+import MongooseDelete from 'mongoose-delete';
+import mongooseLeanVirtuals from 'mongoose-lean-virtuals';
 import type { IExam } from './exam.js';
+import { QuestionSchema, type IQuestion } from './examQuestion.js';
+import { ResponseSchema, type IResponse } from './examQuestionResponse.js';
 import type { ITimestamps } from './timestamps.js';
+
 import type { IUser } from './user.js';
 
-interface IResponse {
-	question: Types.ObjectId;
-	selectedOption: Types.ObjectId;
-	timeSpent: number;
-	attemptOrder: number;
-	isCorrect: boolean;
-}
-
-interface IExamAttempt extends Document {
+export interface IExamAttempt extends Document, ITimestamps {
 	examId: Types.ObjectId;
 	student: number;
-	questionOrder: Types.ObjectId[];
+	questionOrder: IQuestion[];
 	responses: IResponse[];
-	startTime: Date;
-	endTime: Date;
-	totalScore: number;
-	passed: boolean;
+	startTime?: Date;
+	endTime?: Date;
+	totalScore?: number;
+	grade?: number;
+	totalTime?: number;
+	passed?: boolean;
 	attemptNumber: number;
-	lastAttemptTime: Date;
-	status: 'in_progress' | 'completed' | 'timed_out';
+	status: 'not_started' | 'in_progress' | 'completed' | 'timed_out';
 
 	// Virtuals
 	user?: PopulatedDoc<IUser & ITimestamps & Document>;
 	exam?: PopulatedDoc<IExam & ITimestamps & Document>;
+	isComplete: boolean;
 }
-
-const ResponseSchema = new Schema<IResponse>(
-	{
-		question: { type: Schema.Types.ObjectId, ref: 'Question' },
-		selectedOption: { type: Schema.Types.ObjectId },
-		timeSpent: Number,
-		attemptOrder: Number,
-		isCorrect: Boolean,
-	},
-	{ _id: false },
-);
 
 const ExamAttemptSchema = new Schema<IExamAttempt>(
 	{
 		examId: { type: Schema.Types.ObjectId, required: true, ref: 'Exam' },
 		student: { type: Number, required: true, ref: 'User' },
-		questionOrder: [{ type: Schema.Types.ObjectId, ref: 'Question' }],
+		questionOrder: [{ type: QuestionSchema }],
 		responses: [ResponseSchema],
-		startTime: { type: Date, required: true },
+		startTime: { type: Date },
 		endTime: { type: Date },
 		totalScore: { type: Number },
+		grade: { type: Number },
+		totalTime: { type: Number },
 		passed: { type: Boolean },
-		attemptNumber: { type: Number },
-		lastAttemptTime: { type: Date },
+		attemptNumber: { type: Number, required: true },
 		status: {
 			type: String,
-			enum: ['in_progress', 'completed', 'timed_out'],
+			enum: ['not_started', 'in_progress', 'completed', 'timed_out'],
 			required: true,
 		},
 	},
-	{ collection: 'examAttempts' },
+	{ collection: 'examAttempts', timestamps: true },
 );
+
+ExamAttemptSchema.plugin(mongooseLeanVirtuals);
+
+ExamAttemptSchema.plugin(MongooseDelete, {
+	deletedAt: true,
+});
+
+ExamAttemptSchema.virtual('isComplete').get(function (this: IExamAttempt) {
+	return this.status === 'completed' || this.status === 'timed_out';
+});
 
 ExamAttemptSchema.virtual('user', {
 	ref: 'User',
@@ -69,10 +69,13 @@ ExamAttemptSchema.virtual('user', {
 });
 
 ExamAttemptSchema.virtual('exam', {
-	ref: 'User',
-	localField: 'exam',
+	ref: 'Exam',
+	localField: 'examId',
 	foreignField: '_id',
 	justOne: true,
 });
 
-export const ExamAttemptModel = model<IExamAttempt>('ExamAttempt', ExamAttemptSchema);
+export const ExamAttemptModel = model<IExamAttempt, SoftDeleteModel<IExamAttempt>>(
+	'ExamAttempt',
+	ExamAttemptSchema,
+);

@@ -676,6 +676,8 @@ router.post(
 				link: `/dash/training/session/${doc._id}`,
 			});
 
+			clearCachePrefix(`notifications-${doc.studentCid}`);
+
 			return res.status(status.CREATED).json();
 		} catch (e) {
 			return next(e);
