@@ -245,7 +245,7 @@ router.post(
 				questionOrder: shuffleArray(availableQuestions),
 				responses: [],
 				attemptNumber: attempts.length + 1,
-				status: 'in_progress',
+				status: 'not_started',
 			});
 
 			await NotificationModel.create({
