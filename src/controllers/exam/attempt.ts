@@ -1,6 +1,5 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { isValidObjectId, Types } from 'mongoose';
-import { getCacheInstance } from '../../app.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
@@ -31,7 +30,6 @@ router.get('/by-user/:cid', getUser, async (req: Request, res: Response, next: N
 				},
 			})
 			.lean({ virtuals: true })
-			.cache('10 minutes', `exam-attempts-user-${cid}`)
 			.exec();
 
 		if (req.user.cid === Number(cid)) {
@@ -74,7 +72,6 @@ router.get(
 					},
 				})
 				.lean({ virtuals: true })
-				.cache('10 minutes', `exam-attempt-${attemptId}`)
 				.exec();
 
 			if (!attempt) {
@@ -112,7 +109,6 @@ router.get('/:attemptId', getUser, async (req: Request, res: Response, next: Nex
 				},
 			})
 			.lean({ virtuals: true })
-			.cache('10 minutes', `exam-attempt-${attemptId}`)
 			.exec();
 
 		if (!attempt) {
@@ -283,10 +279,6 @@ router.patch('/:id', getUser, async (req: Request, res: Response, next: NextFunc
 
 		const updated = await attempt.save();
 
-		getCacheInstance().clear(`exam-attempt-${id}`);
-		getCacheInstance().clear(`exam-attempts-${req.user.cid}`);
-		getCacheInstance().clear(`exam-attempts-all`);
-
 		return res.status(status.OK).json(updated);
 	} catch (e) {
 		return next(e);
@@ -400,9 +392,6 @@ export async function submitExam(attempt: IExamAttempt, timedOut: boolean) {
 	attempt.status = timedOut ? 'timed_out' : 'completed';
 
 	await attempt.save();
-	await getCacheInstance().clear(`exam-attempt-${attempt.id}`);
-	await clearCachePrefix('exam-attempts-all');
-	await clearCachePrefix(`exam-attempts-user-${attempt.student}`);
 }
 
 export default router;
