@@ -1,6 +1,13 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
 import { getCacheInstance } from '../../app.js';
+import {
+	throwBadRequestException,
+	throwConflictException,
+	throwInternalServerErrorException,
+	throwNotFoundException,
+	throwServiceUnavailableException,
+} from '../../helpers/errors.js';
 import { sendMail } from '../../helpers/mailer.js';
 import { getUsersWithPrivacy } from '../../helpers/mongodb.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
@@ -39,10 +46,7 @@ router.get('/', getUser, async (req: Request, res: Response, next: NextFunction)
 		const visiting = allUsers.filter((user) => user.vis === true);
 
 		if (!home || !visiting) {
-			throw {
-				code: status.INTERNAL_SERVER_ERROR,
-				message: 'Unable to retrieve controllers',
-			};
+			throwInternalServerErrorException('Unable to retrieve controllers');
 		}
 
 		return res.status(status.OK).json({ home, visiting });
@@ -78,10 +82,7 @@ router.get('/staff', async (_req: Request, res: Response, next: NextFunction) =>
 			.exec();
 
 		if (!users) {
-			throw {
-				code: status.SERVICE_UNAVAILABLE,
-				message: 'Unable to retrieve staff members',
-			};
+			throwServiceUnavailableException('Unable to retrieve staff members');
 		}
 
 		const staff: IStaffDirectory = {
@@ -174,10 +175,7 @@ router.get('/oi', async (_req: Request, res: Response, next: NextFunction) => {
 			.exec();
 
 		if (!oi) {
-			throw {
-				code: status.INTERNAL_SERVER_ERROR,
-				message: 'Unable to retrieve operating initials',
-			};
+			throwInternalServerErrorException('Unable to retrieve operating initials');
 		}
 
 		return res.status(status.OK).json(oi.map((o) => o.oi));
@@ -293,10 +291,7 @@ router.get('/:cid', userOrInternal, async (req: Request, res: Response, next: Ne
 			req.params['cid'] === 'undefined' ||
 			isNaN(Number(req.params['cid']))
 		) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Invalid CID.',
-			};
+			throwBadRequestException('Invalid CID');
 		}
 
 		let user: IUser[] = [];
@@ -314,10 +309,7 @@ router.get('/:cid', userOrInternal, async (req: Request, res: Response, next: Ne
 		}
 
 		if (!user || user.length === 0) {
-			throw {
-				code: status.NOT_FOUND,
-				message: 'Unable to find controller',
-			};
+			throwNotFoundException('Controller not found');
 		}
 
 		return res.status(status.OK).json(user[0]);
@@ -331,10 +323,7 @@ router.patch(
 	internalAuth,
 	async (req: Request, res: Response, next: NextFunction) => {
 		if (!req.body.rating) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Invalid Rating',
-			};
+			throwBadRequestException('Invalid Rating');
 		}
 
 		if (
@@ -342,10 +331,7 @@ router.patch(
 			req.params['cid'] === 'undefined' ||
 			isNaN(Number(req.params['cid']))
 		) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Invalid CID.',
-			};
+			throwBadRequestException('Invalid CID');
 		}
 
 		try {
@@ -354,10 +340,7 @@ router.patch(
 				.exec();
 
 			if (!user) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Unable to find user',
-				};
+				throwNotFoundException('Controller not found');
 			}
 
 			if (user.rating !== req.body.rating) {
@@ -394,10 +377,7 @@ router.get('/stats/:cid', async (req: Request, res: Response, next: NextFunction
 			req.params['cid'] === 'undefined' ||
 			isNaN(Number(req.params['cid']))
 		) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Invalid CID.',
-			};
+			throwBadRequestException('Invalid CID');
 		}
 
 		const controllerHours = await ControllerHoursModel.find({ cid: req.params['cid'] })
@@ -496,27 +476,18 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response, next: Nex
 			req.params['cid'] === 'undefined' ||
 			isNaN(Number(req.params['cid']))
 		) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Invalid CID.',
-			};
+			throwBadRequestException('Invalid CID');
 		}
 
 		const user = await UserModel.findOne({ cid: req.params['cid'] })
 			.cache('10 minutes', `user-${req.params['cid']}`)
 			.exec();
 		if (user) {
-			throw {
-				code: status.CONFLICT,
-				message: 'This user already exists',
-			};
+			throwConflictException('CID Exists');
 		}
 
 		if (!req.body) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'No user data provided',
-			};
+			throwBadRequestException('No data provided');
 		}
 
 		const rating = Number(req.body.rating);
@@ -525,10 +496,7 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response, next: Nex
 
 		const userOi = await checkOI({ fname: req.body.fname, lname: req.body.lname, oi: '' } as IUser);
 		if (!userOi) {
-			throw {
-				code: status.INTERNAL_SERVER_ERROR,
-				message: 'Unable to generate Operating Initials',
-			};
+			throwInternalServerErrorException('Unable to generate operating initials');
 		}
 
 		await UserModel.create({
@@ -579,10 +547,7 @@ router.patch(
 				isNaN(Number(req.params['cid'])) ||
 				!Object.hasOwn(req.body, 'member')
 			) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid request',
-				};
+				throwBadRequestException('Invalid CID');
 			}
 
 			const user = await UserModel.findOne({ cid: req.params['cid'] })
@@ -590,27 +555,18 @@ router.patch(
 				.exec();
 
 			if (!user) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Unable to find user',
-				};
+				throwNotFoundException('User not found');
 			}
 
 			if (req.body.member === true) {
 				if (!Object.hasOwn(req.body, 'joinDate')) {
-					throw {
-						code: status.BAD_REQUEST,
-						message: 'Invalid request',
-					};
+					throwBadRequestException('Invalid joinDate');
 				}
 
 				const userOi = await checkOI(user);
 
 				if (!userOi) {
-					throw {
-						code: status.INTERNAL_SERVER_ERROR,
-						message: 'Unable to generate Operating Initials',
-					};
+					throwInternalServerErrorException('Unable to generate operating initials');
 				}
 
 				user.oi = userOi;
@@ -678,10 +634,7 @@ router.patch(
 				req.params['cid'] === 'undefined' ||
 				isNaN(Number(req.params['cid']))
 			) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid CID.',
-				};
+				throwBadRequestException('Invalid CID');
 			}
 
 			const user = await UserModel.findOne({ cid: req.params['cid'] })
@@ -689,10 +642,7 @@ router.patch(
 				.exec();
 
 			if (!user) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Unable to find user',
-				};
+				throwNotFoundException('User not found');
 			}
 
 			user.vis = req.body.vis;
@@ -705,10 +655,7 @@ router.patch(
 
 				const userOi = await checkOI(user);
 				if (!userOi) {
-					throw {
-						code: status.INTERNAL_SERVER_ERROR,
-						message: 'Unable to generate Operating Initials',
-					};
+					throwInternalServerErrorException('Unable to generate operating initials');
 				}
 
 				user.oi = userOi;
@@ -739,10 +686,7 @@ router.put(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.body.form) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'No user data included',
-				};
+				throwBadRequestException('Invalid form data');
 			}
 
 			if (
@@ -750,20 +694,14 @@ router.put(
 				req.params['cid'] === 'undefined' ||
 				isNaN(Number(req.params['cid']))
 			) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid CID.',
-				};
+				throwBadRequestException('Invalid CID');
 			}
 
 			// Find the existing user
 			const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
 
 			if (!user) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'User not found',
-				};
+				throwNotFoundException('User not found');
 			}
 
 			const { fname, lname, email, oi, roles, certs, vis } = req.body.form;
@@ -845,10 +783,7 @@ router.patch(
 				req.params['cid'] === 'undefined' ||
 				isNaN(Number(req.params['cid']))
 			) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid CID.',
-				};
+				throwBadRequestException('Invalid CID');
 			}
 
 			const user = await UserModel.findOne({ cid: req.params['cid'] })
@@ -856,10 +791,7 @@ router.patch(
 				.exec();
 
 			if (!user) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'User not found',
-				};
+				throwNotFoundException('User not found');
 			}
 
 			user.certCodes = [];
@@ -883,10 +815,7 @@ router.delete(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.body.reason) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'You must specify a reason',
-				};
+				throwBadRequestException('Invalid reason');
 			}
 
 			if (
@@ -894,10 +823,7 @@ router.delete(
 				req.params['cid'] === 'undefined' ||
 				isNaN(Number(req.params['cid']))
 			) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid CID.',
-				};
+				throwBadRequestException('Invalid CID');
 			}
 
 			const user = await UserModel.findOne({ cid: req.params['cid'] })
@@ -905,10 +831,7 @@ router.delete(
 				.exec();
 
 			if (!user) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'User not found',
-				};
+				throwNotFoundException('User not found');
 			}
 
 			if (user.vis) {

@@ -1,5 +1,10 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { isValidObjectId, Types } from 'mongoose';
+import {
+	throwBadRequestException,
+	throwForbiddenException,
+	throwNotFoundException,
+} from '../../helpers/errors.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
@@ -14,10 +19,7 @@ router.get('/by-user/:cid', getUser, async (req: Request, res: Response, next: N
 
 		if (Number(cid) !== req.user.cid) {
 			if (!req.user.isTrainingStaff) {
-				throw {
-					code: status.FORBIDDEN,
-					message: 'Forbidden',
-				};
+				throwForbiddenException("You Are Not Authorized to View This User's Exam Attempts.");
 			}
 		}
 
@@ -56,10 +58,7 @@ router.get(
 			const { attemptId } = req.params;
 
 			if (!isValidObjectId(attemptId)) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid attempt ID',
-				};
+				throwBadRequestException('Invalid Exam Attempt ID.');
 			}
 
 			const attempt = await ExamAttemptModel.findOne({ _id: attemptId, deleted: { $ne: true } })
@@ -75,10 +74,7 @@ router.get(
 				.exec();
 
 			if (!attempt) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Attempt not found',
-				};
+				throwNotFoundException('Exam Attempt Not Found.');
 			}
 
 			return res.status(status.OK).json(attempt);
@@ -93,10 +89,7 @@ router.get('/:attemptId', getUser, async (req: Request, res: Response, next: Nex
 		const { attemptId } = req.params;
 
 		if (!isValidObjectId(attemptId)) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Invalid attempt ID',
-			};
+			throwBadRequestException('Invalid Exam Attempt ID.');
 		}
 
 		const attempt = await ExamAttemptModel.findOne({ _id: attemptId, deleted: { $ne: true } })
@@ -112,17 +105,11 @@ router.get('/:attemptId', getUser, async (req: Request, res: Response, next: Nex
 			.exec();
 
 		if (!attempt) {
-			throw {
-				code: status.NOT_FOUND,
-				message: 'Attempt not found',
-			};
+			throwNotFoundException('Exam Attempt Not Found.');
 		}
 
 		if (req.user.cid !== attempt.student && !req.user.isTrainingStaff) {
-			throw {
-				code: status.FORBIDDEN,
-				message: 'Forbidden',
-			};
+			throwForbiddenException('You Are Not Authorized to View This Attempt.');
 		}
 
 		if (req.user.cid === attempt.student) {
@@ -208,17 +195,11 @@ router.patch('/:id', getUser, async (req: Request, res: Response, next: NextFunc
 			!Array.isArray(selectedOptions) ||
 			selectedOptions.some((x) => !isValidObjectId(x))
 		) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Invalid request',
-			};
+			throwBadRequestException('Invalid Question ID or Selected Options.');
 		}
 
 		if (!isValidObjectId(id)) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Invalid attempt ID',
-			};
+			throwBadRequestException('Invalid Exam Attempt ID.');
 		}
 
 		const attempt = await ExamAttemptModel.findOne({
@@ -228,28 +209,19 @@ router.patch('/:id', getUser, async (req: Request, res: Response, next: NextFunc
 			deleted: { $ne: true },
 		}).exec();
 		if (!attempt) {
-			throw {
-				code: status.NOT_FOUND,
-				message: 'Exam Attempt not found',
-			};
+			throwNotFoundException('Exam Attempt Not Found.');
 		}
 
 		const question = attempt.questionOrder.find((q) => q.id === questionId);
 
 		if (!question) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Question is not part of the exam',
-			};
+			throwBadRequestException('Question Not Found In The Exam.');
 		}
 
 		const validResponses = question.options.map((o) => o.id);
 
 		if (!selectedOptions.every((o) => validResponses.includes(o))) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Invalid response selected',
-			};
+			throwBadRequestException('Invalid Response Selected.');
 		}
 
 		const keepResponses = attempt.responses.filter((r) => r.questionId.toString() !== questionId);
@@ -290,6 +262,10 @@ router.post('/:id/submit', getUser, async (req: Request, res: Response, next: Ne
 	try {
 		const { id } = req.params;
 
+		if (!isValidObjectId(id)) {
+			throwBadRequestException('Invalid Exam Attempt ID.');
+		}
+
 		const attempt = await ExamAttemptModel.findOne({
 			_id: id,
 			student: req.user.cid,
@@ -297,10 +273,7 @@ router.post('/:id/submit', getUser, async (req: Request, res: Response, next: Ne
 			deleted: { $ne: true },
 		}).exec();
 		if (!attempt) {
-			throw {
-				code: status.NOT_FOUND,
-				message: 'Attempt not found',
-			};
+			throwNotFoundException('Exam Attempt Not Found.');
 		}
 
 		await submitExam(attempt, false);
@@ -317,11 +290,10 @@ router.delete(
 	isTrainingStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			if (!req.params['id'] || req.params['id'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid ID',
-				};
+			const { id } = req.params;
+
+			if (!isValidObjectId(id)) {
+				throwBadRequestException('Invalid Exam Attempt ID.');
 			}
 
 			const attempt = await ExamAttemptModel.findOneAndDelete({
@@ -329,10 +301,7 @@ router.delete(
 				status: { $nin: ['completed', 'timed_out'] },
 			});
 			if (!attempt) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Attempt not found',
-				};
+				throwNotFoundException('Exam Attempt Not Found.');
 			}
 
 			await clearCachePrefix('exam-attempt');
@@ -354,13 +323,11 @@ export async function submitExam(attempt: IExamAttempt, timedOut: boolean) {
 		(!questions.every((q) => attempt.responses.some((r) => r.questionId.toString() === q.id)) ||
 			attempt.responses.some((r) => r.selectedOptions.length === 0))
 	) {
-		throw {
-			code: status.BAD_REQUEST,
-			message: 'Not all questions are answered',
+		throwBadRequestException('Not All Questions Are Answered.', {
 			unanswered: questions
 				.filter((q) => !attempt.responses.some((r) => r.questionId.toString() === q.id))
 				.map((q) => q._id),
-		};
+		});
 	}
 
 	const scoredResponses = attempt.responses.map((response) => {

@@ -1,5 +1,11 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import discord from '../../helpers/discord.js';
+import {
+	throwBadRequestException,
+	throwForbiddenException,
+	throwInternalServerErrorException,
+	throwUnauthorizedException,
+} from '../../helpers/errors.js';
 import internalAuth from '../../middleware/internalAuth.js';
 import getUser from '../../middleware/user.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
@@ -36,27 +42,18 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 			!process.env['DISCORD_CLIENT_SECRET'] ||
 			!process.env['DISCORD_REDIRECT_URI']
 		) {
-			throw {
-				code: status.INTERNAL_SERVER_ERROR,
-				message: 'Internal Server Error',
-			};
+			throwInternalServerErrorException('Internal Server Error');
 		}
 
 		if (!req.body.code || !req.body.cid) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Incomplete request',
-			};
+			throwBadRequestException('Invalid request');
 		}
 
 		const { cid, code } = req.body;
 		const user = await UserModel.findOne({ cid }).exec();
 
 		if (!user) {
-			throw {
-				code: status.UNAUTHORIZED,
-				message: 'User not found',
-			};
+			throwUnauthorizedException('User Not Found');
 		}
 
 		const token = await requestToken({
@@ -69,19 +66,13 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 		});
 
 		if (!token) {
-			throw {
-				code: status.FORBIDDEN,
-				message: 'Unable to authenticate with Discord',
-			};
+			throwForbiddenException('Unable to Authenticate with Discord');
 		}
 
 		const response = await discord.getCurrentUser(token.token_type, token.access_token);
 
 		if (!response || !response.data) {
-			throw {
-				code: status.FORBIDDEN,
-				message: 'Unable to retrieve Discord info',
-			};
+			throwForbiddenException('Unable to Retrieve Discord Information');
 		}
 
 		const discordUser = response.data;

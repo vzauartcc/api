@@ -1,4 +1,5 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
+import { throwBadRequestException, throwNotFoundException } from '../../helpers/errors.js';
 import { sanitizeInput } from '../../helpers/html.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { isStaff } from '../../middleware/auth.js';
@@ -35,10 +36,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 router.post('/', getUser, isStaff, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.body || !req.body.title || !req.body.content) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'You must fill out all required forms',
-			};
+			throwBadRequestException('All field are required');
 		}
 		const { title, content, createdBy } = req.body;
 		const uriSlug =
@@ -50,7 +48,7 @@ router.post('/', getUser, isStaff, async (req: Request, res: Response, next: Nex
 			'-' +
 			Date.now().toString().slice(-5);
 
-		const news = await NewsModel.create({
+		await NewsModel.create({
 			title,
 			content: sanitizeInput(content),
 			uriSlug,
@@ -58,13 +56,6 @@ router.post('/', getUser, isStaff, async (req: Request, res: Response, next: Nex
 		});
 
 		await clearCachePrefix('news');
-
-		if (!news) {
-			throw {
-				code: status.INTERNAL_SERVER_ERROR,
-				message: 'Something went wrong, please try again',
-			};
-		}
 
 		await DossierModel.create({
 			by: req.user.cid,
@@ -82,10 +73,7 @@ router.post('/', getUser, isStaff, async (req: Request, res: Response, next: Nex
 router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.params['slug'] || req.params['slug'] === 'undefined') {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Invalid news slug.',
-			};
+			throwBadRequestException('Invalid slug');
 		}
 
 		const newsItem = await NewsModel.findOne({ uriSlug: req.params['slug'] })
@@ -95,10 +83,7 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
 			.exec();
 
 		if (!newsItem) {
-			throw {
-				code: status.NOT_FOUND,
-				message: 'News item not found',
-			};
+			throwNotFoundException('News Article Not Found');
 		}
 
 		return res.status(status.OK).json(newsItem);
@@ -114,10 +99,7 @@ router.patch(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['slug'] || req.params['slug'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid news slug.',
-				};
+				throwBadRequestException('Invalid slug');
 			}
 
 			const { title, content } = req.body;
@@ -125,10 +107,7 @@ router.patch(
 				.cache('10 minutes', `news-${req.params['slug']}`)
 				.exec();
 			if (!newsItem) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'News Not Found',
-				};
+				throwNotFoundException('News Article Not Found');
 			}
 
 			if (newsItem.title !== title) {
@@ -169,32 +148,19 @@ router.delete(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['slug'] || req.params['slug'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid news slug.',
-				};
+				throwBadRequestException('Invalid slug');
 			}
 
 			const newsItem = await NewsModel.findOne({ uriSlug: req.params['slug'] })
 				.cache('10 minutes', `news-${req.params['slug']}`)
 				.exec();
 			if (!newsItem) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'News Not Found',
-				};
+				throwNotFoundException('News Article Not Found');
 			}
 
-			const deleted = await newsItem.delete();
+			await newsItem.delete();
 
 			await clearCachePrefix('news');
-
-			if (!deleted) {
-				throw {
-					code: status.INTERNAL_SERVER_ERROR,
-					message: 'Something went wrong, please try again',
-				};
-			}
 
 			await DossierModel.create({
 				by: req.user.cid,

@@ -1,6 +1,11 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
 import { getCacheInstance } from '../../app.js';
+import {
+	throwBadRequestException,
+	throwInternalServerErrorException,
+	throwNotFoundException,
+} from '../../helpers/errors.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { vatusaApi } from '../../helpers/vatusa.js';
 import zau from '../../helpers/zau.js';
@@ -45,10 +50,7 @@ router.get(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['id'] || req.params['id'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid ID.',
-				};
+				throwBadRequestException('Invalid ID');
 			}
 
 			const solos = await SoloEndorsementModel.findById(req.params['id'])
@@ -74,25 +76,16 @@ router.post(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.body.student || !req.body.position || !req.body.expirationDate) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'All fields are required',
-				};
+				throwBadRequestException('All fields are required');
 			}
 
 			if (!req.body.expirationDate || isNaN(Date.parse(req.body.expirationDate))) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid request.',
-				};
+				throwBadRequestException('Invalid expiration date');
 			}
 
 			const student = await UserModel.findOne({ cid: req.body.student }).exec();
 			if (!student) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Student not found',
-				};
+				throwNotFoundException('Student Not Found');
 			}
 
 			const today = new Date();
@@ -105,10 +98,7 @@ router.post(
 			const endDate = new Date(req.body.expirationDate);
 
 			if (endDate.getTime() > maxDate.getTime()) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Solo endorsements cannot be issued for more than 45 days.',
-				};
+				throwBadRequestException('Solo endorsements cannot be issued for more than 45 days');
 			}
 
 			let vatusaId = 0;
@@ -121,10 +111,9 @@ router.post(
 					});
 					vatusaId = vatusaResponse.data.id || 0;
 				} catch (err) {
-					throw {
-						code: status.INTERNAL_SERVER_ERROR,
-						message: (err as any).response?.data?.data?.msg || 'Error posting to VATUSA',
-					};
+					throwInternalServerErrorException(
+						(err as any).response?.data?.data?.msg || 'Error posting to VATUSA',
+					);
 				}
 			}
 
@@ -166,10 +155,7 @@ router.patch(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['id'] || req.params['id'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid ID.',
-				};
+				throwBadRequestException('Invalid ID');
 			}
 
 			if (
@@ -178,10 +164,7 @@ router.patch(
 				!req.body.confirmation ||
 				req.body.confirmation !== true
 			) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid request.',
-				};
+				throwBadRequestException('All fields are required');
 			}
 
 			const newEndDate = new Date(req.body.expirationDate);
@@ -193,10 +176,7 @@ router.patch(
 				.cache('10 minutes', `solo-${req.params['id']}`)
 				.exec();
 			if (!solo) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Solo endorsement not found.',
-				};
+				throwNotFoundException('Solo Endorsement Not Found');
 			}
 
 			const oldDate = new Date(
@@ -206,17 +186,15 @@ router.patch(
 			);
 
 			if (newEndDate.getTime() <= solo.expires.getTime()) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'New expiration date cannot be less than the current expiration date.',
-				};
+				throwBadRequestException(
+					'New expiration date cannot be less than or equal to current expiration date.',
+				);
 			}
 
 			if (newEndDate.getTime() >= oldDate.getTime()) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'New expiration date cannot be more than 90 days from the date of issuance.',
-				};
+				throwBadRequestException(
+					'New expiation date cannot be more than 90 days from the initial endorsement date.',
+				);
 			}
 
 			solo.expires = newEndDate;
@@ -284,10 +262,7 @@ router.delete(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['id'] || req.params['id'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid ID.',
-				};
+				throwBadRequestException('Invalid ID');
 			}
 
 			const solo = await SoloEndorsementModel.findOne({
@@ -297,10 +272,7 @@ router.delete(
 				.cache('10 minutes', `solo-${req.params['id']}`)
 				.exec();
 			if (!solo) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Solo endorsement not found.',
-				};
+				throwNotFoundException('Solo Endorsement Not Found');
 			}
 
 			await solo.delete();
@@ -318,10 +290,9 @@ router.delete(
 				try {
 					await vatusaApi.delete(`/solo?id=${solo.vatusaId}`);
 				} catch (err) {
-					throw {
-						code: status.INTERNAL_SERVER_ERROR,
-						message: 'Error deleting from VATUSA, manually check VATUSA and verify.',
-					};
+					throwInternalServerErrorException(
+						'Error deleting from VATUSA, manually check and verify on VATUSA',
+					);
 				}
 			}
 

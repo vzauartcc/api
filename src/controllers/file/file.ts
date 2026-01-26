@@ -1,4 +1,5 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
+import { throwBadRequestException, throwNotFoundException } from '../../helpers/errors.js';
 import { getUploadStatus } from '../../helpers/s3.js';
 import status from '../../types/status.js';
 import documentsRouter from './documents.js';
@@ -12,19 +13,13 @@ router.use('/documents', documentsRouter);
 router.get('/checkStatus/:id', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.params['id'] || req.params['id'] === 'undefined') {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Invalid ID.',
-			};
+			throwBadRequestException('Invalid ID');
 		}
 
 		const progress = getUploadStatus(req.params['id']);
 
 		if (!progress) {
-			throw {
-				code: status.NOT_FOUND,
-				message: 'Not found',
-			};
+			throwNotFoundException('Not Found');
 		}
 
 		return res.status(status.OK).json({ progress });

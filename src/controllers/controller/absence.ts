@@ -1,5 +1,7 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
+import { isValidObjectId } from 'mongoose';
 import { getCacheInstance } from '../../app.js';
+import { throwBadRequestException, throwNotFoundException } from '../../helpers/errors.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { isManagement } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
@@ -40,17 +42,11 @@ router.post('/', getUser, isManagement, async (req: Request, res: Response, next
 			req.body.expirationDate === 'T00:00:00.000Z' ||
 			req.body.reason === ''
 		) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'You must fill out all required fields',
-			};
+			throwBadRequestException('You must fill out all required fields');
 		}
 
 		if (new Date(req.body.expirationDate) < new Date()) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Expiration date must be in the future',
-			};
+			throwBadRequestException('Expiration date must be in the future');
 		}
 
 		await AbsenceModel.create(req.body);
@@ -91,19 +87,13 @@ router.delete(
 	isManagement,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			if (!req.params['id'] || req.params['id'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid ID',
-				};
+			if (!isValidObjectId(req.params['id'])) {
+				throwBadRequestException('Invalid ID');
 			}
 
 			const absence = await AbsenceModel.findOne({ _id: req.params['id'] }).cache().exec();
 			if (!absence) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Absence not found.',
-				};
+				throwNotFoundException('Absence not found');
 			}
 
 			await absence.delete();
