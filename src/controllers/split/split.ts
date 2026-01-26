@@ -1,5 +1,6 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { Redis } from 'ioredis';
+import { throwBadRequestException } from '../../helpers/errors.js';
 import { isEventsTeam } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import status from '../../types/status.js';
@@ -167,10 +168,7 @@ router.put(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.body || !req.body.high || !req.body.low) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid request',
-				};
+				throwBadRequestException('Invalid request');
 			}
 
 			for (const id of Object.keys(req.body.high)) {

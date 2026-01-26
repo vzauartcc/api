@@ -40,7 +40,7 @@ function setupSentry(req: Request) {
 	if (req.user) {
 		Sentry.setUser({
 			id: req.user.cid,
-			name: `${req.user.fname} ${req.user.lname}`,
+			username: `${req.user.fname} ${req.user.lname}`,
 			ip_address: clientIp ?? null,
 		});
 	} else {

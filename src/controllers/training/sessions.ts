@@ -1,5 +1,10 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
+import {
+	throwBadRequestException,
+	throwForbiddenException,
+	throwNotFoundException,
+} from '../../helpers/errors.js';
 import { sanitizeInput } from '../../helpers/html.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { vatusaApi } from '../../helpers/vatusa.js';
@@ -100,10 +105,7 @@ router.get(
 				req.params['cid'] === 'undefined' ||
 				isNaN(Number(req.params['cid']))
 			) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid CID.',
-				};
+				throwBadRequestException('Invalid CID');
 			}
 
 			const controller = await UserModel.findOne({ cid: req.params['cid'] })
@@ -112,10 +114,7 @@ router.get(
 				.cache()
 				.exec();
 			if (!controller) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'User not found',
-				};
+				throwNotFoundException('Controller Not Found');
 			}
 
 			const page = +(req.query['page'] as string) || 1;
@@ -182,10 +181,7 @@ router.get(
 router.get('/:id', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.params['id'] || req.params['id'] === 'undefined') {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Invalid ID.',
-			};
+			throwBadRequestException('Invalid ID');
 		}
 
 		const isIns = ['ta', 'ins', 'mtr', 'ia', 'atm', 'datm'].some((r) =>
@@ -213,10 +209,7 @@ router.get('/:id', getUser, async (req: Request, res: Response, next: NextFuncti
 		}
 
 		if (!session) {
-			throw {
-				code: status.NOT_FOUND,
-				message: 'Session not found',
-			};
+			throwNotFoundException('Training Session Not Found');
 		}
 
 		return res.status(status.OK).json(session);
@@ -234,10 +227,7 @@ router.patch(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['id'] || req.params['id'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid ID.',
-				};
+				throwBadRequestException('Invalid ID');
 			}
 
 			const session = await TrainingSessionModel.findByIdAndUpdate(req.params['id'], {
@@ -245,10 +235,7 @@ router.patch(
 				studentNotes: sanitizeInput(req.body.studentNotes),
 			}).exec();
 			if (!session) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Session not found',
-				};
+				throwNotFoundException('Training Session Not Found');
 			}
 
 			await clearCachePrefix(`sessions-instructor-${req.user.cid}`);
@@ -267,10 +254,7 @@ router.patch(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['id'] || req.params['id'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid ID.',
-				};
+				throwBadRequestException('Invalid ID');
 			}
 
 			if (
@@ -283,17 +267,11 @@ router.patch(
 				(req.body.studentNotes && req.body.studentNotes.length > 10_000) ||
 				(req.body.insNotes && req.body.insNotes.length > 10_000)
 			) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'You must fill out all required forms',
-				};
+				throwBadRequestException('All field are required');
 			}
 
 			if (req.body.ots !== 0 && req.body.ots !== 3) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Cannot update training notes for an OTS session',
-				};
+				throwBadRequestException('OTS session notes are locked per VATUSA');
 			}
 
 			const session = await TrainingSessionModel.findById(req.params['id'])
@@ -301,10 +279,7 @@ router.patch(
 				.exec();
 
 			if (!session) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Session not found',
-				};
+				throwNotFoundException('Training Session Not Found');
 			}
 
 			const start = new Date(
@@ -313,27 +288,18 @@ router.patch(
 			const end = new Date(Math.round(new Date(req.body.endTime).getTime() / FIFTEEN) * FIFTEEN);
 
 			if (start.getTime() >= end.getTime()) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Start Time must be before End Time',
-				};
+				throwBadRequestException('Start time must be before End time');
 			}
 
 			if (start.getTime() > Date.now()) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Start Time must not be in the future.',
-				};
+				throwBadRequestException('Start Time must not be in the future');
 			}
 
 			const maxEnd = new Date();
-			maxEnd.setUTCMinutes(maxEnd.getUTCMinutes() + 20);
+			maxEnd.setUTCMinutes(maxEnd.getUTCMinutes() + 30);
 
 			if (end.getTime() > maxEnd.getTime()) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'End Time must not be in the future.',
-				};
+				throwBadRequestException('End time must not be in the future');
 			}
 
 			const delta = Math.abs(end.getTime() - start.getTime()) / 1000;
@@ -428,17 +394,7 @@ router.delete(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['id'] || req.params['id'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid ID.',
-				};
-			}
-
-			if (!req.params['id'] || req.params['id'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Session id required',
-				};
+				throwBadRequestException('Invalid ID');
 			}
 
 			const session = await TrainingSessionModel.findById(req.params['id'])
@@ -446,24 +402,15 @@ router.delete(
 				.exec();
 
 			if (!session) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Session not found',
-				};
+				throwNotFoundException('Training Session Not Found');
 			}
 
 			if (session.instructorCid !== req.user.cid && !req.user.isSeniorStaff) {
-				throw {
-					code: status.FORBIDDEN,
-					message: 'Not your session',
-				};
+				throwForbiddenException('Not Your Training Session');
 			}
 
 			if (session.ots && session.ots > 0 && session.ots < 3) {
-				throw {
-					code: status.FORBIDDEN,
-					message: 'Cannot delete OTS sessions',
-				};
+				throwForbiddenException('OTS Sessions Cannot Be Deleted');
 			}
 
 			await session.delete();
@@ -499,10 +446,7 @@ router.post(
 				(req.body.studentNotes && req.body.studentNotes.length > 10_000) ||
 				(req.body.insNotes && req.body.insNotes.length > 10_000)
 			) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'You must fill out all required forms',
-				};
+				throwBadRequestException('All fields are required');
 			}
 
 			const start = new Date(
@@ -511,27 +455,18 @@ router.post(
 			const end = new Date(Math.round(new Date(req.body.endTime).getTime() / FIFTEEN) * FIFTEEN);
 
 			const maxEnd = new Date();
-			maxEnd.setUTCMinutes(maxEnd.getUTCMinutes() + 20);
+			maxEnd.setUTCMinutes(maxEnd.getUTCMinutes() + 30);
 
 			if (end.getTime() > maxEnd.getTime()) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'End Time must not be in the future.',
-				};
+				throwBadRequestException('End time must not be in the future');
 			}
 
 			if (end < start) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'End Time must be before Start Time',
-				};
+				throwBadRequestException('End time must be after Start time');
 			}
 
 			if (start.getTime() > Date.now()) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Start Time must not be in the future.',
-				};
+				throwBadRequestException('Start time must not be in the future');
 			}
 
 			const delta = Math.abs(end.getTime() - start.getTime()) / 1000;
@@ -586,10 +521,7 @@ router.post(
 				(req.body.studentNotes && req.body.studentNotes.length > 10_000) ||
 				(req.body.insNotes && req.body.insNotes.length > 10_000)
 			) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'You must fill out all required forms.',
-				};
+				throwBadRequestException('All fields are required');
 			}
 
 			const start = new Date(
@@ -598,27 +530,18 @@ router.post(
 			const end = new Date(Math.round(new Date(req.body.endTime).getTime() / FIFTEEN) * FIFTEEN);
 
 			const maxEnd = new Date();
-			maxEnd.setUTCMinutes(maxEnd.getUTCMinutes() + 20);
+			maxEnd.setUTCMinutes(maxEnd.getUTCMinutes() + 30);
 
 			if (end.getTime() > maxEnd.getTime()) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'End Time must not be in the future.',
-				};
+				throwBadRequestException('End time must not be in the future');
 			}
 
 			if (end < start) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'End Time must be before Start Time.',
-				};
+				throwBadRequestException('Start time must be before end time');
 			}
 
 			if (start.getTime() > Date.now()) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Start Time must not be in the future.',
-				};
+				throwBadRequestException('Start time must not be in the future');
 			}
 
 			const delta = Math.abs(end.getTime() - start.getTime()) / 1000;
@@ -645,7 +568,7 @@ router.post(
 					solo_granted: false,
 				});
 
-				console.log('SUBMIT vatusa session gave id', vatusaRes?.data?.id);
+				console.log('SUBMIT vatusa session gave id', vatusaRes?.data?.id, vatusaRes);
 			}
 
 			const doc = await TrainingSessionModel.create({

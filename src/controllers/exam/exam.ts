@@ -2,6 +2,7 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import { body, validationResult } from 'express-validator';
 import { isValidObjectId } from 'mongoose';
 import { getCacheInstance } from '../../app.js';
+import { throwBadRequestException, throwNotFoundException } from '../../helpers/errors.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { isInstructor, isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
@@ -102,13 +103,12 @@ router.post(
 		try {
 			const errors = validationResult(req);
 			if (!errors.isEmpty()) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: errors
+				throwBadRequestException(
+					errors
 						.array()
 						.map((e) => e.msg)
 						.join(', '),
-				};
+				);
 			}
 
 			const exam = await ExamModel.create({
@@ -140,30 +140,23 @@ router.patch(
 			const { id } = req.params;
 
 			if (!isValidObjectId(id)) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid exam ID',
-				};
+				throwBadRequestException('Invalid exam ID');
 			}
 
 			const errors = validationResult(req);
 			if (!errors.isEmpty()) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: errors
+				throwBadRequestException(
+					errors
 						.array()
 						.map((e) => e.msg)
 						.join(', '),
-				};
+				);
 			}
 
 			const exam = await ExamModel.findById(id).populate('user').populate('certification').exec();
 
 			if (!exam || exam.deleted === true) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Exam not found',
-				};
+				throwNotFoundException('Exam Not Found');
 			}
 
 			exam.title = req.body.title;
@@ -193,10 +186,7 @@ router.post(
 			const { id } = req.params;
 
 			if (!isValidObjectId(id)) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid exam ID',
-				};
+				throwBadRequestException('Invalid exam ID');
 			}
 
 			const exam = await ExamModel.findById(id)
@@ -204,18 +194,12 @@ router.post(
 				.cache('10 minutes', `exam-${id}`)
 				.exec();
 			if (!exam) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Exam not found',
-				};
+				throwNotFoundException('Exam Not Found');
 			}
 
 			const student = await UserModel.findOne({ cid: req.body.cid }).exec();
 			if (!student) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Student not found',
-				};
+				throwBadRequestException('Student Not Found');
 			}
 
 			const attempts = await ExamAttemptModel.find({ examId: id, student: student.cid })
@@ -231,10 +215,9 @@ router.post(
 						!attempt.isComplete,
 				)
 			) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Exam attempted in the past 24 hours or there is an outstanding attempt',
-				};
+				throwBadRequestException(
+					'Exam attempted in the past 24 hours or there is an outstanding attempt',
+				);
 			}
 
 			const availableQuestions = exam.questions.filter((q) => q.isActive);
@@ -245,7 +228,7 @@ router.post(
 				questionOrder: shuffleArray(availableQuestions),
 				responses: [],
 				attemptNumber: attempts.length + 1,
-				status: 'in_progress',
+				status: 'not_started',
 			});
 
 			await NotificationModel.create({
@@ -264,8 +247,6 @@ router.post(
 				actionType: ACTION_TYPE.ASSIGN_EXAM,
 			});
 
-			await clearCachePrefix('exam-attempts-all');
-
 			return res.status(status.CREATED).json(attempt._id);
 		} catch (e) {
 			return next(e);
@@ -280,10 +261,7 @@ router.get(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['id'] || req.params['id'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid ID',
-				};
+				throwBadRequestException('Invalid ID');
 			}
 
 			const exam = await ExamModel.findById(req.params['id'])
@@ -291,10 +269,7 @@ router.get(
 				.cache('10 minutes', `exam-${req.params['id']}`)
 				.exec();
 			if (!exam) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Exam not found',
-				};
+				throwNotFoundException('Exam Not Found');
 			}
 
 			return res.status(status.OK).json(exam);
@@ -310,11 +285,8 @@ router.delete(
 	isExamEditor,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			if (!req.params['id'] || req.params['id'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid ID',
-				};
+			if (!isValidObjectId(req.params['id'])) {
+				throwBadRequestException('Invalid ID');
 			}
 
 			const deletedExam = await ExamModel.findById(req.params['id'])
@@ -322,10 +294,7 @@ router.delete(
 				.exec();
 
 			if (!deletedExam) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Exam not found',
-				};
+				throwNotFoundException('Exam Not Found');
 			}
 
 			await deletedExam.delete();

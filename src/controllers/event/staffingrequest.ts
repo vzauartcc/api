@@ -1,5 +1,10 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { getCacheInstance } from '../../app.js';
+import {
+	throwBadRequestException,
+	throwNotFoundException,
+	throwTooManyRequestsException,
+} from '../../helpers/errors.js';
 import { sendMail } from '../../helpers/mailer.js';
 import { isEventsTeam } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
@@ -38,10 +43,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.params['id'] || req.params['id'] === 'undefined') {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Invalid ID.',
-			};
+			throwBadRequestException('Invalid ID');
 		}
 
 		const staffingRequest = await StaffingRequestModel.findById(req.params['id'])
@@ -49,10 +51,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 			.exec();
 
 		if (!staffingRequest) {
-			throw {
-				code: status.NOT_FOUND,
-				message: 'Staffing request not found',
-			};
+			throwNotFoundException('Staffing Request Not Found');
 		}
 		return res.status(status.OK).json(staffingRequest);
 	} catch (e) {
@@ -73,17 +72,11 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 			!req.body.description
 		) {
 			// Validation
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'You must fill out all required fields',
-			};
+			throwBadRequestException('Missing field');
 		}
 
 		if (isNaN(req.body.pilots)) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Pilots must be a number',
-			};
+			throwBadRequestException('Invalid pilot count');
 		}
 
 		const count = await StaffingRequestModel.countDocuments({
@@ -95,10 +88,9 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 			.exec();
 
 		if (count >= 3) {
-			throw {
-				code: status.TOO_MANY_REQUESTS,
-				message: 'You have reached the maximum limit of staffing requests with a pending status.',
-			};
+			throwTooManyRequestsException(
+				'You have reached the maximum limit of staffing requests with a pending status.',
+			);
 		}
 
 		const newRequest = await StaffingRequestModel.create({
@@ -145,10 +137,7 @@ router.put(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['id'] || req.params['id'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid ID.',
-				};
+				throwBadRequestException('Invalid ID');
 			}
 
 			const staffingRequest = await StaffingRequestModel.findById(req.params['id'])
@@ -156,10 +145,7 @@ router.put(
 				.exec();
 
 			if (!staffingRequest) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Staffing request not found',
-				};
+				throwNotFoundException('Staffing Request Not Found');
 			}
 
 			staffingRequest.vaName = req.body.vaName;
@@ -219,10 +205,7 @@ router.delete(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['id'] || req.params['id'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid ID.',
-				};
+				throwBadRequestException('Invalid ID');
 			}
 
 			const staffingRequest = await StaffingRequestModel.findById(req.params['id'])
@@ -230,10 +213,7 @@ router.delete(
 				.exec();
 
 			if (!staffingRequest) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Staffing request not found',
-				};
+				throwNotFoundException('Staffing Request Not Found');
 			}
 
 			await staffingRequest.delete();

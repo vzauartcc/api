@@ -2,6 +2,12 @@ import axios from 'axios';
 import { randomUUID } from 'crypto';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
+import {
+	throwBadRequestException,
+	throwInternalServerErrorException,
+	throwNotFoundException,
+	throwUnauthorizedException,
+} from '../../helpers/errors.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { uploadToS3 } from '../../helpers/s3.js';
 import zau from '../../helpers/zau.js';
@@ -79,10 +85,7 @@ router.get('/', userOrInternal, async (req: Request, res: Response, next: NextFu
 		const removed = allUsers.filter((user) => user.member === false);
 
 		if (!home || !visiting || !removed) {
-			throw {
-				code: status.INTERNAL_SERVER_ERROR,
-				message: 'Unable to retrieve controllers',
-			};
+			throwInternalServerErrorException('Unable to retrieve controllers');
 		}
 
 		return res.status(status.OK).json({ home, visiting, removed });
@@ -96,10 +99,7 @@ router.get('/self', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const cookie = zau.isProd ? 'token' : 'dev-token';
 		if (!req.cookies[cookie]) {
-			throw {
-				code: status.UNAUTHORIZED,
-				message: 'Token cookie not found',
-			};
+			throwUnauthorizedException('Token Cookie Not Found');
 		}
 
 		const decoded = jwt.verify(req.cookies[cookie], process.env['JWT_SECRET']!) as UserPayload;
@@ -113,10 +113,8 @@ router.get('/self', async (req: Request, res: Response, next: NextFunction) => {
 
 		if (!user) {
 			deleteAuthCookie(res);
-			throw {
-				code: status.NOT_FOUND,
-				message: 'User not found.',
-			};
+
+			throwNotFoundException('User Not Found');
 		}
 
 		return res.status(status.OK).json(user);
@@ -130,10 +128,7 @@ router.get('/self', async (req: Request, res: Response, next: NextFunction) => {
 router.post('/idsToken', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.cookies['token']) {
-			throw {
-				code: status.UNAUTHORIZED,
-				message: 'Not logged in',
-			};
+			throwUnauthorizedException('Not Logged In');
 		}
 
 		const idsToken = randomUUID();
@@ -159,10 +154,7 @@ router.post('/idsToken', getUser, async (req: Request, res: Response, next: Next
 router.post('/login', oAuth, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.oauth) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Bad request',
-			};
+			throwBadRequestException('Bad request');
 		}
 
 		const { access_token } = req.oauth;
@@ -195,10 +187,7 @@ router.post('/login', oAuth, async (req: Request, res: Response, next: NextFunct
 		// If the user did not authorize all requested data from the AUTH login, we may have null parameters
 		// If that is the case throw a BadRequest exception.
 		if (Object.values(userData).some((x) => x === null || x === '')) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'User must authorize all requested VATSIM data. [Authorize Data]',
-			};
+			throwBadRequestException('All VATSIM data must be authorized');
 		}
 
 		let user = await UserModel.findOne({ cid: userData.cid })
@@ -268,10 +257,7 @@ router.post('/login', oAuth, async (req: Request, res: Response, next: NextFunct
 router.get('/logout', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.cookies['token']) {
-			throw {
-				code: status.UNAUTHORIZED,
-				message: 'User not logged in',
-			};
+			throwUnauthorizedException('Not Logged In');
 		}
 
 		deleteAuthCookie(res);
@@ -383,10 +369,7 @@ router.put(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['id'] || req.params['id'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid ID.',
-				};
+				throwBadRequestException('Invalid ID');
 			}
 			await NotificationModel.findByIdAndUpdate(req.params['id'], {
 				read: true,
@@ -423,10 +406,7 @@ router.patch('/profile', getUser, async (req: Request, res: Response, next: Next
 		const { bio } = req.body;
 
 		if (bio.length > 500) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Bio too long',
-			};
+			throwBadRequestException('Bio too long');
 		}
 
 		await UserModel.findOneAndUpdate(
@@ -452,10 +432,7 @@ router.patch('/profile', getUser, async (req: Request, res: Response, next: Next
 router.patch('/:cid', internalAuth, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.body || !req.params['cid'] || req.params['cid'] === 'undefined') {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Invalid CID.',
-			};
+			throwBadRequestException('Invalid CID');
 		}
 
 		await UserModel.findOneAndUpdate(

@@ -2,6 +2,7 @@ import axios from 'axios';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { DateTime } from 'luxon';
 import type { FlattenMaps } from 'mongoose';
+import { throwBadRequestException } from '../../helpers/errors.js';
 import zau from '../../helpers/zau.js';
 import { hasRole, isStaff, isTrainingStaff } from '../../middleware/auth.js';
 import internalAuth from '../../middleware/internalAuth.js';
@@ -504,10 +505,7 @@ router.post(
 				req.params['cid'] === 'undefined' ||
 				isNaN(Number(req.params['cid']))
 			) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid CID.',
-				};
+				throwBadRequestException('Invalid CID');
 			}
 			const { redis } = req.app;
 			const { cid } = req.params;

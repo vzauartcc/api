@@ -3,6 +3,11 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import * as fs from 'fs';
 import multer from 'multer';
 import { getCacheInstance } from '../../app.js';
+import {
+	throwBadRequestException,
+	throwInternalServerErrorException,
+	throwNotFoundException,
+} from '../../helpers/errors.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { deleteFromS3, setUploadStatus, uploadToS3 } from '../../helpers/s3.js';
 import { isStaff } from '../../middleware/auth.js';
@@ -44,10 +49,7 @@ router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.params['id'] || req.params['slug'] === 'undefined') {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Invalid ID.',
-			};
+			throwBadRequestException('Invalid ID');
 		}
 
 		const download = await DownloadModel.findById(req.params['id'])
@@ -56,10 +58,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 			.exec();
 
 		if (!download) {
-			throw {
-				code: status.NOT_FOUND,
-				message: 'Download not found',
-			};
+			throwNotFoundException('Download Not Found');
 		}
 
 		return res.status(status.OK).json(download);
@@ -76,16 +75,10 @@ router.post(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.body.category) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'You must select a category',
-				};
+				throwBadRequestException('Invalid category');
 			}
 			if (!req.file) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Missing file',
-				};
+				throwBadRequestException('Missing file');
 			}
 
 			setUploadStatus(req.body.uploadId, 0);
@@ -112,10 +105,7 @@ router.post(
 			} catch (e) {
 				setUploadStatus(req.body.uploadId, -1);
 
-				throw {
-					code: status.INTERNAL_SERVER_ERROR,
-					message: 'Error streaming file to storage',
-				};
+				throwInternalServerErrorException('Error streaming file to storage');
 			} finally {
 				try {
 					fileStream?.close();
@@ -157,17 +147,14 @@ router.patch(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['id'] || req.params['id'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid ID.',
-				};
+				throwBadRequestException('Invalid ID');
 			}
 
 			const download = await DownloadModel.findById(req.params['id'])
 				.cache('5 minutes', `download-${req.params['id']}`)
 				.exec();
 			if (!download) {
-				throw { code: status.NOT_FOUND, message: 'Download not found' };
+				throwNotFoundException('Download Not Found');
 			}
 
 			if (!req.file) {
@@ -206,10 +193,7 @@ router.patch(
 				} catch (e) {
 					setUploadStatus(req.body.uploadId, -1);
 
-					throw {
-						code: status.INTERNAL_SERVER_ERROR,
-						message: 'Error streaming file to storage',
-					};
+					throwInternalServerErrorException('Error streaming file to storage');
 				} finally {
 					try {
 						fileStream?.close();
@@ -247,10 +231,7 @@ router.patch(
 router.delete('/:id', getUser, isStaff, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.params['id'] || req.params['id'] === 'undefined') {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Invalid ID.',
-			};
+			throwBadRequestException('Invalid ID');
 		}
 
 		const download = await DownloadModel.findById(req.params['id'])

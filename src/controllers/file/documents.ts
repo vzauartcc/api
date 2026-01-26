@@ -3,6 +3,11 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import * as fs from 'fs';
 import multer from 'multer';
 import { getCacheInstance } from '../../app.js';
+import {
+	throwBadRequestException,
+	throwInternalServerErrorException,
+	throwNotFoundException,
+} from '../../helpers/errors.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { deleteFromS3, setUploadStatus, uploadToS3 } from '../../helpers/s3.js';
 import { isStaff } from '../../middleware/auth.js';
@@ -46,10 +51,7 @@ router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.params['slug'] || req.params['slug'] === 'undefined') {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Invalid document slug.',
-			};
+			throwBadRequestException('Invalid slug');
 		}
 
 		const document = await DocumentModel.findOne({ slug: req.params['slug'], deletedAt: null })
@@ -58,10 +60,7 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
 			.exec();
 
 		if (!document) {
-			throw {
-				code: status.NOT_FOUND,
-				message: 'Document not found',
-			};
+			throwNotFoundException('Document Not Found');
 		}
 
 		return res.status(status.OK).json(document);
@@ -79,17 +78,11 @@ router.post(
 		try {
 			const { name, category, description, content, type } = req.body;
 			if (!category) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'You must select a category',
-				};
+				throwBadRequestException('Invalid category');
 			}
 
 			if (!content && type === 'doc') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'You must include content',
-				};
+				throwBadRequestException('Invalid content');
 			}
 
 			const slug =
@@ -103,7 +96,7 @@ router.post(
 
 			if (type === 'file') {
 				if (!req.file) {
-					throw { code: status.BAD_REQUEST, message: 'File required' };
+					throwBadRequestException('File is required');
 				}
 
 				setUploadStatus(req.body.uploadId, 0);
@@ -130,10 +123,7 @@ router.post(
 				} catch (e) {
 					setUploadStatus(req.body.uploadId, -1);
 
-					throw {
-						code: status.INTERNAL_SERVER_ERROR,
-						message: 'Error streaming file to storage',
-					};
+					throwInternalServerErrorException('Error streaming file to storage');
 				} finally {
 					try {
 						fileStream?.close();
@@ -188,20 +178,14 @@ router.put(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['slug'] || req.params['slug'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid document slug.',
-				};
+				throwBadRequestException('Invalid slug');
 			}
 
 			const document = await DocumentModel.findOne({ slug: req.params['slug'] })
 				.cache('5 minutes', `documents-${req.params['slug']}`)
 				.exec();
 			if (!document) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Document not found',
-				};
+				throwNotFoundException('Document Not Found');
 			}
 
 			const { name, category, description, content, type } = req.body;
@@ -265,10 +249,7 @@ router.put(
 					} catch (e) {
 						setUploadStatus(req.body.uploadId, -1);
 
-						throw {
-							code: status.INTERNAL_SERVER_ERROR,
-							message: 'Error streaming file to storage',
-						};
+						throwInternalServerErrorException('Error streaming file to storage');
 					} finally {
 						try {
 							fileStream?.close();
@@ -310,18 +291,12 @@ router.put(
 router.delete('/:id', getUser, isStaff, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.params['id'] || req.params['id'] === 'undefined') {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Invalid ID.',
-			};
+			throwBadRequestException('Invalid ID');
 		}
 
 		const doc = await DocumentModel.findById(req.params['id']).lean().exec();
 		if (!doc) {
-			throw {
-				code: status.NOT_FOUND,
-				message: 'Document not found',
-			};
+			throwNotFoundException('Document Not Found');
 		}
 
 		if (doc.fileName) {

@@ -157,8 +157,8 @@ if (process.env['NODE_ENV'] === 'production') {
 console.log('Is Sentry initialized and enabled', Sentry.isInitialized(), Sentry.isEnabled());
 
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-	if (!zau.isProd) {
-		if (!((err as any).code || (err as any).name === 'JsonWebTokenError')) {
+	if (!zau.isProd || !Sentry.isEnabled()) {
+		if ((err as any).name !== 'JsonWebTokenError') {
 			console.trace({ path: req.path, name: err.name, message: err.message });
 		}
 	}
