@@ -357,6 +357,9 @@ export async function submitExam(attempt: IExamAttempt, timedOut: boolean) {
 		throw {
 			code: status.BAD_REQUEST,
 			message: 'Not all questions are answered',
+			unanswered: questions
+				.filter((q) => !attempt.responses.some((r) => r.questionId.toString() === q.id))
+				.map((q) => q._id),
 		};
 	}
 
