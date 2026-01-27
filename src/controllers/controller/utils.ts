@@ -1,9 +1,9 @@
 import axios from 'axios';
 import { getCacheInstance } from '../../app.js';
+import { throwInternalServerErrorException } from '../../helpers/errors.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { findInS3, uploadToS3 } from '../../helpers/s3.js';
 import { UserModel, type ICertificationDate, type IUser } from '../../models/user.js';
-import status from '../../types/status.js';
 
 export async function checkOI(user: IUser) {
 	try {
@@ -47,7 +47,7 @@ export async function checkOI(user: IUser) {
 		await getCacheInstance().clear('operating-initials');
 		return assignedOi;
 	} catch (e) {
-		throw { code: status.INTERNAL_SERVER_ERROR, message: e };
+		throwInternalServerErrorException(`${e}`);
 	}
 }
 

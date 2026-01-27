@@ -4,6 +4,12 @@ import { fileTypeFromFile } from 'file-type';
 import * as fs from 'fs';
 import multer from 'multer';
 import { getCacheInstance } from '../../app.js';
+import {
+	throwBadRequestException,
+	throwForbiddenException,
+	throwInternalServerErrorException,
+	throwNotFoundException,
+} from '../../helpers/errors.js';
 import { sendMail } from '../../helpers/mailer.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { deleteFromS3, setUploadStatus, uploadToS3 } from '../../helpers/s3.js';
@@ -89,10 +95,7 @@ router.get('/archive', async (req: Request, res: Response, next: NextFunction) =
 router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.params['slug'] || req.params['slug'] === 'undefined') {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Invalid event slug.',
-			};
+			throwBadRequestException('Invalid event slug');
 		}
 
 		const event = await EventModel.findOne({
@@ -112,10 +115,7 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
 router.get('/:slug/positions', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.params['slug'] || req.params['slug'] === 'undefined') {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Invalid event slug.',
-			};
+			throwBadRequestException('Invalid event slug');
 		}
 
 		const event = await EventModel.findOne({
@@ -141,24 +141,15 @@ router.get('/:slug/positions', async (req: Request, res: Response, next: NextFun
 router.patch('/:slug/signup', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.params['slug'] || req.params['slug'] === 'undefined') {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Invalid event slug.',
-			};
+			throwBadRequestException('Invalid event slug');
 		}
 
 		if (req.body.requests.length > 3) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'You may only give 3 preferred positions',
-			};
+			throwBadRequestException('You may only request up to 3 positions');
 		}
 
 		if (req.user.member === false) {
-			throw {
-				code: status.FORBIDDEN,
-				message: 'You must be a member of ZAU',
-			};
+			throwForbiddenException('You must be a ZAU member to request positions for an event.');
 		}
 
 		for (const r of req.body.requests) {
@@ -166,10 +157,7 @@ router.patch('/:slug/signup', getUser, async (req: Request, res: Response, next:
 				(/^([A-Z]{2,3})(_([A-Z,0-9]{1,3}))?_(DEL|GND|TWR|APP|DEP|CTR)$/.test(r) ||
 					r.toLowerCase() === 'any') === false
 			) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: "Request must be a valid callsign or 'Any'",
-				};
+				throwBadRequestException('Invalid callsign');
 			}
 		}
 
@@ -189,10 +177,7 @@ router.patch('/:slug/signup', getUser, async (req: Request, res: Response, next:
 		await getCacheInstance().clear(`event-positions-${req.params['slug']}`);
 
 		if (!event) {
-			throw {
-				code: status.NOT_FOUND,
-				message: 'Event not found',
-			};
+			throwNotFoundException('Event Not Found');
 		}
 
 		await DossierModel.create({
@@ -211,10 +196,7 @@ router.patch('/:slug/signup', getUser, async (req: Request, res: Response, next:
 router.delete('/:slug/signup', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.params['slug'] || req.params['slug'] === 'undefined') {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Invalid event slug.',
-			};
+			throwBadRequestException('Invalid event slug');
 		}
 
 		const event = await EventModel.findOneAndUpdate(
@@ -232,10 +214,7 @@ router.delete('/:slug/signup', getUser, async (req: Request, res: Response, next
 		await getCacheInstance().clear(`event-positions-${req.params['slug']}`);
 
 		if (!event) {
-			throw {
-				code: status.NOT_FOUND,
-				message: 'Event not found',
-			};
+			throwNotFoundException('Event Not Found');
 		}
 
 		await DossierModel.create({
@@ -258,10 +237,7 @@ router.delete(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['slug'] || req.params['slug'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid event slug.',
-				};
+				throwBadRequestException('Invalid event slug');
 			}
 
 			if (
@@ -269,10 +245,7 @@ router.delete(
 				req.params['cid'] === 'undefined' ||
 				isNaN(Number(req.params['cid']))
 			) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid CID.',
-				};
+				throwBadRequestException('Invalid CID');
 			}
 			const signup = await EventModel.findOneAndUpdate(
 				{ url: req.params['slug'] },
@@ -289,10 +262,7 @@ router.delete(
 			await getCacheInstance().clear(`event-positions-${req.params['slug']}`);
 
 			if (!signup) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Signup not found',
-				};
+				throwNotFoundException('Signup Not Found');
 			}
 
 			for (const position of signup.positions) {
@@ -329,10 +299,7 @@ router.patch(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['slug'] || req.params['slug'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid event slug.',
-				};
+				throwBadRequestException('Invalid event slug');
 			}
 
 			if (
@@ -340,19 +307,13 @@ router.patch(
 				req.params['cid'] === 'undefined' ||
 				isNaN(Number(req.params['cid']))
 			) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid CID.',
-				};
+				throwBadRequestException('Invalid CID');
 			}
 			const user = await UserModel.findOne({ cid: req.params['cid'] })
 				.cache('1 minute', `user-${req.params['cid']}`)
 				.exec();
 			if (!user) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Controller not found',
-				};
+				throwNotFoundException('Controller Not Found');
 			}
 
 			const event = await EventModel.findOne({ url: req.params['slug'] })
@@ -360,10 +321,7 @@ router.patch(
 				.exec();
 
 			if (!event) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Event not found',
-				};
+				throwNotFoundException('Event Not Found');
 			}
 
 			const isAlreadySignedUp = event.signups.some(
@@ -371,10 +329,7 @@ router.patch(
 			);
 
 			if (isAlreadySignedUp) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Controller is already signed up for this event',
-				};
+				throwBadRequestException('Controller already signed up for this event');
 			}
 
 			// If not already signed up, proceed with adding
@@ -413,10 +368,7 @@ router.patch(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['slug'] || req.params['slug'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid event slug.',
-				};
+				throwBadRequestException('Invalid event slug');
 			}
 
 			const { position, cid } = req.body;
@@ -437,10 +389,7 @@ router.patch(
 			await getCacheInstance().clear(`event-positions-${req.params['slug']}`);
 
 			if (!eventData) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Event Not Found.',
-				};
+				throwNotFoundException('Event Not Found');
 			}
 
 			const assignedPosition = eventData.positions.find(
@@ -448,10 +397,7 @@ router.patch(
 			);
 
 			if (!assignedPosition) {
-				throw {
-					code: status.INTERNAL_SERVER_ERROR,
-					message: 'Internal Server Error',
-				};
+				throwInternalServerErrorException('Position does not exist');
 			}
 
 			if (cid) {
@@ -487,10 +433,7 @@ router.post(
 			const url = req.body.url;
 			const eventData = await EventModel.findOne({ url: url }).exec();
 			if (!eventData) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Event not found',
-				};
+				throwNotFoundException('Event Not Found');
 			}
 
 			const positions = eventData.positions;
@@ -509,10 +452,7 @@ router.post(
 								.cache('10 minutes', `user-${position.takenBy}`)
 								.exec();
 							if (!res1) {
-								throw {
-									code: status.INTERNAL_SERVER_ERROR,
-									message: 'Internal Server Error',
-								};
+								throwInternalServerErrorException('User not found');
 							}
 
 							const name = res1.fname + ' ' + res1.lname;
@@ -589,10 +529,7 @@ router.post(
 					: process.env['DISCORD_WEBHOOK'] + `/messages/${eventData.discordId}`;
 
 			if (!webhookUrl) {
-				throw {
-					code: status.INTERNAL_SERVER_ERROR,
-					message: 'Internal Server Error',
-				};
+				throwInternalServerErrorException('Webook URL not found');
 			}
 
 			fetch(webhookUrl, {
@@ -640,10 +577,7 @@ router.post(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.file?.path) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Path missing',
-				};
+				throwBadRequestException('File path missing');
 			}
 
 			const url =
@@ -658,10 +592,7 @@ router.post(
 			const fileType = await fileTypeFromFile(req.file.path);
 
 			if (fileType === undefined || !allowedTypes.includes(fileType.mime)) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Banner type not supported',
-				};
+				throwBadRequestException('Banner file type is not supported');
 			}
 
 			setUploadStatus(req.body.uploadId, 0);
@@ -690,10 +621,7 @@ router.post(
 			} catch (e) {
 				setUploadStatus(req.body.uploadId, -1);
 
-				throw {
-					code: status.INTERNAL_SERVER_ERROR,
-					message: 'Error streaming file to storage',
-				};
+				throwInternalServerErrorException('Error streaming file to storage');
 			} finally {
 				try {
 					fileStream?.close();
@@ -739,20 +667,14 @@ router.put(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['slug'] || req.params['slug'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid event slug.',
-				};
+				throwBadRequestException('Invalid event slug');
 			}
 
 			const eventData = await EventModel.findOne({ url: req.params['slug'] })
 				.cache('1 minute', `event-${req.params['slug']}`)
 				.exec();
 			if (!eventData) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Event not found',
-				};
+				throwNotFoundException('Event Not Found');
 			}
 
 			const { name, description, startTime, endTime, positions } = req.body;
@@ -833,10 +755,7 @@ router.put(
 				const allowedTypes = ['image/jpg', 'image/jpeg', 'image/png', 'image/gif'];
 				const fileType = await fileTypeFromFile(req.file.path);
 				if (fileType === undefined || !allowedTypes.includes(fileType.mime)) {
-					throw {
-						code: status.BAD_REQUEST,
-						message: 'File type not supported',
-					};
+					throwBadRequestException('File type not supported');
 				}
 
 				if (eventData.bannerUrl) {
@@ -869,10 +788,7 @@ router.put(
 				} catch (e) {
 					setUploadStatus(req.body.uploadId, -1);
 
-					throw {
-						code: status.INTERNAL_SERVER_ERROR,
-						message: 'Error streaming file to storage',
-					};
+					throwInternalServerErrorException('Error streaming file to storage');
 				} finally {
 					try {
 						fileStream?.close();
@@ -910,10 +826,7 @@ router.delete(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['slug'] || req.params['slug'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid event slug.',
-				};
+				throwBadRequestException('Invalid event slug');
 			}
 
 			const deleteEvent = await EventModel.findOne({ url: req.params['slug'] })
@@ -921,10 +834,7 @@ router.delete(
 				.exec();
 
 			if (!deleteEvent) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Event not found',
-				};
+				throwNotFoundException('Event Not Found');
 			}
 
 			// 🚨 **Delete Banner from S3 If It Exists**
@@ -957,10 +867,7 @@ router.patch(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['slug'] || req.params['slug'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid event slug.',
-				};
+				throwBadRequestException('Invalid event slug');
 			}
 
 			await EventModel.updateOne(
@@ -977,10 +884,7 @@ router.patch(
 				.populate('signups.user', 'fname lname email cid')
 				.exec();
 			if (!eventData) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Event Not Found',
-				};
+				throwNotFoundException('Event Not Found');
 			}
 
 			eventData.signups.forEach(async (signup: IEventSignup) => {
@@ -1020,10 +924,7 @@ router.put(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['slug'] || req.params['slug'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid event slug.',
-				};
+				throwBadRequestException('Invalid event slug');
 			}
 
 			const event = await EventModel.updateOne(
@@ -1038,10 +939,7 @@ router.put(
 			await clearCachePrefix('event');
 
 			if (!event) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Event not found',
-				};
+				throwNotFoundException('Event Not Found');
 			}
 
 			return res.status(status.OK).json();

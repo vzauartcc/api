@@ -1,6 +1,12 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { getCacheInstance } from '../../app.js';
+import {
+	throwBadRequestException,
+	throwNotFoundException,
+	throwTooManyRequestsException,
+} from '../../helpers/errors.js';
 import { sendMail } from '../../helpers/mailer.js';
+import { clearCachePrefix } from '../../helpers/redis.js';
 import { isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { NotificationModel } from '../../models/notification.js';
@@ -37,10 +43,7 @@ router.get('/upcoming', getUser, async (req: Request, res: Response, next: NextF
 router.post('/new', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.body.never || req.body.never) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Temporarily disabled.',
-			};
+			throwBadRequestException('Temporarily Disabled');
 		}
 		if (
 			!req.body.submitter ||
@@ -49,53 +52,35 @@ router.post('/new', getUser, async (req: Request, res: Response, next: NextFunct
 			!req.body.milestone ||
 			req.body.remarks.length > 500
 		) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'You must fill out all required forms',
-			};
+			throwBadRequestException('All fields are required');
 		}
 
 		if (new Date(req.body.startTime) < new Date() || new Date(req.body.endTime) < new Date()) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Dates must be in the future',
-			};
+			throwBadRequestException('Dates must be in the future');
 		}
 
 		if (new Date(req.body.startTime) > new Date(req.body.endTime)) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'End time must be greater than start time',
-			};
+			throwBadRequestException('End time must be greater than start time');
 		}
 
 		if (
 			(new Date(req.body.endTime).getTime() - new Date(req.body.startTime).getTime()) / 60000 <
 			60
 		) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Requests must be longer than 60 minutes',
-			};
+			throwBadRequestException('Duration must be at least 60 minutes');
 		}
 
 		if (
 			(new Date(req.body.endTime).getTime() - new Date(req.body.startTime).getTime()) / 60000 >
 			960
 		) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Requests must be shorter than 16 hours',
-			};
+			throwBadRequestException('Duration must be less than 16 hours');
 		}
 
 		const totalRequests = await req.app.redis.get(`TRAININGREQ:${req.user.cid}`);
 
 		if (parseInt(totalRequests!, 10) > 5) {
-			throw {
-				code: status.TOO_MANY_REQUESTS,
-				message: `You have requested too many sessions in the last 4 hours.`,
-			};
+			throwTooManyRequestsException('You have requested too many session in the past 4 hours.');
 		}
 
 		req.app.redis.set(`TRAININGREQ:${req.user.cid}`, (+totalRequests! || 0) + 1);
@@ -115,6 +100,10 @@ router.post('/new', getUser, async (req: Request, res: Response, next: NextFunct
 			.lean()
 			.cache('10 minutes', `training-user-${req.user.cid}`)
 			.exec();
+		if (!student) {
+			throwNotFoundException('Student Not Found');
+		}
+
 		const milestone = await TrainingRequestMilestoneModel.findOne({
 			code: req.body.milestone,
 		})
@@ -122,11 +111,8 @@ router.post('/new', getUser, async (req: Request, res: Response, next: NextFunct
 			.cache('1 day', `milestone-${req.body.milestone}`)
 			.exec();
 
-		if (!student || !milestone) {
-			throw {
-				code: status.NOT_FOUND,
-				message: 'Student or milestone',
-			};
+		if (!milestone) {
+			throwNotFoundException('Milestone Not Found');
 		}
 
 		sendMail({
@@ -202,10 +188,7 @@ router.get(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['date'] || req.params['date'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid date.',
-				};
+				throwBadRequestException('Invalid date');
 			}
 
 			const paramDate = req.params['date'] as string;
@@ -243,17 +226,11 @@ router.post(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['id'] || req.params['id'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid ID.',
-				};
+				throwBadRequestException('Invalid ID');
 			}
 
 			if (new Date(req.body.startTime) >= new Date(req.body.endTime)) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'End time must be greater than start time',
-				};
+				throwBadRequestException('End time must be greater than start time');
 			}
 
 			const request = await TrainingRequestModel.findByIdAndUpdate(req.params['id'], {
@@ -267,10 +244,7 @@ router.post(
 			await getCacheInstance().clear('open-requests');
 
 			if (!request) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Request not found',
-				};
+				throwNotFoundException('Training Request Not Found');
 			}
 
 			const session = await TrainingSessionModel.create({
@@ -287,17 +261,17 @@ router.post(
 				.lean()
 				.cache('10 minutes', `take-${request.studentCid}`)
 				.exec();
+			if (!student) {
+				throwNotFoundException('Student Not Found');
+			}
+
 			const instructor = await UserModel.findOne({ cid: req.user.cid })
 				.select('fname lname email')
 				.lean()
 				.cache('10 minutes', `take-${req.user.cid}`)
 				.exec();
-
-			if (!student || !instructor) {
-				throw {
-					code: status.NOT_FOUND,
-					messgae: 'Student or Instructor not found',
-				};
+			if (!instructor) {
+				throwNotFoundException('Instructor Not Found');
 			}
 
 			sendMail({
@@ -339,10 +313,7 @@ router.post(
 router.delete('/:id', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.params['id'] || req.params['id'] === 'undefined') {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Invalid ID.',
-			};
+			throwBadRequestException('Invalid ID');
 		}
 
 		const request = await TrainingRequestModel.findById(req.params['id'])
@@ -350,10 +321,7 @@ router.delete('/:id', getUser, async (req: Request, res: Response, next: NextFun
 			.exec();
 
 		if (!request) {
-			throw {
-				code: status.NOT_FOUND,
-				message: 'Request not found',
-			};
+			throwNotFoundException('Training Request Not Found');
 		}
 
 		const isSelf = req.user.cid === request.studentCid;
@@ -374,6 +342,8 @@ router.delete('/:id', getUser, async (req: Request, res: Response, next: NextFun
 				title: 'Training Request Cancelled',
 				content: 'You have deleted your training request.',
 			});
+
+			clearCachePrefix(`notifications-${req.user.cid}`);
 		} else {
 			await NotificationModel.create({
 				recipient: request.studentCid,
@@ -381,6 +351,8 @@ router.delete('/:id', getUser, async (req: Request, res: Response, next: NextFun
 				title: 'Training Request Cancelled',
 				content: `Your training request has been deleted by ${req.user.name}.`,
 			});
+
+			clearCachePrefix(`notifications-${request.studentCid}`);
 		}
 
 		return res.status(status.NO_CONTENT).json();

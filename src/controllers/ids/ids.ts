@@ -1,6 +1,11 @@
 import axios from 'axios';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { Redis } from 'ioredis';
+import {
+	throwBadRequestException,
+	throwForbiddenException,
+	throwNotFoundException,
+} from '../../helpers/errors.js';
 import zau from '../../helpers/zau.js';
 import { ConfigModel } from '../../models/config.js';
 import { PirepModel } from '../../models/pirep.js';
@@ -13,10 +18,7 @@ router.post('/checktoken', async (req: Request, res: Response, next: NextFunctio
 	const idsToken = req.body.token;
 	try {
 		if (!idsToken) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'No IDS token specified',
-			};
+			throwBadRequestException('Invalid token');
 		}
 
 		const user = await UserModel.findOne({ idsToken: idsToken })
@@ -25,10 +27,7 @@ router.post('/checktoken', async (req: Request, res: Response, next: NextFunctio
 			.cache('10 minutes', `ids-${idsToken}`)
 			.exec();
 		if (!user) {
-			throw {
-				code: status.FORBIDDEN,
-				message: 'Invalid IDS token',
-			};
+			throwForbiddenException('Invalid IDS Token');
 		}
 
 		return res.status(status.OK).json(user);
@@ -273,10 +272,7 @@ router.get('/charts/:airportCode', async (req: Request, res: Response, next: Nex
 router.post('/pireps', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (req.body.ua === undefined || req.body.ov === undefined) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Missing UA or OV',
-			};
+			throwBadRequestException('Missing OV or UA');
 		}
 
 		await PirepModel.create({
@@ -317,10 +313,7 @@ router.put('/config/:id', async (req: Request, res: Response, next: NextFunction
 		}).exec();
 
 		if (!updatedConfig) {
-			throw {
-				code: status.NOT_FOUND,
-				message: 'Config not found',
-			};
+			throwNotFoundException('Config Not Found');
 		}
 
 		return res.status(status.OK).json(updatedConfig);
@@ -333,10 +326,7 @@ router.get('/config/:id', async (req: Request, res: Response, next: NextFunction
 	try {
 		const config = await ConfigModel.findOne({ _id: req.params['id'] }).exec();
 		if (!config) {
-			throw {
-				code: status.NOT_FOUND,
-				message: 'Config not found',
-			};
+			throwNotFoundException('Config Not Found');
 		}
 
 		return res.status(status.OK).json(config);

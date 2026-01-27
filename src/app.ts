@@ -26,6 +26,7 @@ import vatusaRouter from './controllers/vatusa/vatusa.js';
 import { clearCacheKeys, parseRedisConnectionString, setRedis } from './helpers/redis.js';
 import { setupS3 } from './helpers/s3.js';
 import zau from './helpers/zau.js';
+import { expireExamAttempts } from './tasks/examAttempts.js';
 import { soloExpiringNotifications, syncVatusaSoloEndorsements } from './tasks/solo.js';
 import { syncVatusaTrainingRecords } from './tasks/trainingRecords.js';
 
@@ -156,8 +157,8 @@ if (process.env['NODE_ENV'] === 'production') {
 console.log('Is Sentry initialized and enabled', Sentry.isInitialized(), Sentry.isEnabled());
 
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-	if (!zau.isProd) {
-		if (!((err as any).code || (err as any).name === 'JsonWebTokenError')) {
+	if (!zau.isProd || !Sentry.isEnabled()) {
+		if ((err as any).name !== 'JsonWebTokenError') {
 			console.trace({ path: req.path, name: err.name, message: err.message });
 		}
 	}
@@ -199,6 +200,11 @@ console.log(`Starting VATUSA Solo Endorsement Sync task. . . .`);
 new Cron('0 * * * *', { name: 'Solo Endorsement Sync', catch: true }, () =>
 	syncVatusaSoloEndorsements(),
 );
+
+console.log(`Starting Exam Attempt Expiration task. . . .`);
+new Cron('0 6 * * *', { name: 'Exam Attempt Expiration', timezone: 'Etc/UTC', catch: true }, () => {
+	expireExamAttempts();
+});
 
 if (process.env['NODE_ENV'] === 'production') {
 	console.log(`Starting VATUSA Training Records Sync task. . . .`);

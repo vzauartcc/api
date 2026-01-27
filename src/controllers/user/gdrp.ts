@@ -4,6 +4,11 @@ import { PassThrough } from 'stream';
 import { pipeline } from 'stream/promises';
 import tar from 'tar-stream';
 import zlib from 'zlib';
+import {
+	throwBadRequestException,
+	throwNotFoundException,
+	throwTooManyRequestsException,
+} from '../../helpers/errors.js';
 import { sendMail } from '../../helpers/mailer.js';
 import { clearCacheKeys } from '../../helpers/redis.js';
 import { isManagement } from '../../middleware/auth.js';
@@ -37,10 +42,7 @@ const router = Router();
 router.post('/request', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (req.user.lastGdrpRequest && Date.now() - req.user.lastGdrpRequest.getTime() < DAYS_30) {
-			throw {
-				code: status.TOO_MANY_REQUESTS,
-				message: 'Only one request is permitted every 30 days.',
-			};
+			throwTooManyRequestsException('Only one request is permitted every 30 days.');
 		}
 
 		res.status(status.OK).json({
@@ -66,10 +68,7 @@ router.post(
 				isNaN(Number(req.params['cid'])) ||
 				+req.params['cid'] < 1
 			) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid request.',
-				};
+				throwBadRequestException('Invalid CID');
 			}
 
 			getGdrpData(Number(req.params['cid']));
@@ -82,10 +81,7 @@ router.post(
 async function getGdrpData(cid: number) {
 	const user = await UserModel.findOne({ cid: cid }).lean().exec();
 	if (!user) {
-		throw {
-			code: status.NOT_FOUND,
-			message: 'User not found.',
-		};
+		throwNotFoundException('User Not Found');
 	}
 
 	const absences = await AbsenceModel.find({ controller: cid }).lean().exec();
@@ -323,18 +319,12 @@ router.delete(
 				isNaN(Number(req.params['cid'])) ||
 				+req.params['cid'] < 0
 			) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid request.',
-				};
+				throwBadRequestException('Invalid CID');
 			}
 
 			const user = await UserModel.findOne({ cid: req.params['cid'] }).exec();
 			if (!user) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'User not found.',
-				};
+				throwNotFoundException('User Not Found');
 			}
 
 			await AbsenceModel.deleteMany({ controller: user.cid }).exec();

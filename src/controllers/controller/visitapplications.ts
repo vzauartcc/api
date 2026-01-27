@@ -1,5 +1,10 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { getCacheInstance } from '../../app.js';
+import {
+	throwBadRequestException,
+	throwInternalServerErrorException,
+	throwNotFoundException,
+} from '../../helpers/errors.js';
 import { sendMail } from '../../helpers/mailer.js';
 import { vatusaApi, type IVisitingStatus } from '../../helpers/vatusa.js';
 import { isManagement } from '../../middleware/auth.js';
@@ -156,20 +161,14 @@ router.put(
 				req.params['cid'] === 'undefined' ||
 				isNaN(Number(req.params['cid']))
 			) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid CID.',
-				};
+				throwBadRequestException('Invalid CID');
 			}
 
 			const application = await VisitApplicationModel.findOne({ cid: req.params['cid'] })
 				.cache()
 				.exec();
 			if (!application) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Visiting Application Not Found.',
-				};
+				throwNotFoundException('Visiting Application Not Found');
 			}
 
 			await vatusaApi.post(`/facility/ZAU/roster/manageVisitor/${req.params['cid']}`);
@@ -181,18 +180,12 @@ router.put(
 				.cache('10 minutes', `user-${req.params['cid']}`)
 				.exec();
 			if (!user) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'User not found',
-				};
+				throwNotFoundException('Controller not found');
 			}
 
 			const userOi = await checkOI(user);
 			if (!userOi) {
-				throw {
-					code: status.INTERNAL_SERVER_ERROR,
-					message: 'Unable to generate Operating Initials',
-				};
+				throwInternalServerErrorException('Unable to generate operating initials');
 			}
 
 			user.member = true;
@@ -241,20 +234,14 @@ router.delete(
 				req.params['cid'] === 'undefined' ||
 				isNaN(Number(req.params['cid']))
 			) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid CID.',
-				};
+				throwBadRequestException('Invalid CID');
 			}
 
 			const application = await VisitApplicationModel.findOne({ cid: req.params['cid'] })
 				.cache()
 				.exec();
 			if (!application) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Visiting Application Not Found.',
-				};
+				throwNotFoundException('Visiting Application Not Found');
 			}
 
 			await application.delete();
@@ -264,10 +251,7 @@ router.delete(
 				.cache('10 minutes', `user-${req.params['cid']}`)
 				.exec();
 			if (!user) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'User not found',
-				};
+				throwNotFoundException('User Not Found');
 			}
 
 			sendMail({

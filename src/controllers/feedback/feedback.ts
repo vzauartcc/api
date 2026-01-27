@@ -1,5 +1,6 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { getCacheInstance } from '../../app.js';
+import { throwBadRequestException, throwNotFoundException } from '../../helpers/errors.js';
 import { getUsersWithPrivacy } from '../../helpers/mongodb.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { isSeniorStaff } from '../../middleware/auth.js';
@@ -93,17 +94,11 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 			req.body.comments === ''
 		) {
 			// Validation
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'You must fill out all required forms',
-			};
+			throwBadRequestException('All fields are required');
 		}
 
 		if (req.body.comments && req.body.comments.length > 5000) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Comments must not exceed 5000 characters in length',
-			};
+			throwBadRequestException('Comments section too long');
 		}
 
 		await FeedbackModel.create({
@@ -205,10 +200,7 @@ router.patch(
 		// Approve feedback
 		try {
 			if (!req.params['id'] || req.params['id'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid ID.',
-				};
+				throwBadRequestException('Invalid ID');
 			}
 
 			const approved = await FeedbackModel.findOneAndUpdate(
@@ -221,10 +213,7 @@ router.patch(
 				.exec();
 
 			if (!approved) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Feedback entry not found',
-				};
+				throwNotFoundException('Feedback Entry Not Found');
 			}
 
 			await clearCachePrefix('feedback');
@@ -236,6 +225,8 @@ router.patch(
 				content: `You have received new feedback from ${approved.anonymous ? '<b>Anonymous</b>' : '<b>' + approved.name + '</b>'}.`,
 				link: '/dash/feedback',
 			});
+
+			clearCachePrefix(`notifications-${approved.controller!.cid}`);
 
 			await DossierModel.create({
 				by: req.user.cid,
@@ -259,20 +250,14 @@ router.patch(
 		// Reject feedback
 		try {
 			if (!req.params['id'] || req.params['id'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid ID.',
-				};
+				throwBadRequestException('Invalid ID');
 			}
 
 			const feedback = await FeedbackModel.findOne({ _id: req.params['id'] })
 				.cache('1 minute', `feedback-${req.params['id']}`)
 				.exec();
 			if (!feedback) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Feedback entry not found',
-				};
+				throwNotFoundException('Feedback Entry Not Found');
 			}
 
 			await feedback.delete();

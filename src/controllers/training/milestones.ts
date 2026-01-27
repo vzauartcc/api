@@ -1,5 +1,10 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { getCacheInstance } from '../../app.js';
+import {
+	throwBadRequestException,
+	throwForbiddenException,
+	throwNotFoundException,
+} from '../../helpers/errors.js';
 import { isSeniorStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { TrainingRequestMilestoneModel } from '../../models/trainingMilestone.js';
@@ -44,10 +49,7 @@ router.post(
 				req.body.rating < 0 ||
 				req.body.rating > 5
 			) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid request',
-				};
+				throwBadRequestException('Invalid request');
 			}
 
 			const existing = await TrainingRequestMilestoneModel.findOne({
@@ -56,7 +58,7 @@ router.post(
 				.lean()
 				.exec();
 			if (existing) {
-				throw { code: status.BAD_REQUEST, message: 'Milestone already exists' };
+				throwBadRequestException('Milestone already exists');
 			}
 
 			const milestone = await TrainingRequestMilestoneModel.create({
@@ -83,10 +85,7 @@ router.patch(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.body || !Array.isArray(req.body)) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid request',
-				};
+				throwBadRequestException('Invalid request');
 			}
 
 			const data = [...req.body];
@@ -115,25 +114,16 @@ router.patch(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['id'] || !req.params['id'].trim() || req.params['id'] === 'undefined') {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid milestone ID',
-				};
+				throwBadRequestException('Invalid ID');
 			}
 
 			const milestone = await TrainingRequestMilestoneModel.findById(req.params['id']).exec();
 			if (!milestone) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Milestone not found',
-				};
+				throwNotFoundException('Milestone Not Found');
 			}
 
 			if (milestone.code === 'UNKNOWN') {
-				throw {
-					code: status.FORBIDDEN,
-					message: 'Milestone cannot be modified',
-				};
+				throwForbiddenException('Milestone Cannot Be Modified');
 			}
 
 			milestone.code = req.body.code.toUpperCase();

@@ -1,4 +1,9 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
+import {
+	throwBadRequestException,
+	throwNotFoundException,
+	throwTooManyRequestsException,
+} from '../../helpers/errors.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { isMember, isSeniorStaff, isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
@@ -44,10 +49,7 @@ router.post('/', getUser, isMember, async (req: Request, res: Response, next: Ne
 			!req.body.availability.length ||
 			req.body.availability.length < 1
 		) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Certification code is required.',
-			};
+			throwBadRequestException('Certification code is required');
 		}
 
 		const certification = await CertificationModel.findOne({ code: req.body.certification })
@@ -55,19 +57,13 @@ router.post('/', getUser, isMember, async (req: Request, res: Response, next: Ne
 			.exec();
 
 		if (!certification) {
-			throw {
-				code: status.BAD_REQUEST,
-				message: 'Certification code not found.',
-			};
+			throwNotFoundException('Milestone Not Found');
 		}
 
 		const existing = await TrainingWaitlistModel.find({ studentCid: req.user.cid }).lean().exec();
 
 		if (existing && existing.length > 0) {
-			throw {
-				code: status.TOO_MANY_REQUESTS,
-				message: 'You are already on the waitlist.',
-			};
+			throwTooManyRequestsException('You are already on the waitlist');
 		}
 
 		await TrainingWaitlistModel.create({
@@ -111,26 +107,17 @@ router.post(
 				!req.body.availability.length ||
 				req.body.availability.length < 1
 			) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid Request.',
-				};
+				throwBadRequestException('All fields are required');
 			}
 
 			const student = await UserModel.findOne({ cid: req.body.student }).lean().exec();
 			if (!student) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Student not found.',
-				};
+				throwBadRequestException('Student not found');
 			}
 
 			const instructor = await UserModel.findOne({ cid: req.body.instructor }).lean().exec();
 			if (!instructor && Number(req.body.instructor) !== -1) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Instructor not found.',
-				};
+				throwBadRequestException('Instructor not found');
 			}
 
 			const certification = await CertificationModel.findOne({
@@ -139,18 +126,12 @@ router.post(
 				.lean()
 				.exec();
 			if (!certification) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Certification not found.',
-				};
+				throwBadRequestException('Milestone not found');
 			}
 
 			const existing = await TrainingWaitlistModel.find({ studentCid: student.cid }).lean().exec();
 			if (existing.length > 0) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Student is already on the waitlist.',
-				};
+				throwBadRequestException('Student already waitlisted');
 			}
 
 			await TrainingWaitlistModel.create({
@@ -189,10 +170,7 @@ router.patch(
 				!req.body.instructor ||
 				!req.body.certification
 			) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid Request.',
-				};
+				throwBadRequestException('All fields are required');
 			}
 
 			const waitlist = await TrainingWaitlistModel.findById(req.params['id'])
@@ -202,17 +180,11 @@ router.patch(
 				.exec();
 
 			if (!waitlist) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Waitlist entry not found.',
-				};
+				throwNotFoundException('Waitlist Entry Not Found');
 			}
 
 			if (`${waitlist.instructorCid}` === req.body.instructor) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid Request.',
-				};
+				throwBadRequestException('Invalid instructor CID');
 			}
 
 			waitlist.instructorCid = req.body.instructor;
@@ -244,19 +216,13 @@ router.delete(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['id']) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid Request.',
-				};
+				throwBadRequestException('Invalid ID');
 			}
 
 			const waitlist = await TrainingWaitlistModel.findByIdAndDelete(req.params['id']).exec();
 
 			if (!waitlist) {
-				throw {
-					code: status.NOT_FOUND,
-					message: 'Waitlist entry not found.',
-				};
+				throwNotFoundException('Waitlist Entry Not Found');
 			}
 
 			await DossierModel.create({
@@ -299,10 +265,7 @@ router.get(
 				req.params['cid'] === 'undefined' ||
 				isNaN(Number(req.params['cid']))
 			) {
-				throw {
-					code: status.BAD_REQUEST,
-					message: 'Invalid Request.',
-				};
+				throwBadRequestException('Invalid CID');
 			}
 
 			const waitlist = await TrainingWaitlistModel.find({ instructorCid: req.params['cid'] })
