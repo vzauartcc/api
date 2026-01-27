@@ -2,7 +2,11 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import { body, validationResult } from 'express-validator';
 import { isValidObjectId } from 'mongoose';
 import { getCacheInstance } from '../../app.js';
-import { throwBadRequestException, throwNotFoundException } from '../../helpers/errors.js';
+import {
+	throwBadRequestException,
+	throwForbiddenException,
+	throwNotFoundException,
+} from '../../helpers/errors.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { isInstructor, isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
@@ -164,6 +168,7 @@ router.patch(
 			exam.certCode = req.body.certCode;
 			exam.questions = req.body.questions;
 			exam.isActive = req.body.isActive;
+			exam.createdBy = req.user.cid;
 
 			const updated = await exam.save();
 
@@ -187,6 +192,10 @@ router.post(
 
 			if (!isValidObjectId(id)) {
 				throwBadRequestException('Invalid exam ID');
+			}
+
+			if (req.user.cid === Number(req.body.cid) && !req.user.isSeniorStaff) {
+				throwForbiddenException('Cannot assign exam to self.');
 			}
 
 			const exam = await ExamModel.findById(id)
@@ -260,7 +269,7 @@ router.get(
 	isExamEditor,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			if (!req.params['id'] || req.params['id'] === 'undefined') {
+			if (!isValidObjectId(req.params['id'])) {
 				throwBadRequestException('Invalid ID');
 			}
 
