@@ -1,5 +1,9 @@
 import { Document, model, Schema } from 'mongoose';
 
+export const milestoneTypes = ['session', 'waitlist'] as const;
+
+type MilestoneType = (typeof milestoneTypes)[number];
+
 export interface ITrainingRequestMilestone extends Document {
 	code: string;
 	name: string;
@@ -7,6 +11,7 @@ export interface ITrainingRequestMilestone extends Document {
 	certCode: string;
 	isActive: boolean;
 	order: number;
+	type: MilestoneType;
 }
 
 const TrainingRequestMilestoneSchema = new Schema<ITrainingRequestMilestone>(
@@ -17,6 +22,7 @@ const TrainingRequestMilestoneSchema = new Schema<ITrainingRequestMilestone>(
 		certCode: { type: String, required: true },
 		isActive: { type: Boolean, required: true },
 		order: { type: Number, required: true },
+		type: { type: String, enum: milestoneTypes, required: true },
 	},
 	{ collection: 'trainingMilestones' },
 );

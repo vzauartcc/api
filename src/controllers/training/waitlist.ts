@@ -1,4 +1,5 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
+import { isValidObjectId } from 'mongoose';
 import {
 	throwBadRequestException,
 	throwNotFoundException,
@@ -7,17 +8,17 @@ import {
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { isMember, isSeniorStaff, isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
-import { CertificationModel } from '../../models/certification.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
+import { TrainingRequestMilestoneModel as TrainingMilestoneModel } from '../../models/trainingMilestone.js';
 import { TrainingWaitlistModel } from '../../models/trainingWaitlist.js';
 import { UserModel } from '../../models/user.js';
 import status from '../../types/status.js';
 
 const router = Router();
 
-router.get('/', getUser, isMember, async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/', getUser, isMember, async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		const waitlist = await TrainingWaitlistModel.find({})
+		let waitlist = await TrainingWaitlistModel.find({})
 			.populate([
 				{
 					path: 'student',
@@ -33,6 +34,13 @@ router.get('/', getUser, isMember, async (_req: Request, res: Response, next: Ne
 			.lean()
 			.cache('10 minutes', 'waitlist')
 			.exec();
+
+		if (!req.user.isSeniorStaff) {
+			waitlist = waitlist.map((i: any) => {
+				delete i.notes;
+				return i;
+			});
+		}
 
 		return res.status(status.OK).json(waitlist);
 	} catch (e) {
@@ -52,7 +60,7 @@ router.post('/', getUser, isMember, async (req: Request, res: Response, next: Ne
 			throwBadRequestException('Certification code is required');
 		}
 
-		const certification = await CertificationModel.findOne({ code: req.body.certification })
+		const certification = await TrainingMilestoneModel.findOne({ code: req.body.certification })
 			.lean()
 			.exec();
 
@@ -71,6 +79,7 @@ router.post('/', getUser, isMember, async (req: Request, res: Response, next: Ne
 			instructorCid: -1,
 			certCode: certification.code,
 			availability: req.body.availability,
+			notes: '',
 		});
 
 		await DossierModel.create({
@@ -120,7 +129,7 @@ router.post(
 				throwBadRequestException('Instructor not found');
 			}
 
-			const certification = await CertificationModel.findOne({
+			const certification = await TrainingMilestoneModel.findOne({
 				code: req.body.certification,
 			})
 				.lean()
@@ -140,6 +149,7 @@ router.post(
 				assignedDate: +req.body.instructor !== -1 ? new Date() : null,
 				certCode: certification.code,
 				availability: req.body.availability,
+				notes: req.body.notes || '',
 			});
 
 			await DossierModel.create({
@@ -191,6 +201,10 @@ router.patch(
 			waitlist.certCode = req.body.certification;
 			waitlist.assignedDate =
 				+req.body.instructor === -1 ? null : waitlist.assignedDate || new Date();
+
+			if (req.body.notes && req.body.notes.trim() !== '') {
+				waitlist.notes = req.body.notes;
+			}
 			await waitlist.save();
 
 			await DossierModel.create({
@@ -215,7 +229,7 @@ router.delete(
 	isSeniorStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			if (!req.params['id']) {
+			if (!isValidObjectId(req.params['id'])) {
 				throwBadRequestException('Invalid ID');
 			}
 

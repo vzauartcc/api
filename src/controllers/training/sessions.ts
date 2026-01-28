@@ -313,19 +313,22 @@ router.patch(
 				let vatusaRes = { data: { id: 0 } };
 				// Send the training record to vatusa
 				if (!zau.isDev) {
-					vatusaRes = await vatusaApi.post(`/user/${session.studentCid}/training/record`, {
-						instructor_id: session.instructorCid,
-						session_date: DateTime.fromJSDate(start).toFormat('y-MM-dd HH:mm'),
-						position: req.body.position,
-						duration: duration,
-						movements: req.body.movements,
-						score: req.body.progress,
-						notes: sanitizeInput(req.body.studentNotes),
-						ots_status: req.body.ots,
-						location: req.body.location,
-						is_cbt: false,
-						solo_granted: false,
-					});
+					const { data: vatusaRes } = await vatusaApi.post(
+						`/user/${session.studentCid}/training/record`,
+						{
+							instructor_id: session.instructorCid,
+							session_date: DateTime.fromJSDate(start).toFormat('y-MM-dd HH:mm'),
+							position: req.body.position,
+							duration: duration,
+							movements: req.body.movements,
+							score: req.body.progress,
+							notes: sanitizeInput(req.body.studentNotes),
+							ots_status: req.body.ots,
+							location: req.body.location,
+							is_cbt: false,
+							solo_granted: false,
+						},
+					);
 
 					console.log('vatusa gave us an id of', vatusaRes?.data?.id);
 				}
@@ -554,19 +557,22 @@ router.post(
 			let vatusaRes = { data: { id: 0 } };
 
 			if (!zau.isDev) {
-				vatusaRes = await vatusaApi.post(`/user/${req.body.student}/training/record`, {
-					instructor_id: req.user.cid,
-					session_date: DateTime.fromJSDate(start).toFormat('y-MM-dd HH:mm'),
-					position: req.body.position,
-					duration: duration,
-					movements: req.body.movements,
-					score: req.body.progress,
-					notes: sanitizeInput(req.body.studentNotes),
-					ots_status: req.body.ots,
-					location: req.body.location,
-					is_cbt: false,
-					solo_granted: false,
-				});
+				const { data: vatusaRes } = await vatusaApi.post(
+					`/user/${req.body.student}/training/record`,
+					{
+						instructor_id: req.user.cid,
+						session_date: DateTime.fromJSDate(start).toFormat('y-MM-dd HH:mm'),
+						position: req.body.position,
+						duration: duration,
+						movements: req.body.movements,
+						score: req.body.progress,
+						notes: sanitizeInput(req.body.studentNotes),
+						ots_status: req.body.ots,
+						location: req.body.location,
+						is_cbt: false,
+						solo_granted: false,
+					},
+				);
 
 				console.log('SUBMIT vatusa session gave id', vatusaRes?.data?.id, vatusaRes);
 			}

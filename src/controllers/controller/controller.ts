@@ -507,6 +507,7 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response, next: Nex
 			certificationDate: certDates,
 		});
 		await getCacheInstance().clear('users');
+		await getCacheInstance().clear('operating-initials');
 
 		sendMail({
 			to: 'atm@zauartcc.org, datm@zauartcc.org, ta@zauartcc.org',
@@ -592,6 +593,7 @@ router.patch(
 
 			await user.save();
 			clearUserCache(user.cid);
+			await getCacheInstance().clear('operating-initials');
 
 			if (req.body.member || req.body.vis) {
 				sendMail({
@@ -663,6 +665,7 @@ router.patch(
 
 			await user.save();
 			clearUserCache(user.cid);
+			await getCacheInstance().clear('operating-initials');
 
 			await DossierModel.create({
 				by: -1,
@@ -751,6 +754,7 @@ router.put(
 
 			await user.save();
 			clearUserCache(user.cid);
+			await getCacheInstance().clear('operating-initials');
 
 			await DossierModel.create({
 				by: req.user.cid,
@@ -862,6 +866,7 @@ router.delete(
 
 			await user.save();
 			clearUserCache(user.cid);
+			await getCacheInstance().clear('operating-initials');
 
 			await DossierModel.create({
 				by: req.user.cid,

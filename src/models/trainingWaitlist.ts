@@ -9,6 +9,7 @@ interface ITrainingWaitlist extends ITimestamps {
 	availability: string[];
 	instructorCid: number;
 	assignedDate?: Date | null;
+	notes: string;
 
 	// Virtuals
 	certification?: PopulatedDoc<ICertification & Document>;
@@ -23,6 +24,7 @@ const TrainingWaitlistSchema = new Schema<ITrainingWaitlist>(
 		availability: [{ type: String }],
 		instructorCid: { type: Number, required: true, default: -1, ref: 'User' },
 		assignedDate: { type: Date },
+		notes: { type: String },
 	},
 	{ collection: 'trainingWaitlist', timestamps: true },
 );
