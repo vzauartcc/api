@@ -7,8 +7,8 @@ import {
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { isMember, isSeniorStaff, isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
-import { CertificationModel } from '../../models/certification.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
+import { TrainingRequestMilestoneModel as TrainingMilestoneModel } from '../../models/trainingMilestone.js';
 import { TrainingWaitlistModel } from '../../models/trainingWaitlist.js';
 import { UserModel } from '../../models/user.js';
 import status from '../../types/status.js';
@@ -52,7 +52,7 @@ router.post('/', getUser, isMember, async (req: Request, res: Response, next: Ne
 			throwBadRequestException('Certification code is required');
 		}
 
-		const certification = await CertificationModel.findOne({ code: req.body.certification })
+		const certification = await TrainingMilestoneModel.findOne({ code: req.body.certification })
 			.lean()
 			.exec();
 
@@ -120,7 +120,7 @@ router.post(
 				throwBadRequestException('Instructor not found');
 			}
 
-			const certification = await CertificationModel.findOne({
+			const certification = await TrainingMilestoneModel.findOne({
 				code: req.body.certification,
 			})
 				.lean()
