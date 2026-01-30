@@ -1,4 +1,5 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
+import { isValidObjectId } from 'mongoose';
 import { getCacheInstance } from '../../app.js';
 import {
 	throwBadRequestException,
@@ -7,7 +8,7 @@ import {
 } from '../../helpers/errors.js';
 import { isSeniorStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
-import { TrainingRequestMilestoneModel } from '../../models/trainingMilestone.js';
+import { milestoneTypes, TrainingRequestMilestoneModel } from '../../models/trainingMilestone.js';
 import { UserModel } from '../../models/user.js';
 import status from '../../types/status.js';
 
@@ -28,7 +29,7 @@ router.get('/', getUser, async (req: Request, res: Response, next: NextFunction)
 			.cache('1 day', `milestones`)
 			.exec();
 
-		return res.status(status.OK).json({ user, milestones });
+		return res.status(status.OK).json({ user, milestones, milestoneTypes });
 	} catch (e) {
 		return next(e);
 	}
@@ -47,7 +48,8 @@ router.post(
 				!req.body.name.trim() ||
 				!req.body.certCode.trim() ||
 				req.body.rating < 0 ||
-				req.body.rating > 5
+				req.body.rating > 5 ||
+				!milestoneTypes.includes(req.body.type.toLowerCase())
 			) {
 				throwBadRequestException('Invalid request');
 			}
@@ -57,7 +59,7 @@ router.post(
 			})
 				.lean()
 				.exec();
-			if (existing) {
+			if (existing || req.body.name.toUpperCase() === 'UNKNOWN') {
 				throwBadRequestException('Milestone already exists');
 			}
 
@@ -67,6 +69,8 @@ router.post(
 				rating: Number(req.body.rating),
 				certCode: req.body.certCode.toLowerCase(),
 				isActive: true,
+				type: req.body.type.toLowerCase(),
+				order: 99,
 			});
 
 			getCacheInstance().clear('milestones');
@@ -113,8 +117,21 @@ router.patch(
 	isSeniorStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			if (!req.params['id'] || !req.params['id'].trim() || req.params['id'] === 'undefined') {
+			if (!isValidObjectId(req.params['id'])) {
 				throwBadRequestException('Invalid ID');
+			}
+
+			if (
+				!req.body ||
+				!req.body.code.trim() ||
+				req.body.code.length > 4 ||
+				!req.body.name.trim() ||
+				!req.body.certCode.trim() ||
+				req.body.rating < 0 ||
+				req.body.rating > 5 ||
+				!milestoneTypes.includes(req.body.type.toLowerCase())
+			) {
+				throwBadRequestException('Invalid request');
 			}
 
 			const milestone = await TrainingRequestMilestoneModel.findById(req.params['id']).exec();
@@ -126,11 +143,11 @@ router.patch(
 				throwForbiddenException('Milestone Cannot Be Modified');
 			}
 
-			milestone.code = req.body.code.toUpperCase();
 			milestone.name = req.body.name;
 			milestone.rating = Number(req.body.rating);
 			milestone.certCode = req.body.certCode.toLowerCase();
 			milestone.isActive = Boolean(req.body.isActive);
+			milestone.type = req.body.type.toLowerCase();
 
 			const updated = await milestone.save();
 
