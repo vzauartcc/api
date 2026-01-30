@@ -143,7 +143,6 @@ router.patch(
 				throwForbiddenException('Milestone Cannot Be Modified');
 			}
 
-			milestone.code = req.body.code.toUpperCase();
 			milestone.name = req.body.name;
 			milestone.rating = Number(req.body.rating);
 			milestone.certCode = req.body.certCode.toLowerCase();
