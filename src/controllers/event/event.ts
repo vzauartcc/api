@@ -111,6 +111,7 @@ router.get('/:slug', async (req: Request, res: Response, next: NextFunction) => 
 		return next(e);
 	}
 });
+
 //#region Position Signups
 router.get('/:slug/positions', async (req: Request, res: Response, next: NextFunction) => {
 	try {

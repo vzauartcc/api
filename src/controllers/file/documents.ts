@@ -1,5 +1,6 @@
 import type { Progress } from '@aws-sdk/lib-storage';
 import { Router, type NextFunction, type Request, type Response } from 'express';
+import { fileTypeFromFile } from 'file-type';
 import * as fs from 'fs';
 import multer from 'multer';
 import { getCacheInstance } from '../../app.js';
@@ -97,6 +98,22 @@ router.post(
 			if (type === 'file') {
 				if (!req.file) {
 					throwBadRequestException('File is required');
+				}
+
+				const allowedTypes = [
+					'image/jpg',
+					'image/jpeg',
+					'image/png',
+					'image/gif',
+					'application/pdf',
+					'application/zip',
+					'application/x-zip-compressed',
+					'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+				];
+				const fileType = await fileTypeFromFile(req.file.path);
+
+				if (fileType === undefined || !allowedTypes.includes(fileType.mime)) {
+					throwBadRequestException('Banner file type is not supported');
 				}
 
 				setUploadStatus(req.body.uploadId, 0);
@@ -221,6 +238,22 @@ router.put(
 						},
 					).exec();
 				} else {
+					const allowedTypes = [
+						'image/jpg',
+						'image/jpeg',
+						'image/png',
+						'image/gif',
+						'application/pdf',
+						'application/zip',
+						'application/x-zip-compressed',
+						'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+					];
+					const fileType = await fileTypeFromFile(req.file.path);
+
+					if (fileType === undefined || !allowedTypes.includes(fileType.mime)) {
+						throwBadRequestException('Banner file type is not supported');
+					}
+
 					if (document.fileName) {
 						await deleteFromS3(`documents/${document.fileName}`);
 					}
