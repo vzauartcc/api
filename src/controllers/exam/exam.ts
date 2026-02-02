@@ -8,7 +8,7 @@ import {
 	throwNotFoundException,
 } from '../../helpers/errors.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
-import { isInstructor, isTrainingStaff } from '../../middleware/auth.js';
+import { isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { ExamModel } from '../../models/exam.js';
@@ -97,7 +97,6 @@ router.get(
 	},
 );
 
-// Create Exam
 router.post(
 	'/',
 	getUser,
@@ -133,7 +132,6 @@ router.post(
 	},
 );
 
-// Update Exam
 router.patch(
 	'/:id',
 	getUser,
@@ -185,7 +183,7 @@ router.patch(
 router.post(
 	'/:id/assign',
 	getUser,
-	isInstructor,
+	isTrainingStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const { id } = req.params;
