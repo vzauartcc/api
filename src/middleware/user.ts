@@ -48,6 +48,13 @@ function setupSentry(req: Request) {
 			ip_address: clientIp ?? null,
 		});
 	}
+
+	console.log({
+		clientIp,
+		originalIp: req.ip,
+		forwardedFor: req.headers['x-original-forwarded-for'] ?? null,
+		user: req.user?.name ?? null,
+	});
 }
 
 export async function isUserValid(req: Request) {

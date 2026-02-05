@@ -38,8 +38,8 @@ const createExamValidation = [
 	body('questions.*.options.*.text').notEmpty().withMessage('Option text is required'),
 	body('questions.*.options.*.text')
 		.trim()
-		.isLength({ max: 100 })
-		.withMessage('Option text should not exceed 100 characters'),
+		.isLength({ max: 400 })
+		.withMessage('Option text should not exceed 400 characters'),
 	body('questions.*.options.*.isCorrect').isBoolean().withMessage('isCorrect must be a boolean'),
 	// Custom validation logic here
 	(req: Request, res: Response, next: NextFunction) => {
