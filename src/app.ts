@@ -23,7 +23,7 @@ import statsRouter from './controllers/stats/stats.js';
 import trainingRouter from './controllers/training/training.js';
 import userRouter from './controllers/user/user.js';
 import vatusaRouter from './controllers/vatusa/vatusa.js';
-import { clearCacheKeys, parseRedisConnectionString, setRedis } from './helpers/redis.js';
+import { clearCacheKeys, parseRedisConnectionString, setCache, setRedis } from './helpers/redis.js';
 import { setupS3 } from './helpers/s3.js';
 import zau from './helpers/zau.js';
 import { expireExamAttempts } from './tasks/examAttempts.js';
@@ -48,9 +48,14 @@ app.use(
 );
 
 const REDIS_URI = process.env['REDIS_URI'];
+const MONGO_CACHE_URI = process.env['MONGODB_CACHE_URI'];
 
 if (!REDIS_URI) {
 	throw new Error('REDIS_URI is not set in environment variables.');
+}
+
+if (!MONGO_CACHE_URI) {
+	throw new Error('MONGO_CACHE_URI is not set in environment variables.');
 }
 
 console.log('Connecting to redis. . . .');
@@ -61,6 +66,16 @@ app.redis.on('error', (err) => {
 app.redis.on('connect', () => {
 	console.log('Successfully connected to Redis');
 	setRedis(app.redis);
+});
+
+console.log('Connecting to cache instance. . . .');
+const redisCache = new Redis(MONGO_CACHE_URI, { family: 4, connectionName: 'cache' });
+redisCache.on('error', (err) => {
+	throw new Error(`Redis error: ${err}`);
+});
+redisCache.on('connect', () => {
+	console.log('Successfully connected to Redis Cache');
+	setCache(redisCache);
 	clearCacheKeys();
 });
 
@@ -110,7 +125,7 @@ const cacheInstance = cache.init(mongoose, {
 	defaultTTL: '60 seconds',
 	engine: 'redis',
 	engineOptions: {
-		...parseRedisConnectionString(REDIS_URI),
+		...parseRedisConnectionString(MONGO_CACHE_URI),
 		connectionName: 'mongodb-cache',
 		family: 4,
 	},
