@@ -37,23 +37,23 @@ function setupSentry(req: Request) {
 		clientIp = ips?.split(',')[0]?.trim() || req.ip;
 	}
 
+	const user: Sentry.User = {
+		ip_address: clientIp ?? null,
+	};
+
 	if (req.user) {
-		Sentry.setUser({
-			id: req.user.cid,
-			username: `${req.user.fname} ${req.user.lname}`,
-			ip_address: clientIp ?? null,
-		});
-	} else {
-		Sentry.setUser({
-			ip_address: clientIp ?? null,
-		});
+		user.id = req.user.cid;
+		user.username = `${req.user.fname} ${req.user.lname}`;
 	}
+
+	Sentry.setUser(user);
+	Sentry.getCurrentScope().setUser(user);
 
 	console.log({
 		clientIp,
 		originalIp: req.ip,
 		forwardedFor: req.headers['x-original-forwarded-for'] ?? null,
-		user: req.user?.name ?? null,
+		...user,
 	});
 }
 
