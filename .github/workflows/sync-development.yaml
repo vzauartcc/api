@@ -1,4 +1,4 @@
-name: Sync Development via Fast-Forward
+name: Sync Staging via Fast-Forward
 
 on:
   push:
@@ -25,10 +25,10 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Fast-Forward Development to Main
+      - name: Fast-Forward Staging to Main
         run: |
-          git checkout development
+          git checkout staging
 
           git merge main --ff-only
 
-          git push origin development
+          git push origin staging
