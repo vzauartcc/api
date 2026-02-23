@@ -59,7 +59,7 @@ if (!MONGO_CACHE_URI) {
 }
 
 console.log('Connecting to redis. . . .');
-app.redis = new Redis(REDIS_URI, { family: 4, connectionName: 'api' });
+app.redis = new Redis(`${REDIS_URI}?family=4&connectionName=api`);
 app.redis.on('error', (err) => {
 	throw new Error(`Redis error: ${err}`);
 });
@@ -69,12 +69,13 @@ app.redis.on('connect', () => {
 });
 
 console.log('Connecting to cache instance. . . .');
-const redisCache = new Redis(MONGO_CACHE_URI, { family: 4, connectionName: 'cache' });
+const redisCache = new Redis(`${MONGO_CACHE_URI}?family=4&connectionName=cache`);
 redisCache.on('error', (err) => {
-	throw new Error(`Redis error: ${err}`);
+	throw new Error(`Redis error: ${err}.`);
 });
 redisCache.on('connect', () => {
 	console.log('Successfully connected to Redis Cache');
+
 	setCache(redisCache);
 	clearCacheKeys();
 });
