@@ -6,6 +6,20 @@ export function setRedis(client: Redis) {
 	redis = client;
 }
 
+export function getRedis(): Redis | null {
+	return redis;
+}
+
+let cache: Redis | null = null;
+
+export function setCache(client: Redis) {
+	cache = client;
+}
+
+export function getCache(): Redis | null {
+	return cache;
+}
+
 interface RedisConnectionDetails {
 	username: string;
 	password: string;
@@ -53,23 +67,23 @@ export function parseRedisConnectionString(connectionString: string): RedisConne
 }
 
 export async function clearCacheKeys() {
-	if (!redis) return;
+	if (!cache) return;
 
-	const keys = await redis.keys('cache-mongoose:*');
+	const keys = await cache.keys('cache-mongoose:*');
 
 	if (keys.length > 0) {
-		const count = await redis.del(keys);
+		const count = await cache.del(keys);
 		console.log('Deleted', count, 'old cache entries.');
 	}
 }
 
 export async function clearCachePrefix(prefix: string) {
-	if (!redis) return;
+	if (!cache) return;
 
-	const keys = await redis.keys(`cache-mongoose:${prefix}*`);
+	const keys = await cache.keys(`cache-mongoose:${prefix}*`);
 
 	if (keys.length > 0) {
-		const count = await redis.del(keys);
+		const count = await cache.del(keys);
 		console.log(`Cleared ${count} cache entires for "${prefix}"`);
 	}
 }

@@ -201,10 +201,8 @@ router.patch(
 			waitlist.certCode = req.body.certification;
 			waitlist.assignedDate =
 				+req.body.instructor === -1 ? null : waitlist.assignedDate || new Date();
+			waitlist.notes = req.body.notes;
 
-			if (req.body.notes && req.body.notes.trim() !== '') {
-				waitlist.notes = req.body.notes;
-			}
 			await waitlist.save();
 
 			await DossierModel.create({
