@@ -48,13 +48,6 @@ function setupSentry(req: Request) {
 
 	Sentry.setUser(user);
 	Sentry.getCurrentScope().setUser(user);
-
-	console.log({
-		clientIp,
-		originalIp: req.ip,
-		forwardedFor: req.headers['x-original-forwarded-for'] ?? null,
-		...user,
-	});
 }
 
 export async function isUserValid(req: Request) {
