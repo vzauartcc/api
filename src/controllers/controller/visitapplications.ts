@@ -20,7 +20,7 @@ const router = Router();
 router.get('/', getUser, isManagement, async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const applications = await VisitApplicationModel.find({
-			deleted: false,
+			deleted: { $ne: true },
 		})
 			.lean()
 			.cache('10 minutes', 'visit-applications')
@@ -150,7 +150,7 @@ router.get('/status', getUser, async (req: Request, res: Response, next: NextFun
 	}
 });
 
-router.put(
+router.patch(
 	'/:cid',
 	getUser,
 	isManagement,

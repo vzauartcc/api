@@ -5,11 +5,11 @@ import { isKeyValid } from './internalAuth.js';
 import { isUserValid } from './user.js';
 
 export async function userOrInternal(req: Request, res: Response, next: NextFunction) {
-	if (isKeyValid(req)) {
+	if (await isUserValid(req)) {
 		return next();
 	}
 
-	if (await isUserValid(req)) {
+	if (isKeyValid(req)) {
 		return next();
 	}
 
