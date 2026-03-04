@@ -6,8 +6,10 @@ import {
 	throwInternalServerErrorException,
 	throwUnauthorizedException,
 } from '../../helpers/errors.js';
+import zau from '../../helpers/zau.js';
 import internalAuth from '../../middleware/internalAuth.js';
 import getUser from '../../middleware/user.js';
+import { ControllerHoursModel } from '../../models/controllerHours.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { UserModel } from '../../models/user.js';
 import status from '../../types/status.js';
@@ -122,6 +124,108 @@ router.delete('/user', getUser, async (req: Request, res: Response, next: NextFu
 		});
 
 		res.status(status.OK).json();
+	} catch (e) {
+		return next(e);
+	}
+});
+
+router.get('/ironmic', internalAuth, async (_req: Request, res: Response, next: NextFunction) => {
+	try {
+		const results = await ControllerHoursModel.aggregate([
+			{
+				$match: {
+					$and: [
+						{
+							timeStart: { $gte: zau.activity.period.startOfCurrent },
+						},
+						{ timeStart: { $lte: zau.activity.period.endOfCurrent } },
+					],
+					position: { $not: /OBS/ },
+				},
+			},
+			{
+				$lookup: {
+					from: 'users',
+					localField: 'cid',
+					foreignField: 'cid',
+					as: 'userDetails',
+				},
+			},
+			{
+				$unwind: {
+					path: '$userDetails',
+					preserveNullAndEmptyArrays: false,
+				},
+			},
+			{
+				$match: {
+					'userDetails.member': true,
+					'userDetails.vis': false,
+				},
+			},
+			{
+				$group: {
+					_id: '$cid',
+					fname: { $first: '$userDetails.fname' },
+					lname: { $first: '$userDetails.lname' },
+					rating: { $first: '$userDetails.rating' },
+					totalSeconds: {
+						$sum: {
+							$dateDiff: {
+								startDate: '$timeStart',
+								endDate: '$timeEnd',
+								unit: 'second',
+							},
+						},
+					},
+				},
+			},
+			{
+				$project: {
+					_id: 0,
+					controller: '$_id',
+					totalSeconds: 1,
+					fname: 1,
+					lname: 1,
+					rating: 1,
+				},
+			},
+		])
+			.cache('5 minutes')
+			.exec();
+
+		const center = [];
+		const approach = [];
+		const tower = [];
+		const ground = [];
+
+		for (const result of results) {
+			if (result.rating >= 5) {
+				center.push(result);
+			} else if (result.rating === 4) {
+				approach.push(result);
+			} else if (result.rating === 3) {
+				tower.push(result);
+			} else if (result.rating === 2) {
+				ground.push(result);
+			}
+		}
+
+		center.sort((a, b) => b.totalSeconds - a.totalSeconds);
+		approach.sort((a, b) => b.totalSeconds - a.totalSeconds);
+		tower.sort((a, b) => b.totalSeconds - a.totalSeconds);
+		ground.sort((a, b) => b.totalSeconds - a.totalSeconds);
+		return res
+			.status(status.OK)
+			.json({
+				results: {
+					center: center.slice(0, 3),
+					approach: approach.slice(0, 3),
+					tower: tower.slice(0, 3),
+					ground: ground.slice(0, 3),
+				},
+				period: zau.activity.period,
+			});
 	} catch (e) {
 		return next(e);
 	}
