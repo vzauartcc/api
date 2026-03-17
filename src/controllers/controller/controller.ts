@@ -655,12 +655,16 @@ router.patch(
 				user.certCodes = certDates.map((c) => c.code);
 				user.certificationDate = certDates;
 
+				user.homeFacility = req.body.homeFacility;
+
 				const userOi = await checkOI(user);
 				if (!userOi) {
 					throwInternalServerErrorException('Unable to generate operating initials');
 				}
 
 				user.oi = userOi;
+			} else {
+				delete user.homeFacility;
 			}
 
 			await user.save();
