@@ -26,6 +26,31 @@ router.get('/users', jwtInternalAuth, async (_req: Request, res: Response, next:
 });
 
 router.get(
+	'/user/:id',
+	jwtInternalAuth,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const { id } = req.params;
+			if (!id || id.trim() === '') {
+				throwBadRequestException('Invalid request');
+			}
+
+			const user = await UserModel.findOne({ discord: id })
+				.select('fname lname cid discordInfo roleCodes oi rating member vis')
+				.exec();
+
+			if (!user) {
+				throwBadRequestException('User not found');
+			}
+
+			return res.status(status.OK).json(user);
+		} catch (e) {
+			return next(e);
+		}
+	},
+);
+
+router.get(
 	'/ironmic',
 	jwtInternalAuth,
 	async (_req: Request, res: Response, next: NextFunction) => {
