@@ -1,31 +1,26 @@
 import { Document, model, Schema } from 'mongoose';
 
-interface IUpdateableMessage {
+interface IUpdatableMessage {
 	channelId: string;
 	messageId: string;
 }
 
-interface IManagedrole {
+interface IManagedRole {
 	key: string;
 	roleId: string;
-}
-
-interface IRepostChannel {
-	id: string;
-	topic: string;
 }
 
 interface IDiscordConfig extends Document {
 	id: string;
 	type: string;
-	repostChannels: IRepostChannel[];
-	managedRoles: IManagedrole[];
-	ironMic: IUpdateableMessage;
-	onlineControllers: IUpdateableMessage;
-	cleanupChannels: IUpdateableMessage[];
+	repostChannels: object;
+	managedRoles: IManagedRole[];
+	ironMic: IUpdatableMessage;
+	onlineControllers: IUpdatableMessage;
+	cleanupChannels: object;
 }
 
-const CleanupChannelsSchema = new Schema<IUpdateableMessage>(
+const IronMicSchema = new Schema<IUpdatableMessage>(
 	{
 		channelId: { type: String, required: true },
 		messageId: { type: String, required: true },
@@ -33,7 +28,7 @@ const CleanupChannelsSchema = new Schema<IUpdateableMessage>(
 	{ _id: false },
 );
 
-const IronMicSchema = new Schema<IUpdateableMessage>(
+const OnlineControllersSchema = new Schema<IUpdatableMessage>(
 	{
 		channelId: { type: String, required: true },
 		messageId: { type: String, required: true },
@@ -41,15 +36,7 @@ const IronMicSchema = new Schema<IUpdateableMessage>(
 	{ _id: false },
 );
 
-const OnlineControllersSchema = new Schema<IUpdateableMessage>(
-	{
-		channelId: { type: String, required: true },
-		messageId: { type: String, required: true },
-	},
-	{ _id: false },
-);
-
-const ManagedRoleSchema = new Schema<IManagedrole>(
+const ManagedRoleSchema = new Schema<IManagedRole>(
 	{
 		key: { type: String, required: true },
 		roleId: { type: String, required: true },
@@ -57,23 +44,15 @@ const ManagedRoleSchema = new Schema<IManagedrole>(
 	{ _id: false },
 );
 
-const RepostChannelSchema = new Schema<IRepostChannel>(
-	{
-		id: { type: String, required: true },
-		topic: { type: String, required: true },
-	},
-	{ _id: false },
-);
-
 const DiscordConfigSchema = new Schema<IDiscordConfig>(
 	{
-		id: { type: String, required: true, default: '485491681903247361' },
+		id: { type: String, required: true },
 		type: { type: String, required: true, default: 'discord' },
-		repostChannels: [RepostChannelSchema],
+		repostChannels: { type: Object },
 		managedRoles: [ManagedRoleSchema],
 		ironMic: IronMicSchema,
 		onlineControllers: OnlineControllersSchema,
-		cleanupChannels: [CleanupChannelsSchema],
+		cleanupChannels: { type: Object },
 	},
 	{ collection: 'config' },
 );

@@ -154,132 +154,136 @@ router.get(
 	},
 );
 
-router.get('/config', userOrInternal, async (req: Request, res: Response, next: NextFunction) => {
-	try {
-		if ((req.user && !req.user.isSeniorStaff) || req.internal === false) {
-			throwForbiddenException('Forbidden');
+router.get(
+	'/config/:id',
+	userOrInternal,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			if ((req.user && !req.user.isSeniorStaff) || req.internal === false) {
+				throwForbiddenException('Forbidden');
+			}
+
+			const { id } = req.params;
+			if (!id || id === 'undefined') {
+				throwBadRequestException('Invalid request');
+			}
+
+			const repostChannels = {} as any;
+			repostChannels['486966861632897034'] = 'ZAU Announcement';
+			repostChannels['544080116762935296'] = 'ZAU Promotion!';
+			repostChannels['878613881046593586'] = 'ZAU Training Announcement';
+
+			const cleanupChannels = {} as any;
+			cleanupChannels['1059158001484841010'] = '1438596525805801492';
+
+			const config = await DiscordConfigModel.findOne({ type: 'discord', id: id })
+				.cache('1 hour', 'discord-config')
+				.exec();
+			if (!config) {
+				const doc = await DiscordConfigModel.create({
+					id: id,
+					type: 'discord',
+					repostChannels: repostChannels,
+					managedRoles: [
+						{
+							key: 'OBS',
+							roleId: '826533958245285909',
+						},
+						{
+							key: 'S1',
+							roleId: '907949973721743421',
+						},
+						{
+							key: 'S2',
+							roleId: '907950813337501697',
+						},
+						{
+							key: 'S3',
+							roleId: '925768951491883018',
+						},
+						{
+							key: 'C1',
+							roleId: '1012096233738879087',
+						},
+						{
+							key: 'C3',
+							roleId: '1012096533027631124',
+						},
+						{
+							key: 'I1',
+							roleId: '1012096533392535664',
+						},
+						{
+							key: 'I3',
+							roleId: '1012096687071821856',
+						},
+						{
+							key: 'SUP',
+							roleId: '1012096738804387920',
+						},
+						{
+							key: 'ADM',
+							roleId: '1015818173628547182',
+						},
+						{
+							key: 'HOME',
+							roleId: '485492230774325260',
+						},
+						{
+							key: 'VIS',
+							roleId: '485500102056607745',
+						},
+						{
+							key: 'ins',
+							roleId: '1025487324915699752',
+						},
+						{
+							key: 'mtr',
+							roleId: '1025487633754882098',
+						},
+						{
+							key: 'fe',
+							roleId: '1146456088129061006',
+						},
+						{
+							key: 'ec',
+							roleId: '1044866729764986920',
+						},
+						{
+							key: 'wm',
+							roleId: '1036086110931132436',
+						},
+						{
+							key: 'GUEST',
+							roleId: '1013191411413287023',
+						},
+					],
+					ironMic: { channelId: '1206360145383395368', messageId: '1206361986032472114' },
+					onlineControllers: { channelId: '1095122861028548710', messageId: '1184635443761905825' },
+					cleanupChannels: cleanupChannels,
+				});
+
+				return res.status(status.OK).json(doc);
+			}
+
+			return res.status(status.OK).json(config);
+		} catch (e) {
+			return next(e);
 		}
-
-		const config = await DiscordConfigModel.findOne({ type: 'discord' })
-			.cache('1 hour', 'discord-config')
-			.exec();
-		if (!config) {
-			const doc = await DiscordConfigModel.create({
-				id: '485491681903247361',
-				type: 'discord',
-				repostChannels: [
-					{
-						id: '486966861632897034',
-						topic: 'ZAU Announcement',
-					},
-					{
-						id: '544080116762935296',
-						topic: 'ZAU Promotion!',
-					},
-					{
-						id: '878613881046593586',
-						topic: 'ZAU Training Announcement',
-					},
-				],
-				managedRoles: [
-					{
-						key: 'OBS',
-						roleId: '826533958245285909',
-					},
-					{
-						key: 'S1',
-						roleId: '907949973721743421',
-					},
-					{
-						key: 'S2',
-						roleId: '907950813337501697',
-					},
-					{
-						key: 'S3',
-						roleId: '925768951491883018',
-					},
-					{
-						key: 'C1',
-						roleId: '1012096233738879087',
-					},
-					{
-						key: 'C3',
-						roleId: '1012096533027631124',
-					},
-					{
-						key: 'I1',
-						roleId: '1012096533392535664',
-					},
-					{
-						key: 'I3',
-						roleId: '1012096687071821856',
-					},
-					{
-						key: 'SUP',
-						roleId: '1012096738804387920',
-					},
-					{
-						key: 'ADM',
-						roleId: '1015818173628547182',
-					},
-					{
-						key: 'HOME',
-						roleId: '485492230774325260',
-					},
-					{
-						key: 'VIS',
-						roleId: '485500102056607745',
-					},
-					{
-						key: 'ins',
-						roleId: '1025487324915699752',
-					},
-					{
-						key: 'mtr',
-						roleId: '1025487633754882098',
-					},
-					{
-						key: 'fe',
-						roleId: '1146456088129061006',
-					},
-					{
-						key: 'ec',
-						roleId: '1044866729764986920',
-					},
-					{
-						key: 'wm',
-						roleId: '1036086110931132436',
-					},
-					{
-						key: 'GUEST',
-						roleId: '1013191411413287023',
-					},
-				],
-				ironMic: { channelId: '1206360145383395368', messageId: '1206361986032472114' },
-				onlineControllers: { channelId: '1095122861028548710', messageId: '1184635443761905825' },
-				cleanupChannels: [
-					{
-						channelId: '1059158001484841010',
-						messageId: '1438596525805801492',
-					},
-				],
-			});
-
-			return res.status(status.OK).json(doc);
-		}
-
-		return res.status(status.OK).json(config);
-	} catch (e) {
-		return next(e);
-	}
-});
+	},
+);
 
 router.put(
-	'/config',
+	'/config/:id',
 	getUser,
 	isSeniorStaff,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
+			const { id } = req.params;
+			if (!id || id === 'undefined') {
+				throwBadRequestException('Invalid request');
+			}
+
 			const { config } = req.body;
 			if (!config) {
 				throwBadRequestException('Invalid request');
