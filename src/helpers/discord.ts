@@ -57,9 +57,9 @@ async function getCurrentUser(tokenType: string, accessToken: string) {
 	}
 }
 
-async function getAllTextChannels() {
+async function getAllTextChannels(guildId: string) {
 	try {
-		const channels = await discord.get('/guilds/485491681903247361/channels');
+		const channels = await discord.get(`/guilds/${guildId}/channels`);
 
 		const textChannels = channels.data.filter(
 			(channel: any) => channel.type === 0 || channel.type === 5,
@@ -88,9 +88,9 @@ async function getAllTextChannels() {
 	}
 }
 
-async function getAllRoles() {
+async function getAllRoles(guildId: string) {
 	try {
-		const roles = await discord.get('/guilds/485491681903247361/roles');
+		const roles = await discord.get(`/guilds/${guildId}/roles`);
 
 		return roles.data.map((r: any) => ({ id: r.id, name: r.name }));
 	} catch (e) {
@@ -143,6 +143,21 @@ async function getAllMessages(channelId: string) {
 	}
 }
 
+async function getAllGuilds() {
+	try {
+		const guilds = await discord.get('/users/@me/guilds');
+
+		return guilds.data.map((g: any) => ({ id: g.id, name: g.name }));
+	} catch (e) {
+		if (axios.isAxiosError(e) && e.response) {
+			console.error(`Failed to get all text channels. Discord API Error:`, e.response.data);
+			throw new Error(`Discord API responded with status ${e.response.status}`);
+		}
+		console.error(`An unknown error occurred while getting all text channels:`, e);
+		throw e;
+	}
+}
+
 export default {
 	sendMessage,
 	getCurrentUser,
@@ -150,4 +165,5 @@ export default {
 	getAllRoles,
 	getMessageContent,
 	getAllMessages,
+	getAllGuilds,
 };
