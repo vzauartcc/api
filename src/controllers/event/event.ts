@@ -438,41 +438,30 @@ router.post(
 			}
 
 			const positions = eventData.positions;
-			const positionFields = await Promise.all(
-				positions.map(async (position: IEventPosition) => {
-					if (typeof position.takenBy === 'undefined' || position.takenBy === null) {
-						return {
-							name: position.pos,
-							value: 'Open',
-							inline: true,
-						};
-					} else {
-						try {
-							const res1 = await UserModel.findOne({ cid: position.takenBy })
-								.lean()
-								.cache('10 minutes', `user-${position.takenBy}`)
-								.exec();
-							if (!res1) {
-								throwInternalServerErrorException('User not found');
-							}
 
-							const name = res1.fname + ' ' + res1.lname;
-							return {
-								name: position.pos,
-								value: name,
-								inline: true,
-							};
-						} catch (err) {
-							console.log(err);
-							return {
-								name: position.pos,
-								value: 'Unknown (Server Error)',
-								inline: true,
-							};
-						}
-					}
-				}),
-			);
+			const userCids = [...new Set(positions.map((p) => p.takenBy).filter((cid) => !!cid))];
+			const users = await UserModel.find({ cid: { $in: userCids } })
+				.lean()
+				.exec();
+			const userMap = new Map(users.map((u) => [u.cid, u]));
+
+			const positionFields = positions.map((position: IEventPosition) => {
+				if (!position.takenBy) {
+					return {
+						name: position.pos,
+						value: 'Open',
+						inline: true,
+					};
+				}
+
+				const user = userMap.get(position.takenBy);
+
+				return {
+					name: position.pos,
+					value: user ? `${user.fname} ${user.lname}` : 'Unknown User',
+					inline: true,
+				};
+			});
 
 			const fieldsChunked = chunkArray(positionFields, 25); // Chunk into arrays of 25 fields
 
