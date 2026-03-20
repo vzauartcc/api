@@ -256,7 +256,9 @@ router.post('/login', oAuth, async (req: Request, res: Response, next: NextFunct
 
 router.get('/logout', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		if (!req.cookies['token']) {
+		const cookie = zau.isProd ? 'token' : 'dev-token';
+
+		if (!req.cookies[cookie]) {
 			throwUnauthorizedException('Not Logged In');
 		}
 
