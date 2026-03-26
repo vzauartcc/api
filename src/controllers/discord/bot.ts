@@ -363,4 +363,23 @@ router.get(
 	},
 );
 
+router.post(
+	'/send-message',
+	getUser,
+	isSeniorStaff,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const { channelId, content } = req.body;
+			if (!channelId || !content) {
+				throwBadRequestException('Invalid request');
+			}
+
+			await discord.sendMessage(channelId, content);
+			return res.status(status.OK).json();
+		} catch (e) {
+			return next(e);
+		}
+	},
+);
+
 export default router;
