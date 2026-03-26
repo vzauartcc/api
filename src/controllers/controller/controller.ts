@@ -277,6 +277,8 @@ router.get(
 					'Deleted Exam',
 					'Assigned Exam',
 					'Deleted Exam Attempt',
+					'Updated Discord Configuration',
+					'Sent Discord Message',
 				]);
 		} catch (e) {
 			return next(e);

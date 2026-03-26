@@ -8,6 +8,7 @@ import { jwtInternalAuth } from '../../middleware/internalAuth.js';
 import getUser from '../../middleware/user.js';
 import { ControllerHoursModel } from '../../models/controllerHours.js';
 import { DiscordConfigModel } from '../../models/discordConfig.js';
+import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { UserModel } from '../../models/user.js';
 import status from '../../types/status.js';
 
@@ -231,6 +232,13 @@ router.put(
 
 			await getCacheInstance().clear(`discord-config-${id}`);
 
+			await DossierModel.create({
+				by: req.user.cid,
+				affected: -1,
+				action: `Updated Discord Configuration for server ${id}`,
+				actionType: ACTION_TYPE.UPDATE_DISCORD_CONFIG,
+			});
+
 			return res.status(status.OK).json();
 		} catch (e) {
 			return next(e);
@@ -374,7 +382,24 @@ router.post(
 				throwBadRequestException('Invalid request');
 			}
 
-			await discord.sendMessage(channelId, content);
+			await discord.sendMessage(channelId, { content });
+
+			DossierModel.create({
+				by: req.user.cid,
+				affected: -1,
+				action: `Sent a Discord Message to ${channelId}`,
+				actionType: ACTION_TYPE.SEND_DISCORD_MESSAGE,
+			});
+
+			try {
+				// Post to the logs channel
+				await discord.sendMessage('1234367676240105493', {
+					content: `**${req.user.name}** sent a message in <#${channelId}> with the following content:\n\n${content.length > 1500 ? content.slice(0, 1500) + '...' : content}`,
+				});
+			} catch (e) {
+				// Do nothing
+			}
+
 			return res.status(status.OK).json();
 		} catch (e) {
 			return next(e);

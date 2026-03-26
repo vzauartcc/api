@@ -56,6 +56,8 @@ export const ACTION_TYPE = {
 	DELETE_EXAM: 50,
 	ASSIGN_EXAM: 51,
 	DELETE_EXAM_ATTEMPT: 52,
+	UPDATE_DISCORD_CONFIG: 53,
+	SEND_DISCORD_MESSAGE: 54,
 } as const;
 
 interface IDossier extends Document, ITimestamps {
