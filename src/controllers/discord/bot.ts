@@ -3,7 +3,7 @@ import { getCacheInstance } from '../../app.js';
 import discord from '../../helpers/discord.js';
 import { throwBadRequestException, throwForbiddenException } from '../../helpers/errors.js';
 import zau from '../../helpers/zau.js';
-import { isSeniorStaff, userOrInternal } from '../../middleware/auth.js';
+import { isSeniorStaff, userOrInternalJwt } from '../../middleware/auth.js';
 import { jwtInternalAuth } from '../../middleware/internalAuth.js';
 import getUser from '../../middleware/user.js';
 import { ControllerHoursModel } from '../../models/controllerHours.js';
@@ -155,8 +155,27 @@ router.get(
 );
 
 router.get(
+	'/configs',
+	userOrInternalJwt,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			if ((req.user && !req.user.isSeniorStaff) || req.internal === false) {
+				throwForbiddenException('Forbidden');
+			}
+
+			const configs = await DiscordConfigModel.find({ type: 'discord' })
+				.cache('6 hours', 'discord-configs')
+				.exec();
+			return res.status(status.OK).json(configs);
+		} catch (e) {
+			return next(e);
+		}
+	},
+);
+
+router.get(
 	'/config/:id',
-	userOrInternal,
+	userOrInternalJwt,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if ((req.user && !req.user.isSeniorStaff) || req.internal === false) {
