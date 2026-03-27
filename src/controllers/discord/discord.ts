@@ -6,26 +6,16 @@ import {
 	throwInternalServerErrorException,
 	throwUnauthorizedException,
 } from '../../helpers/errors.js';
-import internalAuth from '../../middleware/internalAuth.js';
 import getUser from '../../middleware/user.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { UserModel } from '../../models/user.js';
 import status from '../../types/status.js';
 import { clearUserCache } from '../controller/utils.js';
+import discordBotRouter from './bot.js';
 
 const router = Router();
 
-router.get('/users', internalAuth, async (_req: Request, res: Response, next: NextFunction) => {
-	try {
-		const users = await UserModel.find({ discordInfo: { $ne: null } })
-			.select('fname lname cid discordInfo roleCodes oi rating member vis')
-			.exec();
-
-		return res.status(status.OK).json(users);
-	} catch (e) {
-		return next(e);
-	}
-});
+router.use('/bot', discordBotRouter);
 
 router.get('/user', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {

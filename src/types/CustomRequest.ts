@@ -5,3 +5,7 @@ export interface OauthRequest {
 	refresh_token: string;
 	scopes: string[];
 }
+
+export interface IApplication {
+	name: string;
+}

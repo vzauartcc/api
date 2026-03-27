@@ -1,6 +1,6 @@
 import { Redis } from 'ioredis';
 import type { IUser } from 'models/user.ts';
-import type { OauthRequest } from 'types/CustomRequest.ts';
+import type { IApplication, OauthRequest } from 'types/CustomRequest.ts';
 
 // Extend the Express Application interface
 declare global {
@@ -20,6 +20,7 @@ declare global {
 			user: IUser;
 			oauth: OauthRequest;
 			internal: boolean;
+			application: IApplication;
 		}
 	}
 }
