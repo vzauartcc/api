@@ -17,7 +17,7 @@ const router = Router();
 router.get('/users', jwtInternalAuth, async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const users = await UserModel.find({ discordInfo: { $ne: null } })
-			.select('fname lname cid discordInfo roleCodes oi rating member vis')
+			.select('fname lname cid discord roleCodes oi rating member vis homeFacility')
 			.exec();
 
 		return res.status(status.OK).json(users);
@@ -37,7 +37,7 @@ router.get(
 			}
 
 			const user = await UserModel.findOne({ discord: id })
-				.select('fname lname cid discordInfo roleCodes oi rating member vis')
+				.select('fname lname cid discord roleCodes oi rating member vis homeFacility')
 				.exec();
 
 			if (!user) {
