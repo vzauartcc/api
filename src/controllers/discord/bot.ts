@@ -165,6 +165,7 @@ router.get(
 			}
 
 			const configs = await DiscordConfigModel.find({ type: 'discord' })
+				.lean()
 				.cache('6 hours', 'discord-configs')
 				.exec();
 			return res.status(status.OK).json(configs);
@@ -189,6 +190,7 @@ router.get(
 			}
 
 			const config = await DiscordConfigModel.findOne({ type: 'discord', id: id })
+				.lean()
 				.cache('6 hours', `discord-config-${id}`)
 				.exec();
 			if (!config) {
@@ -200,6 +202,7 @@ router.get(
 					ironMic: { channelId: '', messageId: '' },
 					onlineControllers: { channelId: '', messageId: '' },
 					cleanupChannels: {},
+					reminderChannels: {},
 				});
 			}
 

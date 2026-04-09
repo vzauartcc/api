@@ -18,6 +18,7 @@ interface IDiscordConfig extends Document {
 	ironMic: IUpdatableMessage;
 	onlineControllers: IUpdatableMessage;
 	cleanupChannels: object;
+	reminderChannels: object;
 }
 
 const IronMicSchema = new Schema<IUpdatableMessage>(
@@ -53,6 +54,7 @@ const DiscordConfigSchema = new Schema<IDiscordConfig>(
 		ironMic: IronMicSchema,
 		onlineControllers: OnlineControllersSchema,
 		cleanupChannels: { type: Object },
+		reminderChannels: { type: Object },
 	},
 	{ collection: 'config' },
 );
