@@ -83,6 +83,11 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 			.then(() => console.log('Task sent to queue', discordUser.id))
 			.catch((err) => console.error('Error sending task', err));
 
+		await req.app.redis.lpush(
+			'new_discord_user',
+			JSON.stringify({ discord: discordUser.id, token: token.access_token }),
+		);
+
 		await user.save();
 		clearUserCache(user.cid);
 
@@ -101,6 +106,11 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 
 router.delete('/user', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
+		await req.app.redis.lpush(
+			'remove_discord_user',
+			JSON.stringify({ discord: req.user.discord, token: '' }),
+		);
+
 		await UserModel.updateOne({ cid: req.user.cid }, { $unset: { discord: '', discordInfo: '' } });
 		clearUserCache(req.user.cid);
 
