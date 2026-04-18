@@ -54,8 +54,13 @@ export function isJwtValid(req: Request): boolean {
 	}
 
 	// Allow local development to bypass JWT auth.
-	if (process.env['MICRO_ACCESS_KEY'] !== key && process.env['NODE_ENV'] === 'development') {
+	if (process.env['MICRO_ACCESS_KEY'] === key && process.env['NODE_ENV'] === 'development') {
 		console.warn('Internal authentication bypassed in development environment');
+
+		req.internal = true;
+		req.application = {
+			name: 'internal-application',
+		} as unknown as IApplication;
 
 		return true;
 	}
