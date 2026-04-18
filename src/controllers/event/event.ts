@@ -549,7 +549,7 @@ router.post(
 						.json({ message: 'Event sent successfully', status: status.OK });
 				})
 				.catch((error) => {
-					console.log(error);
+					console.error(error);
 				});
 
 			return res.status(status.OK).json();

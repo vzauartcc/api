@@ -1,7 +1,7 @@
 import { captureMessage } from '@sentry/node';
 import type { NextFunction, Request, Response } from 'express';
 import status from '../types/status.js';
-import { isKeyValid } from './internalAuth.js';
+import { isJwtValid, isKeyValid } from './internalAuth.js';
 import { isUserValid } from './user.js';
 
 export async function userOrInternal(req: Request, res: Response, next: NextFunction) {
@@ -10,6 +10,18 @@ export async function userOrInternal(req: Request, res: Response, next: NextFunc
 	}
 
 	if (isKeyValid(req)) {
+		return next();
+	}
+
+	return res.status(status.FORBIDDEN).json();
+}
+
+export async function userOrInternalJwt(req: Request, res: Response, next: NextFunction) {
+	if (await isUserValid(req)) {
+		return next();
+	}
+
+	if (isJwtValid(req)) {
 		return next();
 	}
 

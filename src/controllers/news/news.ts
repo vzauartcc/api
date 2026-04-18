@@ -1,4 +1,5 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
+import discord from '../../helpers/discord.js';
 import { throwBadRequestException, throwNotFoundException } from '../../helpers/errors.js';
 import { sanitizeInput } from '../../helpers/html.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
@@ -63,6 +64,25 @@ router.post('/', getUser, isStaff, async (req: Request, res: Response, next: Nex
 			action: `%b created the news item *${req.body.title}*.`,
 			actionType: ACTION_TYPE.CREATE_NEWS,
 		});
+
+		try {
+			await discord.sendMessage('486966861632897034', {
+				embeds: [
+					{
+						title: title,
+						description: `**News Article Published!**\n\n${content.length > 1500 ? content.slice(0, 1500) + '...\n\nRead the full article on the website!' : content}`,
+						color: 39423,
+						footer: {
+							text: 'Published by ' + req.user.name,
+						},
+						url: 'https://www.zauartcc.org/news/' + uriSlug,
+						timestamp: new Date().toISOString(),
+					},
+				],
+			});
+		} catch (err) {
+			console.error('Error posting news article to discord', err);
+		}
 
 		return res.status(status.CREATED).json();
 	} catch (e) {

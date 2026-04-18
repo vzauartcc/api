@@ -6,26 +6,16 @@ import {
 	throwInternalServerErrorException,
 	throwUnauthorizedException,
 } from '../../helpers/errors.js';
-import internalAuth from '../../middleware/internalAuth.js';
 import getUser from '../../middleware/user.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { UserModel } from '../../models/user.js';
 import status from '../../types/status.js';
 import { clearUserCache } from '../controller/utils.js';
+import discordBotRouter from './bot.js';
 
 const router = Router();
 
-router.get('/users', internalAuth, async (_req: Request, res: Response, next: NextFunction) => {
-	try {
-		const users = await UserModel.find({ discordInfo: { $ne: null } })
-			.select('fname lname cid discordInfo roleCodes oi rating member vis')
-			.exec();
-
-		return res.status(status.OK).json(users);
-	} catch (e) {
-		return next(e);
-	}
-});
+router.use('/bot', discordBotRouter);
 
 router.get('/user', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
@@ -93,6 +83,11 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 			.then(() => console.log('Task sent to queue', discordUser.id))
 			.catch((err) => console.error('Error sending task', err));
 
+		await req.app.redis.lpush(
+			'new_discord_user',
+			JSON.stringify({ discord: discordUser.id, token: token.access_token }),
+		);
+
 		await user.save();
 		clearUserCache(user.cid);
 
@@ -111,6 +106,11 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 
 router.delete('/user', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
+		await req.app.redis.lpush(
+			'remove_discord_user',
+			JSON.stringify({ discord: req.user.discord, token: '' }),
+		);
+
 		await UserModel.updateOne({ cid: req.user.cid }, { $unset: { discord: '', discordInfo: '' } });
 		clearUserCache(req.user.cid);
 
