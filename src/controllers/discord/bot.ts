@@ -66,6 +66,8 @@ router.get(
 							{ timeStart: { $lte: zau.activity.period.endOfCurrent } },
 						],
 						position: { $not: /OBS/ },
+						isStudent: { $ne: true },
+						isInstructor: { $ne: true },
 					},
 				},
 				{
