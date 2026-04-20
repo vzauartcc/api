@@ -244,6 +244,11 @@ router.put(
 				actionType: ACTION_TYPE.UPDATE_DISCORD_CONFIG,
 			});
 
+			await req.app.redis
+				.lpush('config_update', id)
+				.then(() => console.log('Task sent to queue', id))
+				.catch((err) => console.error('Error sending config_update task', err));
+
 			return res.status(status.OK).json();
 		} catch (e) {
 			return next(e);

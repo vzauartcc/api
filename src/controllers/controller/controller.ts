@@ -30,7 +30,7 @@ import { TrainingWaitlistModel } from '../../models/trainingWaitlist.js';
 import { UserModel, type IUser } from '../../models/user.js';
 import status from '../../types/status.js';
 import absenceRouter from './absence.js';
-import { checkOI, clearUserCache, grantCerts, uploadAvatar } from './utils.js';
+import { checkOI, clearUserCache, grantCerts, syncUserHistory, uploadAvatar } from './utils.js';
 import visitRouter from './visitapplications.js';
 
 const router = Router();
@@ -582,11 +582,16 @@ router.patch(
 				user.certCodes = certDates.map((c) => c.code);
 				user.certificationDate = certDates;
 			} else {
-				user.history.push({
-					start: user.joinDate!,
-					end: new Date(),
-					reason: `Removed from roster by an external service.`,
-				});
+				if (user.joinDate) {
+					user.history.push({
+						start: user.joinDate,
+						end: new Date(),
+						reason: `Removed from roster by an external service.`,
+					});
+				} else {
+					syncUserHistory(user.cid);
+				}
+
 				user.joinDate = null;
 				user.removalDate = new Date();
 				user.oi = '';
@@ -862,11 +867,18 @@ router.delete(
 
 			user.member = false;
 			user.removalDate = new Date();
-			user.history.push({
-				start: user.joinDate!,
-				end: new Date(),
-				reason: req.body.reason,
-			});
+			if (user.joinDate) {
+				user.history.push({
+					start: user.joinDate,
+					end: new Date(),
+					reason: req.body.reason,
+				});
+			} else {
+				// Give VATUSA time to process to the roster removal
+				setTimeout(() => {
+					syncUserHistory(user.cid);
+				}, 30 * 1000);
+			}
 			user.joinDate = null;
 			user.oi = '';
 

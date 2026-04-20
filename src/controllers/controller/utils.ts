@@ -1,8 +1,9 @@
-import axios from 'axios';
+import axios, { type AxiosResponse } from 'axios';
 import { getCacheInstance } from '../../app.js';
 import { throwInternalServerErrorException } from '../../helpers/errors.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { findInS3, uploadToS3 } from '../../helpers/s3.js';
+import { vatusaApi } from '../../helpers/vatusa.js';
 import { UserModel, type ICertificationDate, type IUser } from '../../models/user.js';
 
 export async function checkOI(user: IUser) {
@@ -169,4 +170,84 @@ export async function clearUserCache(id: number) {
 	await getCacheInstance().clear('users');
 	await getCacheInstance().clear('discord-users');
 	await getCacheInstance().clear(`auth-${id}`);
+}
+
+interface IVatusaHistoryResponse {
+	data: IVatusaHistory[];
+	testing: boolean;
+}
+
+interface IVatusaHistory {
+	id: number;
+	cid: number;
+	to: string;
+	from: string;
+	reason: string;
+	status: number;
+	actiontext: string;
+	actionby: number; // CID or 0 for system
+	created_at: Date;
+	updated_at: Date;
+}
+
+export async function syncUserHistory(cid: number) {
+	const user = await UserModel.findOne({ cid }).exec();
+	if (!user) return;
+
+	try {
+		const { data }: AxiosResponse<IVatusaHistoryResponse> = await vatusaApi.get(
+			`user/${cid}/transfer/history`,
+		);
+
+		const history = buildHistory(data.data);
+
+		history.forEach((h) => {
+			if (user.history.find((existing) => existing.start.getTime() === h.start.getTime())) {
+				return;
+			} else {
+				user.history.push(h);
+			}
+		});
+
+		// Ensure history is chronological
+		user.history.sort((a, b) => {
+			return a.end.getTime() - b.end.getTime();
+		});
+
+		await user.save();
+	} catch (e: any) {
+		if (e.name !== 'TimeoutError') {
+			console.error(e);
+		}
+	}
+}
+
+function buildHistory(transfers: any[]) {
+	const history = [];
+	let joinDate = null;
+
+	for (const transfer of transfers.reverse()) {
+		if (transfer.status !== 1) continue;
+
+		if (transfer.to === 'ZAU') {
+			joinDate = new Date(transfer.updated_at);
+		} else {
+			// Assuming transferred out
+			if (joinDate !== null) {
+				history.push({
+					start: joinDate,
+					end: new Date(transfer.updated_at),
+					reason:
+						typeof transfer.reason === 'string'
+							? transfer.reason.includes('reason in log below only')
+								? transfer.actiontext
+								: transfer.reason
+							: transfer.actiontext,
+				});
+				joinDate = null;
+			}
+		}
+	}
+
+	return history;
 }
