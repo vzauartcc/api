@@ -1,20 +1,32 @@
-# Make sure to enable 'Require status checks to pass before merging' on the branch protection,
-# and to select the 'Build-and-Push' action.
-
-name: Build and Push
+name: Build and Push to GHCR
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: "Commit SHA to build (leave empty for head of branch)"
+        required: false
+        default: ""
+
+permissions: {}
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: vzauartcc/api
 
 jobs:
-  Build-and-Push:
+  Build-and-Push-to-GHCR:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.base.ref != 'main'
+
+    permissions:
+      packages: write
+      contents: read
 
     steps:
       - name: Checkout master
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
@@ -22,7 +34,7 @@ jobs:
       - name: Log in to container registry
         uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -31,7 +43,7 @@ jobs:
         with:
           push: true
           tags: |
-            ghcr.io/vzauartcc/api:${{ github.sha }}
-            ghcr.io/vzauartcc/api:buildcache
-          cache-from: type=registry,ref=ghcr.io/vzauartcc/api:buildcache
-          cache-to: type=registry,ref=ghcr.io/vzauartcc/api:buildcache,mode=max
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

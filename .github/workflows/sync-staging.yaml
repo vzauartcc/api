@@ -1,9 +1,11 @@
-name: Sync Staging via Fast-Forward
+name: Sync staging via Fast-Forward
 
 on:
   push:
     branches:
       - main
+
+permissions: {}
 
 jobs:
   sync-branch:
