@@ -23,13 +23,13 @@ import statsRouter from './controllers/stats/stats.js';
 import trainingRouter from './controllers/training/training.js';
 import userRouter from './controllers/user/user.js';
 import vatusaRouter from './controllers/vatusa/vatusa.js';
+import { throwBadRequestException } from './helpers/errors.js';
 import { clearCacheKeys, parseRedisConnectionString, setCache, setRedis } from './helpers/redis.js';
 import { setupS3 } from './helpers/s3.js';
 import zau from './helpers/zau.js';
 import { expireExamAttempts } from './tasks/examAttempts.js';
 import { soloExpiringNotifications, syncVatusaSoloEndorsements } from './tasks/solo.js';
 import { syncVatusaTrainingRecords } from './tasks/trainingRecords.js';
-import { throwBadRequestException } from 'helpers/errors.js';
 
 console.log(`Starting application. . . .`);
 const app = express();
