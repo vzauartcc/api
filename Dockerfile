@@ -25,5 +25,5 @@ ENV NODE_OPTIONS="--import ./dist/instrument.js"
 # 3. Expose port
 EXPOSE 3000
 
-# 4. Start with node for Sentry instrumentation
-CMD ["node", "dist/app.js"]
+# 4. Start app
+CMD ["dist/app.js"]
