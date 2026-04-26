@@ -29,6 +29,7 @@ import zau from './helpers/zau.js';
 import { expireExamAttempts } from './tasks/examAttempts.js';
 import { soloExpiringNotifications, syncVatusaSoloEndorsements } from './tasks/solo.js';
 import { syncVatusaTrainingRecords } from './tasks/trainingRecords.js';
+import { throwBadRequestException } from 'helpers/errors.js';
 
 console.log(`Starting application. . . .`);
 const app = express();
@@ -155,8 +156,24 @@ app.use('/split', splitRouter);
 
 app.get('/charts', async (req: Request, res: Response, next: NextFunction) => {
 	try {
+		if (!req.query['apt'] || req.query['apt'] === 'undefined') {
+			throwBadRequestException();
+		}
+
+		const aptString = req.query['apt'] as string;
+
+		const airports = aptString.split(',');
+
+		// Airports are now expected to be the ICAO identifier.
+		for (let i = 0; i < airports.length; i++) {
+			const element = airports[i];
+			if (element && element[0] !== 'K' && element?.length != 4) {
+				airports[i] = 'K' + element;
+			}
+		}
+
 		const { data } = await axios.get(
-			`https://api.aviationapi.com/v1/charts?apt=${req.query['apt']}`,
+			`https://api-v2.aviationapi.com/v2/charts/many?airac=0&airport=${airports.join('&airport=')}`,
 		);
 
 		return res.status(200).json(data);
