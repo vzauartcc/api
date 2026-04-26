@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       commit_sha:
-        description: "Commit SHA to build (leave empty for head of branch)"
+        description: 'Commit SHA to build (leave empty for head of branch)'
         required: false
-        default: ""
+        default: ''
 
 permissions: {}
 
