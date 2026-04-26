@@ -4,9 +4,15 @@ on:
     - cron: '0 0 1 * *'
 # Run monthly, at 00:00 on the 1st day of month.
 
+permissions: {}
+
 jobs:
   del_runs:
     runs-on: ubuntu-latest
+
+    permissions:
+      actions: write
+
     steps:
       - name: Delete workflow runs
         uses: Mattraks/delete-workflow-runs@0073229620e676f1b9d933b31b2b53df8b5915ef # v2

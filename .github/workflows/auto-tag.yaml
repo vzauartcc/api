@@ -5,9 +5,12 @@ on:
     branches:
       - main
 
+permissions: {}
+
 jobs:
   tag:
     runs-on: ubuntu-latest
+
     permissions:
       contents: write
 
