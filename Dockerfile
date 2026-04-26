@@ -10,6 +10,7 @@ RUN npm ci && npm cache clean --force
 COPY . .
 
 RUN npm run build
+
 # 2. Copy built files to new bare image
 FROM gcr.io/distroless/nodejs24-debian12 AS production
 ENV NODE_ENV=production
@@ -21,7 +22,8 @@ COPY --from=builder /usr/src/app/node_modules ./node_modules
 
 ENV NODE_OPTIONS="--import ./dist/instrument.js"
 
-# 3. Expose port and start app
+# 3. Expose port
 EXPOSE 3000
 
+# 4. Start app
 CMD ["dist/app.js"]

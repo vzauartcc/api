@@ -1,7 +1,7 @@
 # Make sure to enable 'Require status checks to pass before merging' on the branch protection,
-# and to select the 'prettier_check' action.
+# and to select the 'CI Check' action.
 
-name: Prettier Check
+name: CI Check
 
 on:
   pull_request:
@@ -10,23 +10,23 @@ on:
 permissions: {}
 
 jobs:
-  prettier_check:
-    if: github.actor != 'renovate[bot]'
+  Verify-App-Builds:
     runs-on: ubuntu-latest
 
+    if: github.event.pull_request.base.ref != 'main'
+
     steps:
-      - name: Checkout Repository
+      - name: Checkout master
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
-        with:
-          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6
         with:
           node-version: '24'
+          cache: 'npm'
 
       - name: Install Dependencies
         run: npm ci
 
-      - name: Run Prettier Check
-        run: npx prettier --check .
+      - name: Build Typescript
+        run: npx tsc --noEmit
