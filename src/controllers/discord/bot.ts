@@ -240,7 +240,7 @@ router.put(
 			await DossierModel.create({
 				by: req.user.cid,
 				affected: -1,
-				action: `Updated Discord Configuration for server ${id}`,
+				action: `%b updated Discord Configuration for server ${id}`,
 				actionType: ACTION_TYPE.UPDATE_DISCORD_CONFIG,
 			});
 
@@ -397,7 +397,7 @@ router.post(
 			DossierModel.create({
 				by: req.user.cid,
 				affected: -1,
-				action: `Sent a Discord Message to ${channelId}`,
+				action: `%b sent a Discord Message to ${channelId}`,
 				actionType: ACTION_TYPE.SEND_DISCORD_MESSAGE,
 			});
 
