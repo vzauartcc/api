@@ -3,7 +3,7 @@ import { getCacheInstance } from '../../app.js';
 import discord from '../../helpers/discord.js';
 import { throwBadRequestException, throwForbiddenException } from '../../helpers/errors.js';
 import zau from '../../helpers/zau.js';
-import { isSeniorStaff, userOrInternalJwt } from '../../middleware/auth.js';
+import { isManagement, isSeniorStaff, userOrInternalJwt } from '../../middleware/auth.js';
 import { jwtInternalAuth } from '../../middleware/internalAuth.js';
 import getUser from '../../middleware/user.js';
 import { ControllerHoursModel } from '../../models/controllerHours.js';
@@ -240,7 +240,7 @@ router.put(
 			await DossierModel.create({
 				by: req.user.cid,
 				affected: -1,
-				action: `Updated Discord Configuration for server ${id}`,
+				action: `%b updated Discord Configuration for server ${id}`,
 				actionType: ACTION_TYPE.UPDATE_DISCORD_CONFIG,
 			});
 
@@ -384,7 +384,7 @@ router.get(
 router.post(
 	'/send-message',
 	getUser,
-	isSeniorStaff,
+	isManagement,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const { channelId, content } = req.body;
@@ -397,7 +397,7 @@ router.post(
 			DossierModel.create({
 				by: req.user.cid,
 				affected: -1,
-				action: `Sent a Discord Message to ${channelId}`,
+				action: `%b sent a Discord Message to ${channelId}`,
 				actionType: ACTION_TYPE.SEND_DISCORD_MESSAGE,
 			});
 
