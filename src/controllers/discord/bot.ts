@@ -3,7 +3,7 @@ import { getCacheInstance } from '../../app.js';
 import discord from '../../helpers/discord.js';
 import { throwBadRequestException, throwForbiddenException } from '../../helpers/errors.js';
 import zau from '../../helpers/zau.js';
-import { isSeniorStaff, userOrInternalJwt } from '../../middleware/auth.js';
+import { isManagement, isSeniorStaff, userOrInternalJwt } from '../../middleware/auth.js';
 import { jwtInternalAuth } from '../../middleware/internalAuth.js';
 import getUser from '../../middleware/user.js';
 import { ControllerHoursModel } from '../../models/controllerHours.js';
@@ -384,7 +384,7 @@ router.get(
 router.post(
 	'/send-message',
 	getUser,
-	isSeniorStaff,
+	isManagement,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const { channelId, content } = req.body;
