@@ -78,13 +78,15 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 		user.discord = discordUser.id;
 
 		let nickname = `${user.name} | ${user.ratingShort}`;
+
+		// @TODO: remove this since the js bot is dead.
 		await req.app.redis
 			.lpush('newUser4512', JSON.stringify([discordUser.id, token.access_token, nickname]))
 			.then(() => console.log('Task sent to queue', discordUser.id))
 			.catch((err) => console.error('Error sending task', err));
 
 		await req.app.redis.lpush(
-			'new_discord_user',
+			'dbot:new_discord_user',
 			JSON.stringify({ discord: discordUser.id, token: token.access_token }),
 		);
 
@@ -107,7 +109,7 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 router.delete('/user', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		await req.app.redis.lpush(
-			'remove_discord_user',
+			'dbot:remove_discord_user',
 			JSON.stringify({ discord: req.user.discord, token: '' }),
 		);
 

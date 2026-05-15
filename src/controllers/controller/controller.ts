@@ -362,6 +362,11 @@ router.patch(
 					action: `%a was set as Rating ${req.body.rating} by an external service.`,
 					actionType: ACTION_TYPE.SET_RATING,
 				});
+
+				req.app.redis.lpush(
+					'dbot:update_user',
+					JSON.stringify(user.toJSON({ virtuals: false, version: false })),
+				);
 			}
 
 			return res.status(status.OK).json();
@@ -626,6 +631,11 @@ router.patch(
 				actionType: ACTION_TYPE.SET_MEMBERSHIP,
 			});
 
+			req.app.redis.lpush(
+				'dbot:update_user',
+				JSON.stringify(user.toJSON({ virtuals: false, version: false })),
+			);
+
 			return res.status(status.OK).json();
 		} catch (e) {
 			return next(e);
@@ -684,6 +694,11 @@ router.patch(
 				action: `%a was set as a ${req.body.vis ? 'visiting controller' : 'home controller'} by an external service.`,
 				actionType: ACTION_TYPE.SET_VISIT_STATUS,
 			});
+
+			req.app.redis.lpush(
+				'dbot:update_user',
+				JSON.stringify(user.toJSON({ virtuals: false, version: false })),
+			);
 
 			return res.status(status.OK).json();
 		} catch (e) {
@@ -774,6 +789,11 @@ router.put(
 				actionType: ACTION_TYPE.UPDATE_USER,
 			});
 
+			req.app.redis.lpush(
+				'dbot:update_user',
+				JSON.stringify(user.toJSON({ virtuals: false, version: false })),
+			);
+
 			await TrainingWaitlistModel.deleteMany({
 				studentCid: user.cid,
 				certCode: { $in: updatedCertificationDate.map((c) => c.code) },
@@ -814,6 +834,11 @@ router.patch(
 
 			await user.save();
 			clearUserCache(user.cid);
+
+			req.app.redis.lpush(
+				'dbot:update_user',
+				JSON.stringify(user.toJSON({ virtuals: false, version: false })),
+			);
 
 			return res.status(status.OK).json({ message: 'Certs removed successfully' });
 		} catch (e) {
@@ -892,6 +917,11 @@ router.delete(
 				action: `%a was removed from the roster by %b, reason: ${req.body.reason}`,
 				actionType: ACTION_TYPE.DELETE_USER,
 			});
+
+			req.app.redis.lpush(
+				'dbot:update_user',
+				JSON.stringify(user.toJSON({ virtuals: false, version: false })),
+			);
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
