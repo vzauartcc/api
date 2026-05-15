@@ -364,7 +364,7 @@ router.patch(
 				});
 
 				req.app.redis.lpush(
-					'update_user',
+					'dbot:update_user',
 					JSON.stringify(user.toJSON({ virtuals: false, version: false })),
 				);
 			}
@@ -632,7 +632,7 @@ router.patch(
 			});
 
 			req.app.redis.lpush(
-				'update_user',
+				'dbot:update_user',
 				JSON.stringify(user.toJSON({ virtuals: false, version: false })),
 			);
 
@@ -696,7 +696,7 @@ router.patch(
 			});
 
 			req.app.redis.lpush(
-				'update_user',
+				'dbot:update_user',
 				JSON.stringify(user.toJSON({ virtuals: false, version: false })),
 			);
 
@@ -790,7 +790,7 @@ router.put(
 			});
 
 			req.app.redis.lpush(
-				'update_user',
+				'dbot:update_user',
 				JSON.stringify(user.toJSON({ virtuals: false, version: false })),
 			);
 
@@ -836,7 +836,7 @@ router.patch(
 			clearUserCache(user.cid);
 
 			req.app.redis.lpush(
-				'update_user',
+				'dbot:update_user',
 				JSON.stringify(user.toJSON({ virtuals: false, version: false })),
 			);
 
@@ -919,7 +919,7 @@ router.delete(
 			});
 
 			req.app.redis.lpush(
-				'update_user',
+				'dbot:update_user',
 				JSON.stringify(user.toJSON({ virtuals: false, version: false })),
 			);
 
