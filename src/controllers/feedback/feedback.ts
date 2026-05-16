@@ -81,17 +81,15 @@ router.get('/own', getUser, async (req: Request, res: Response, next: NextFuncti
 	}
 });
 
-router.post('/', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	// Submit feedback
+	console.log(req.body);
 	try {
 		if (
-			req.body.name === '' ||
-			req.body.email === '' ||
-			req.body.cid === null ||
 			req.body.controller === null ||
 			req.body.rating === null ||
 			req.body.position === null ||
-			req.body.comments === ''
+			req.body.comments.trim() === ''
 		) {
 			// Validation
 			throwBadRequestException('All fields are required');
@@ -102,9 +100,9 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 		}
 
 		await FeedbackModel.create({
-			name: req.body.name,
-			email: req.body.email,
-			submitter: req.body.cid,
+			name: req.user.name,
+			email: req.user.email,
+			submitter: req.user.cid,
 			controllerCid: req.body.controller,
 			rating: req.body.rating,
 			position: req.body.position,
@@ -115,7 +113,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 		await getCacheInstance().clear('feedback-count');
 
 		await DossierModel.create({
-			by: req.body.cid,
+			by: req.user.cid,
 			affected: req.body.controller,
 			action: `%b submitted feedback about %a.`,
 			actionType: ACTION_TYPE.SUBMIT_FEEDBACK,
@@ -144,6 +142,7 @@ router.get('/controllers', getUser, async (req: Request, res: Response, next: Ne
 				cid: user.cid,
 				rating: user.rating,
 				vis: user.vis,
+				name: `${user.fname} ${user.lname}`,
 			});
 		}
 
