@@ -59,13 +59,11 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 	}
 });
 
-router.post('/', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	// Submit staffing request
 	try {
 		if (
 			!req.body.vaName ||
-			!req.body.name ||
-			!req.body.email ||
 			!req.body.date ||
 			!req.body.pilots ||
 			!req.body.route ||
@@ -81,8 +79,8 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 
 		const count = await StaffingRequestModel.countDocuments({
 			accepted: false,
-			name: req.body.name,
-			email: req.body.email,
+			name: req.user.name,
+			email: req.user.email,
 		})
 			.cache('5 minutes', `staffing-requests-submitted-${req.body.email}`)
 			.exec();
@@ -95,8 +93,8 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 
 		const newRequest = await StaffingRequestModel.create({
 			vaName: req.body.vaName,
-			name: req.body.name,
-			email: req.body.email,
+			name: req.user.name,
+			email: req.user.email,
 			date: req.body.date,
 			pilots: req.body.pilots,
 			route: req.body.route,
@@ -114,8 +112,8 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 			template: `staffingRequest`,
 			context: {
 				vaName: req.body.vaName,
-				name: req.body.name,
-				email: req.body.email,
+				name: req.user.name,
+				email: req.user.email,
 				date: req.body.date,
 				pilots: req.body.pilots,
 				route: req.body.route,
