@@ -40,6 +40,40 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 	}
 });
 
+router.get('/upcoming', async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const page = +(req.query['page'] as string) || 1;
+		const limit = +(req.query['limit'] as string) || 10;
+
+		const count = await StaffingRequestModel.countDocuments({
+			deleted: false,
+			accepted: true,
+			date: { $gte: Date.now() },
+		})
+			.cache('5 minutes', 'count-staffing-requests')
+			.exec();
+		let requests: any[] = [];
+
+		if (count > 0) {
+			requests = await StaffingRequestModel.find({
+				deleted: false,
+				accepted: true,
+				date: { $gte: Date.now() },
+			})
+				.skip(limit * (page - 1))
+				.limit(limit)
+				.sort({ date: 'desc' })
+				.lean()
+				.cache()
+				.exec();
+		}
+
+		return res.status(status.OK).json({ amount: count, requests });
+	} catch (e) {
+		return next(e);
+	}
+});
+
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (!req.params['id'] || req.params['id'] === 'undefined') {
