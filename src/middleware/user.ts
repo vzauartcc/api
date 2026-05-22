@@ -30,15 +30,8 @@ export default async function (req: Request, res: Response, next: NextFunction) 
 }
 
 function setupSentry(req: Request) {
-	const ips = req.headers['x-original-forwarded-for'];
-	let clientIp = req.ip;
-
-	if (typeof ips === 'string') {
-		clientIp = ips?.split(',')[0]?.trim() || req.ip;
-	}
-
 	const user: Sentry.User = {
-		ip_address: clientIp ?? null,
+		ip_address: req.ip ?? null,
 	};
 
 	if (req.user) {
