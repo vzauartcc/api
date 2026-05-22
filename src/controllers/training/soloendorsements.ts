@@ -110,6 +110,8 @@ router.post(
 						expDate: DateTime.fromJSDate(endDate).toUTC().toFormat('yyyy-MM-dd'),
 					});
 					vatusaId = vatusaResponse.data.id || 0;
+
+					console.log('vatusa solo endorsement id', vatusaId, vatusaResponse.data);
 				} catch (err) {
 					throwInternalServerErrorException(
 						(err as any).response?.data?.data?.msg || 'Error posting to VATUSA',
