@@ -19,6 +19,7 @@ const router = Router();
 router.get('/', getUser, isMember, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		let waitlist = await TrainingWaitlistModel.find({})
+			.sort({ createdAt: 'asc' })
 			.populate([
 				{
 					path: 'student',
