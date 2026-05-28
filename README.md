@@ -4,6 +4,8 @@ An Express app that provides data to the UI.
 
 [![Import to Doppler](https://raw.githubusercontent.com/DopplerUniversity/app-config-templates/main/doppler-button.svg)](https://dashboard.doppler.com/workplace/template/import?template=https%3A%2F%2Fgithub.com%2Fvzauartcc%2Fapi%2Fblob%2Fmain%2Fdoppler-template.yaml)
 
+Log in with the Doppler CLI (`doppler login`), or set your token with the Doppler CLI (`doppler configure set token 'dp.st.prd.xxxx' --scope ./`). Then, run with: `npm run start:dev`.
+
 # License
 
 The Chicago ARTCC website is hereby released under the Creative Commons CC BY-NC-SA 4.0 license. Please ensure you are familiar with the license before contributing to this project. A couple of key takeaways:

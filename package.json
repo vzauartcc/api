@@ -14,6 +14,7 @@
 	"scripts": {
 		"lint": "eslint . --fix",
 		"format": "prettier --write .",
+		"start:dev": "doppler run -- nodemon --exec \"npx tsx --import ./src/instrument.ts src/app.ts\"",
 		"start:ryan": "doppler run -p api -c dev_ryan -- nodemon --exec \"npx tsx --import ./src/instrument.ts src/app.ts\"",
 		"build": "tsc && cp -R src/email dist/email",
 		"test:renovate": "npx --yes --package renovate -- renovate-config-validator"
