@@ -11,8 +11,6 @@ import {
 import { Upload } from '@aws-sdk/lib-storage';
 import type { Readable } from 'stream';
 
-const BUCKET = 'zauartcc';
-
 let client: S3Client | null = null;
 
 const uploadMap = new Map<string, number>();
@@ -29,18 +27,9 @@ export const setUploadStatus = (id: string, progress: number) => {
 };
 export const getUploadStatus = (id: string) => uploadMap.get(id);
 
-function getS3Prefix() {
-	switch (process.env['S3_FOLDER_PREFIX']) {
-		case 'production':
-			return 'production';
-		case 'staging':
-			return 'staging';
-		default:
-			return 'development';
-	}
+function getS3Bucket() {
+	return `${process.env['S3_BUCKET_NAME']}`;
 }
-
-const S3_PREFIX = getS3Prefix(); // Get the correct environment folder
 
 export function setupS3() {
 	const AWS_ACCESS_KEY_ID = process.env['AWS_ACCESS_KEY_ID'];
@@ -74,7 +63,7 @@ export function uploadToS3(
 		>,
 	progressHandler?: any,
 ) {
-	if (!client || !BUCKET) {
+	if (!client || !getS3Bucket()) {
 		throw new Error('S3 not set up.');
 	}
 
@@ -82,8 +71,8 @@ export function uploadToS3(
 		client: client,
 		params: {
 			...options,
-			Bucket: BUCKET,
-			Key: `${S3_PREFIX}/${filename}`,
+			Bucket: getS3Bucket(),
+			Key: filename,
 			Body: file,
 			ContentType: mimeType,
 			ACL: 'public-read',
@@ -100,26 +89,26 @@ export function uploadToS3(
 }
 
 export function deleteFromS3(filename: string) {
-	if (!client || !BUCKET) {
+	if (!client || !getS3Bucket()) {
 		throw new Error('S3 not set up.');
 	}
 
 	return client.send(
 		new DeleteObjectCommand({
-			Bucket: BUCKET,
-			Key: `${S3_PREFIX}/${filename}`,
+			Bucket: getS3Bucket(),
+			Key: filename,
 		}),
 	);
 }
 
 export async function findInS3(filename: string) {
-	if (!client || !BUCKET) {
+	if (!client || !getS3Bucket()) {
 		throw new Error('S3 not set up.');
 	}
 
 	const command = new HeadObjectCommand({
-		Bucket: BUCKET,
-		Key: `${S3_PREFIX}/${filename}`,
+		Bucket: getS3Bucket(),
+		Key: filename,
 	});
 
 	try {
@@ -136,7 +125,7 @@ export async function findInS3(filename: string) {
 }
 
 export async function findPrefixInS3(partial: string) {
-	if (!client || !BUCKET) {
+	if (!client || !getS3Bucket()) {
 		throw new Error('S3 not set up.');
 	}
 
@@ -146,8 +135,8 @@ export async function findPrefixInS3(partial: string) {
 
 	while (isTruncated) {
 		const cmd: ListObjectsV2Command = new ListObjectsV2Command({
-			Bucket: BUCKET,
-			Prefix: `${S3_PREFIX}/${partial}`,
+			Bucket: getS3Bucket(),
+			Prefix: partial,
 			ContinuationToken: continuationToken,
 		});
 

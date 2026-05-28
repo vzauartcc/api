@@ -485,9 +485,7 @@ router.post(
 							fieldsChunked.length > 1
 								? undefined
 								: {
-										url:
-											`https://zauartcc.sfo3.digitaloceanspaces.com/${process.env['S3_FOLDER_PREFIX']}/events/` +
-											eventData.bannerUrl,
+										url: `${process.env['S3_ORIGIN_ENDPOINT']}/events/` + eventData.bannerUrl,
 									},
 					},
 				],
@@ -502,9 +500,7 @@ router.post(
 					url: `https://www.zauartcc.org/events/${eventData.url}`,
 					fields: fieldsChunked[1],
 					image: {
-						url:
-							`https://zauartcc.sfo3.digitaloceanspaces.com/${process.env['S3_FOLDER_PREFIX']}/events/` +
-							eventData.bannerUrl,
+						url: `${process.env['S3_ORIGIN_ENDPOINT']}/events/` + eventData.bannerUrl,
 					},
 					footer: { text: 'Position information provided by WATSN' },
 				};
