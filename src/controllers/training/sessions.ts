@@ -140,8 +140,10 @@ router.get(
 				.populate('instructor', 'fname lname')
 				.populate('milestone', 'name code')
 				.lean()
-				.cache('10 minutes', `sessions-student-${req.params['cid']}-page-${page}`)
+				.cache('10 minutes', `sessions-student-${req.params['cid']}-page-${page}-limit-${limit}`)
 				.exec();
+
+			console.log('returning', sessions.length, 'docs');
 
 			return res.status(status.OK).json({
 				count: amount,

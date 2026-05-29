@@ -30,7 +30,7 @@ import { TrainingWaitlistModel } from '../../models/trainingWaitlist.js';
 import { UserModel, type IUser } from '../../models/user.js';
 import status from '../../types/status.js';
 import absenceRouter from './absence.js';
-import { checkOI, clearUserCache, grantCerts, syncUserHistory, uploadAvatar } from './utils.js';
+import { checkOI, clearUserCache, grantCerts, syncUserHistory } from './utils.js';
 import visitRouter from './visitapplications.js';
 
 const router = Router();
@@ -509,7 +509,6 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response, next: Nex
 		await UserModel.create({
 			...req.body,
 			oi: userOi,
-			avatar: `${req.body.cid}-default.png`,
 			certCodes: certDates.map((c) => c.code),
 			certificationDate: certDates,
 		});
@@ -714,7 +713,7 @@ router.put(
 	isNotSelf(),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			if (!req.body.form) {
+			if (!req.body) {
 				throwBadRequestException('Invalid form data');
 			}
 
@@ -733,48 +732,45 @@ router.put(
 				throwNotFoundException('User not found');
 			}
 
-			const { fname, lname, email, oi, roles, certs, vis } = req.body.form;
-			const toApply = {
-				roles: [] as string[],
-			};
-
-			// Prepare roles to update
-			for (const [code, set] of Object.entries(roles)) {
-				if (set) {
-					toApply.roles.push(code);
-				}
-			}
+			const { fname, lname, email, oi, roles, certs } = req.body;
 
 			// Handle certifications (certCodes and certificationDate)
 			const existingCertMap = new Map(user.certificationDate.map((cert) => [cert.code, cert]));
-			const updatedCertificationDate = [];
+			const updatedCertificationDate = [] as any[];
 
-			for (const [code, set] of Object.entries(certs)) {
-				if (set) {
-					if (existingCertMap.has(code)) {
-						// Keep the existing gainedDate if certification already exists
-						updatedCertificationDate.push({
-							code,
-							gainedDate: existingCertMap.get(code)!.gainedDate,
-						});
-					} else {
-						// If it's a new certification, add with today's date
-						updatedCertificationDate.push({
-							code,
-							gainedDate: new Date(), // Assign current date as gainedDate
-						});
-					}
+			certs.forEach((code: string) => {
+				if (existingCertMap.has(code)) {
+					// Keep the existing gainedDate if certification already exists
+					updatedCertificationDate.push({
+						code,
+						gainedDate: existingCertMap.get(code)!.gainedDate,
+					});
+				} else {
+					// If it's a new certification, add with today's date
+					updatedCertificationDate.push({
+						code,
+						gainedDate: new Date(), // Assign current date as gainedDate
+					});
 				}
+			});
+
+			if (fname) {
+				user.fname = fname;
 			}
 
-			await uploadAvatar(user, oi);
+			if (lname) {
+				user.lname = lname;
+			}
 
-			user.fname = fname;
-			user.lname = lname;
-			user.email = email;
-			user.oi = oi;
-			user.vis = vis;
-			user.roleCodes = toApply.roles;
+			if (email) {
+				user.email = email;
+			}
+
+			if (oi) {
+				user.oi = oi;
+			}
+
+			user.roleCodes = roles;
 			user.certCodes = updatedCertificationDate.map((c) => c.code);
 			user.certificationDate = updatedCertificationDate;
 

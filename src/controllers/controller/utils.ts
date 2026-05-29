@@ -1,8 +1,7 @@
-import axios, { type AxiosResponse } from 'axios';
+import { type AxiosResponse } from 'axios';
 import { getCacheInstance } from '../../app.js';
 import { throwInternalServerErrorException } from '../../helpers/errors.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
-import { findInS3, uploadToS3 } from '../../helpers/s3.js';
 import { vatusaApi } from '../../helpers/vatusa.js';
 import { UserModel, type ICertificationDate, type IUser } from '../../models/user.js';
 
@@ -19,12 +18,10 @@ export async function checkOI(user: IUser) {
 		if (user.oi) {
 			// OIs are only in the database once
 			if (oi.filter((o) => o.oi === user.oi).length === 0) {
-				uploadAvatar(user, user.oi);
 				return user.oi;
 			} else {
 				// OIs are matched to the user
 				if (oi.some((u) => u.oi === user.oi && u.cid === user.cid)) {
-					uploadAvatar(user, user.oi);
 					return user.oi;
 				}
 			}
@@ -36,33 +33,10 @@ export async function checkOI(user: IUser) {
 			oi.map((oi) => oi.oi || '').filter((oi) => oi !== ''),
 		);
 
-		const { data } = await axios.get(
-			`https://ui-avatars.com/api/?name=${oi}&size=256&background=122049&color=ffffff`,
-			{ responseType: 'arraybuffer' },
-		);
-
-		await uploadToS3(`avatars/${user.cid}-default.png`, data, 'image/png', {
-			ContentDisposition: 'inline',
-		});
-
 		await getCacheInstance().clear('operating-initials');
 		return assignedOi;
 	} catch (e) {
 		throwInternalServerErrorException(`${e}`);
-	}
-}
-
-export async function uploadAvatar(user: IUser, oi: string) {
-	const exists = await findInS3(`avatars/${user.cid}-default.png`);
-	if (!exists || oi !== user.oi) {
-		const { data } = await axios.get(
-			`https://ui-avatars.com/api/?name=${oi}&size=256&background=122049&color=ffffff`,
-			{ responseType: 'arraybuffer' },
-		);
-
-		await uploadToS3(`avatars/${user.cid}-default.png`, data, 'image/png', {
-			ContentDisposition: 'inline',
-		});
 	}
 }
 

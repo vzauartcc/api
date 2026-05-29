@@ -3,13 +3,12 @@ import { randomUUID } from 'crypto';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import {
-	throwBadRequestException,
-	throwInternalServerErrorException,
-	throwNotFoundException,
-	throwUnauthorizedException,
+    throwBadRequestException,
+    throwInternalServerErrorException,
+    throwNotFoundException,
+    throwUnauthorizedException,
 } from '../../helpers/errors.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
-import { uploadToS3 } from '../../helpers/s3.js';
 import zau from '../../helpers/zau.js';
 import { userOrInternal } from '../../middleware/auth.js';
 import internalAuth from '../../middleware/internalAuth.js';
@@ -217,19 +216,6 @@ router.post('/login', oAuth, async (req: Request, res: Response, next: NextFunct
 				user.lname = userData.lastName;
 			}
 			user.rating = userData.ratingId;
-		}
-
-		if (user.oi && !user.avatar) {
-			const { data } = await axios.get(
-				`https://ui-avatars.com/api/?name=${user.oi}&size=256&background=122049&color=ffffff`,
-				{ responseType: 'arraybuffer' },
-			);
-
-			await uploadToS3(`avatars/${user.cid}-default.png`, data, 'image/png', {
-				ContentDisposition: 'inline',
-			});
-
-			user.avatar = `${user.cid}-default.png`;
 		}
 
 		await user.save();
