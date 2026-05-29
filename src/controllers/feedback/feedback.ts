@@ -146,23 +146,9 @@ router.get('/controllers', getUser, async (req: Request, res: Response, next: Ne
 			});
 		}
 
-		controllers.sort((a, b) => {
-			const nameA = a.fname.toUpperCase();
-			const nameB = b.fname.toUpperCase();
-
-			if (nameA < nameB) return -1;
-
-			if (nameA > nameB) return 1;
-
-			const aName = a.lname.toUpperCase();
-			const bName = b.lname.toUpperCase();
-
-			if (aName < bName) return -1;
-
-			if (aName > bName) return 1;
-
-			return 0;
-		});
+		controllers.sort(
+			(a, b) => a.lname.localeCompare(b.lname) || a.fname.localeCompare(b.lname) || a.cid - b.cid,
+		);
 
 		return res.status(status.OK).json(controllers);
 	} catch (e) {

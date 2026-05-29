@@ -3,10 +3,10 @@ import { randomUUID } from 'crypto';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import {
-    throwBadRequestException,
-    throwInternalServerErrorException,
-    throwNotFoundException,
-    throwUnauthorizedException,
+	throwBadRequestException,
+	throwInternalServerErrorException,
+	throwNotFoundException,
+	throwUnauthorizedException,
 } from '../../helpers/errors.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import zau from '../../helpers/zau.js';
@@ -79,9 +79,23 @@ router.get('/', userOrInternal, async (req: Request, res: Response, next: NextFu
 				.exec();
 		}
 
-		const home = allUsers.filter((user) => user.vis === false && user.member === true);
-		const visiting = allUsers.filter((user) => user.vis === true && user.member === true);
-		const removed = allUsers.filter((user) => user.member === false);
+		const home = allUsers
+			.filter((user) => user.vis === false && user.member === true)
+			.sort(
+				(a, b) => a.lname.localeCompare(b.lname) || a.fname.localeCompare(b.lname) || a.cid - b.cid,
+			);
+
+		const visiting = allUsers
+			.filter((user) => user.vis === true && user.member === true)
+			.sort(
+				(a, b) => a.lname.localeCompare(b.lname) || a.fname.localeCompare(b.lname) || a.cid - b.cid,
+			);
+
+		const removed = allUsers
+			.filter((user) => user.member === false)
+			.sort(
+				(a, b) => a.lname.localeCompare(b.lname) || a.fname.localeCompare(b.lname) || a.cid - b.cid,
+			);
 
 		if (!home || !visiting || !removed) {
 			throwInternalServerErrorException('Unable to retrieve controllers');

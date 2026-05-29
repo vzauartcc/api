@@ -42,8 +42,16 @@ router.get('/', getUser, async (req: Request, res: Response, next: NextFunction)
 	try {
 		const allUsers = await getUsersWithPrivacy(req.user, { member: true });
 
-		const home = allUsers.filter((user) => user.vis === false);
-		const visiting = allUsers.filter((user) => user.vis === true);
+		const home = allUsers
+			.filter((user) => user.vis === false)
+			.sort(
+				(a, b) => a.lname.localeCompare(b.lname) || a.fname.localeCompare(b.fname) || a.cid - b.cid,
+			);
+		const visiting = allUsers
+			.filter((user) => user.vis === true)
+			.sort(
+				(a, b) => a.lname.localeCompare(b.lname) || a.fname.localeCompare(b.fname) || a.cid - b.cid,
+			);
 
 		if (!home || !visiting) {
 			throwInternalServerErrorException('Unable to retrieve controllers');
