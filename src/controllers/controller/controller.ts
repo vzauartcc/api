@@ -2,11 +2,11 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import { DateTime } from 'luxon';
 import { getCacheInstance } from '../../app.js';
 import {
-	throwBadRequestException,
-	throwConflictException,
-	throwInternalServerErrorException,
-	throwNotFoundException,
-	throwServiceUnavailableException,
+    throwBadRequestException,
+    throwConflictException,
+    throwInternalServerErrorException,
+    throwNotFoundException,
+    throwServiceUnavailableException,
 } from '../../helpers/errors.js';
 import { sendMail } from '../../helpers/mailer.js';
 import { getUsersWithPrivacy } from '../../helpers/mongodb.js';
@@ -14,11 +14,11 @@ import { clearCachePrefix } from '../../helpers/redis.js';
 import { vatusaApi } from '../../helpers/vatusa.js';
 import zau from '../../helpers/zau.js';
 import {
-	hasRole,
-	isManagement,
-	isNotSelf,
-	isStaff,
-	userOrInternal,
+    hasRole,
+    isManagement,
+    isNotSelf,
+    isStaff,
+    userOrInternal,
 } from '../../middleware/auth.js';
 import internalAuth from '../../middleware/internalAuth.js';
 import getUser from '../../middleware/user.js';
@@ -168,7 +168,7 @@ router.get('/certifications', async (_req: Request, res: Response, next: NextFun
 	try {
 		const certifications = await CertificationModel.find().lean().cache('10 minutes').exec();
 
-		return res.status(status.OK).json(certifications);
+		return res.status(status.OK).json(certifications.sort((a, b) => a.order - b.order));
 	} catch (e) {
 		return next(e);
 	}

@@ -1,9 +1,9 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { isValidObjectId } from 'mongoose';
 import {
-	throwBadRequestException,
-	throwNotFoundException,
-	throwTooManyRequestsException,
+    throwBadRequestException,
+    throwNotFoundException,
+    throwTooManyRequestsException,
 } from '../../helpers/errors.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { isMember, isSeniorStaff, isTrainingStaff } from '../../middleware/auth.js';
@@ -261,7 +261,7 @@ router.get('/instructors', getUser, async (_req: Request, res: Response, next: N
 			.cache('10 minutes', 'waitlist-instructors')
 			.exec();
 
-		return res.status(status.OK).json(instructors);
+		return res.status(status.OK).json(instructors.sort((a, b) => a.cid - b.cid));
 	} catch (e) {
 		return next(e);
 	}
