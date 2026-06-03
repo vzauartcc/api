@@ -2,11 +2,11 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import { DateTime } from 'luxon';
 import { getCacheInstance } from '../../app.js';
 import {
-    throwBadRequestException,
-    throwConflictException,
-    throwInternalServerErrorException,
-    throwNotFoundException,
-    throwServiceUnavailableException,
+	throwBadRequestException,
+	throwConflictException,
+	throwInternalServerErrorException,
+	throwNotFoundException,
+	throwServiceUnavailableException,
 } from '../../helpers/errors.js';
 import { sendMail } from '../../helpers/mailer.js';
 import { getUsersWithPrivacy } from '../../helpers/mongodb.js';
@@ -14,11 +14,11 @@ import { clearCachePrefix } from '../../helpers/redis.js';
 import { vatusaApi } from '../../helpers/vatusa.js';
 import zau from '../../helpers/zau.js';
 import {
-    hasRole,
-    isManagement,
-    isNotSelf,
-    isStaff,
-    userOrInternal,
+	hasRole,
+	isManagement,
+	isNotSelf,
+	isStaff,
+	userOrInternal,
 } from '../../middleware/auth.js';
 import internalAuth from '../../middleware/internalAuth.js';
 import getUser from '../../middleware/user.js';
@@ -384,7 +384,26 @@ router.patch(
 	},
 );
 
-// @TODO: fix this to remove the ts-ignore and structure the data properly
+interface ActivityHistory {
+	name: string;
+	month: number;
+	year: number;
+	del: number;
+	gnd: number;
+	twr: number;
+	app: number;
+	ctr: number;
+}
+
+type PosType = 'del' | 'gnd' | 'twr' | 'app' | 'ctr';
+
+interface HoursResponse {
+	total: Record<PosType, number>;
+	sessionCount: number;
+	sessionAvg: number;
+	activity: ActivityHistory[];
+}
+
 router.get('/stats/:cid', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (
@@ -399,14 +418,7 @@ router.get('/stats/:cid', async (req: Request, res: Response, next: NextFunction
 			.cache('5 minutes')
 			.exec();
 
-		const hours = {
-			gtyear: {
-				del: 0,
-				gnd: 0,
-				twr: 0,
-				app: 0,
-				ctr: 0,
-			},
+		const hours: HoursResponse = {
 			total: {
 				del: 0,
 				gnd: 0,
@@ -416,9 +428,9 @@ router.get('/stats/:cid', async (req: Request, res: Response, next: NextFunction
 			},
 			sessionCount: controllerHours.length,
 			sessionAvg: 0,
-			months: [],
+			activity: [],
 		};
-		const pos = {
+		const pos: Record<string, PosType> = {
 			del: 'del',
 			gnd: 'gnd',
 			twr: 'twr',
@@ -434,18 +446,29 @@ router.get('/stats/:cid', async (req: Request, res: Response, next: NextFunction
 		for (let i = 0; i < 12; i++) {
 			const theMonth = today.minus({ months: i });
 			const ms = getMonthYearString(theMonth);
-			// @ts-ignore
-			hours[ms] = {
+
+			hours.activity.push({
+				name: ms,
+				month: theMonth.month,
+				year: theMonth.year,
 				del: 0,
 				gnd: 0,
 				twr: 0,
 				app: 0,
 				ctr: 0,
-			};
-
-			// @ts-ignore
-			hours.months.push(ms);
+			});
 		}
+
+		hours.activity.push({
+			name: '> 1 year',
+			month: 0,
+			year: 0,
+			del: 0,
+			gnd: 0,
+			twr: 0,
+			app: 0,
+			ctr: 0,
+		});
 
 		for (const sess of controllerHours) {
 			if (!sess.timeEnd) continue;
@@ -456,20 +479,21 @@ router.get('/stats/:cid', async (req: Request, res: Response, next: NextFunction
 				const start = DateTime.fromJSDate(sess.timeStart).toUTC();
 				const end = DateTime.fromJSDate(sess.timeEnd).toUTC();
 
-				// @ts-ignore
 				const type = pos[thePos[1]];
+				if (!type) {
+					continue;
+				}
+
 				const length = Number(end.diff(start)) / 1000;
 				let ms = getMonthYearString(start);
 
-				// @ts-ignore
-				if (!hours[ms]) {
-					ms = 'gtyear';
+				let found = hours.activity.find((a) => a.name === ms);
+				if (!found) {
+					found = hours.activity.find((a) => a.name === '> 1 year')!;
 				}
 
-				// @ts-ignore
-				hours[ms][type] += length;
+				found[type] += length;
 
-				// @ts-ignore
 				hours.total[type] += length;
 			}
 		}

@@ -1,9 +1,9 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { isValidObjectId } from 'mongoose';
 import {
-    throwBadRequestException,
-    throwNotFoundException,
-    throwTooManyRequestsException,
+	throwBadRequestException,
+	throwNotFoundException,
+	throwTooManyRequestsException,
 } from '../../helpers/errors.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { isMember, isSeniorStaff, isTrainingStaff } from '../../middleware/auth.js';
