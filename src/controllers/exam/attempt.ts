@@ -176,7 +176,17 @@ router.get(
 					.exec();
 			}
 
-			return res.status(status.OK).json({ amount: count, attempts: attempts });
+			const students = await ExamAttemptModel.find({})
+				.select('student')
+				.populate({ path: 'user', select: 'fname lname' })
+				.lean({ virtuals: true })
+				.exec();
+
+			return res.status(status.OK).json({
+				amount: count,
+				attempts: attempts,
+				students: [...new Map(students.map((item) => [item.student.toString(), item])).values()],
+			});
 		} catch (e) {
 			return next(e);
 		}
