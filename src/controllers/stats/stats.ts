@@ -487,7 +487,14 @@ router.get(
 			//console.log('Final checks applied, returning data');
 
 			// SECTION: Return Final Data
-			res.status(status.OK).json(Object.values(userData));
+			res.status(status.OK).json({
+				activity: Object.values(userData),
+				activityPeriod: period,
+				activityStart: startofPeriod,
+				activityEnd: endOfPeriod,
+				activityYear: year,
+				periodData: zau.activity.period,
+			});
 		} catch (e) {
 			return next(e);
 		}
