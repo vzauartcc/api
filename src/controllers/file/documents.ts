@@ -207,19 +207,19 @@ router.put(
 
 			const { name, category, description, content, type } = req.body;
 
-			if (type === 'doc') {
-				if (document.name !== name) {
-					document.name = name;
-					document.slug =
-						name
-							.replace(/\s+/g, '-')
-							.toLowerCase()
-							.replace(/^-+|-+(?=-|$)/g, '')
-							.replace(/[^a-zA-Z0-9-_]/g, '') +
-						'-' +
-						Date.now().toString().slice(-5);
-				}
+			if (document.name !== name) {
+				document.name = name;
+				document.slug =
+					name
+						.replace(/\s+/g, '-')
+						.toLowerCase()
+						.replace(/^-+|-+(?=-|$)/g, '')
+						.replace(/[^a-zA-Z0-9-_]/g, '') +
+					'-' +
+					Date.now().toString().slice(-5);
+			}
 
+			if (type === 'doc') {
 				document.type = 'doc';
 				document.category = category;
 				document.description = description;
