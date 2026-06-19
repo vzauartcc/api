@@ -201,61 +201,75 @@ router.get(
 	isTrainingStaff,
 	async (_req: Request, res: Response, next: NextFunction) => {
 		try {
-			let lastTraining = await TrainingSessionModel.aggregate([
+			const sessions = await TrainingSessionModel.aggregate([
 				{
-					$group: {
-						_id: '$studentCid',
-						studentCid: { $first: '$studentCid' },
-						lastSession: { $last: '$endTime' },
-						milestoneCode: { $first: '$milestoneCode' },
+					$project: {
+						month: { $month: '$createdAt' },
+						year: { $year: '$createdAt' },
+						durationMs: { $subtract: ['$endTime', '$startTime'] },
 					},
 				},
-				{ $sort: { lastSession: 1 } },
+				{
+					$group: {
+						_id: {
+							month: '$month',
+							year: '$year',
+						},
+						total: { $sum: 1 },
+						totalTimeMs: { $sum: '$durationMs' },
+						month: { $first: '$month' },
+						year: { $first: '$year' },
+					},
+				},
+				{
+					$project: {
+						_id: 1,
+						total: 1,
+						month: 1,
+						year: 1,
+						totalTime: { $divide: ['$totalTimeMs', 1000] },
+					},
+				},
+				{ $sort: { year: -1, month: -1 } },
+				{ $limit: 12 },
 			])
 				.cache('10 minutes')
 				.exec();
 
-			let lastRequest = await TrainingRequestModel.aggregate([
-				{
-					$group: {
-						_id: '$studentCid',
-						studentCid: { $first: '$studentCid' },
-						lastRequest: { $last: '$endTime' },
-						milestoneCode: { $first: '$milestoneCode' },
-					},
-				},
-				{ $sort: { lastSession: 1 } },
-			])
-				.cache('10 minutes')
-				.exec();
+			for (const item of sessions) {
+				item.month = months[item.month];
+			}
 
-			await TrainingSessionModel.populate(lastTraining, { path: 'student' });
-			await TrainingSessionModel.populate(lastTraining, { path: 'milestone' });
-			await TrainingRequestModel.populate(lastRequest, { path: 'milestone' });
-			const allHomeControllers = await UserModel.find({ member: true, rating: { $lt: 12 } })
-				.select('-email -idsToken -discordInfo')
-				.lean({ virtuals: true })
-				.cache('10 minutes')
-				.exec();
-			const allCids = allHomeControllers.map((c) => c.cid);
-			lastTraining = lastTraining.filter(
-				(train) => train.student?.rating < 12 && train.student?.member && !train.student?.vis,
-			);
-			const cidsWithTraining = lastTraining.map((train) => train.studentCid);
-			const cidsWithoutTraining = allCids.filter((cid) => !cidsWithTraining.includes(cid));
+			// Normalize data
+			const now = new Date();
+			for (let i = 0; i < 12; i++) {
+				const month = new Date(now.getFullYear(), now.getMonth(), 1);
+				month.setMonth(now.getMonth() - i);
 
-			const controllersWithoutTraining = allHomeControllers
-				.filter((c) => cidsWithoutTraining.includes(c.cid))
-				.filter((c) => !c.certCodes.includes('zau'));
-			lastRequest = lastRequest.reduce((acc, cur) => {
-				acc[cur.studentCid] = cur;
-				return acc;
-			}, {});
+				const sessionData = sessions[i];
+				if (
+					!sessionData ||
+					!sessionData._id ||
+					!sessionData._id.year ||
+					!sessionData._id.month ||
+					sessionData._id.year !== month.getFullYear() ||
+					sessionData._id.month !== month.getMonth() + 1
+				) {
+					sessions.splice(i, 0, {
+						_id: {
+							year: month.getFullYear(),
+							month: month.getMonth() + 1,
+						},
+						total: 0,
+						month: months[month.getMonth() + 1],
+						year: month.getFullYear(),
+						totalTime: 0,
+					});
+				}
+			}
 
 			return res.status(status.OK).json({
-				lastTraining,
-				lastRequest,
-				controllersWithoutTraining,
+				sessions: sessions.slice(0, 12).reverse(),
 			});
 		} catch (e) {
 			return next(e);
