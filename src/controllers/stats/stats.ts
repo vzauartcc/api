@@ -132,11 +132,58 @@ router.get('/admin', getUser, isStaff, async (_req: Request, res: Response, next
 			item.rating = zau.ratingsShort[item._id];
 		}
 
+		// Normalize data
+		const now = new Date();
+		for (let i = 0; i < 12; i++) {
+			const month = new Date(now.getFullYear(), now.getMonth(), 1);
+			month.setMonth(now.getMonth() - i);
+
+			const hoursData = hours[i];
+			if (
+				!hoursData ||
+				!hoursData._id ||
+				!hoursData._id.year ||
+				!hoursData._id.month ||
+				hoursData._id.year !== month.getFullYear() ||
+				hoursData._id.month !== month.getMonth() + 1
+			) {
+				hours.splice(i, 0, {
+					_id: {
+						year: month.getFullYear(),
+						month: month.getMonth() + 1,
+					},
+					total: 0,
+					month: months[month.getMonth() + 1],
+					year: month.getFullYear(),
+				});
+			}
+
+			const feedbackData = feedback[i];
+			if (
+				!feedbackData ||
+				!feedbackData._id ||
+				!feedbackData._id.year ||
+				!feedbackData._id.month ||
+				feedbackData._id.year !== month.getFullYear() ||
+				feedbackData._id.month !== month.getMonth() + 1
+			) {
+				feedback.splice(i, 0, {
+					_id: {
+						year: month.getFullYear(),
+						month: month.getMonth() + 1,
+					},
+					total: 0,
+					month: months[month.getMonth() + 1],
+					year: month.getFullYear(),
+				});
+			}
+		}
+
 		return res.status(status.OK).json({
 			totalTime: totalTime[0] ? Math.round(totalTime[0].total / 1000) : 1,
 			totalSessions: sessionCount[0] ? Math.round(sessionCount[0].total) : 1,
-			feedback: feedback.reverse(),
-			hours: hours.reverse(),
+			feedback: feedback.slice(0, 12).reverse(),
+			hours: hours.slice(0, 12).reverse(),
 			counts: {
 				home: homeCount,
 				vis: visitorCount,
