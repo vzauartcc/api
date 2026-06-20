@@ -5,10 +5,10 @@ import * as fs from 'fs';
 import multer from 'multer';
 import { getCacheInstance } from '../../app.js';
 import {
-	throwBadRequestException,
-	throwForbiddenException,
-	throwInternalServerErrorException,
-	throwNotFoundException,
+    throwBadRequestException,
+    throwForbiddenException,
+    throwInternalServerErrorException,
+    throwNotFoundException,
 } from '../../helpers/errors.js';
 import { sendMail } from '../../helpers/mailer.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
@@ -566,6 +566,8 @@ router.post(
 				throwBadRequestException('File path missing');
 			}
 
+			console.log(req.body);
+
 			const url =
 				req.body.name
 					.replace(/\s+/g, '-')
@@ -627,9 +629,10 @@ router.post(
 				createdBy: req.user.cid,
 				open: true,
 				submitted: false,
+				requiresEventEndorsement: req.body.requiresEventEndorsement,
 			});
 
-			getCacheInstance().clear('events');
+			await clearCachePrefix('event');
 
 			await DossierModel.create({
 				by: req.user.cid,
@@ -663,7 +666,8 @@ router.put(
 				throwNotFoundException('Event Not Found');
 			}
 
-			const { name, description, startTime, endTime, positions } = req.body;
+			const { name, description, startTime, endTime, positions, requiresEventEndorsement } =
+				req.body;
 			if (eventData.name !== name) {
 				eventData.name = name;
 				eventData.url =
@@ -678,6 +682,7 @@ router.put(
 			eventData.description = description;
 			eventData.eventStart = startTime;
 			eventData.eventEnd = endTime;
+			eventData.requiresEventEndorsement = requiresEventEndorsement;
 
 			const computedPositions: IEventPositionData[] = [];
 

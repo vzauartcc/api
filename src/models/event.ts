@@ -19,6 +19,7 @@ interface IEvent extends SoftDeleteDocument {
 	open: boolean;
 	submitted: boolean;
 	discordId?: string;
+	requiresEventEndorsement: boolean;
 
 	// Virtuals
 	user?: PopulatedDoc<IUser & ITimestamps & Document>;
@@ -42,6 +43,7 @@ const EventSchema = new Schema<IEvent>(
 		open: { type: Boolean, required: true },
 		submitted: { type: Boolean, required: true },
 		discordId: { type: String },
+		requiresEventEndorsement: { type: Boolean },
 	},
 	{
 		timestamps: true,
