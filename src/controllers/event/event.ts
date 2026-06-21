@@ -1,4 +1,5 @@
 import type { Progress } from '@aws-sdk/lib-storage';
+import { captureMessage } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { fileTypeFromFile } from 'file-type';
 import * as fs from 'fs';
@@ -439,6 +440,10 @@ router.post(
 
 			const positions = eventData.positions;
 
+			if (positions.length >= 25 * 10) {
+				throwBadRequestException(`A maximum of ${25 * 10} positions are permitted per event.`);
+			}
+
 			const userCids = [...new Set(positions.map((p) => p.takenBy).filter((cid) => !!cid))];
 			const users = await UserModel.find({ cid: { $in: userCids } })
 				.lean()
@@ -457,98 +462,103 @@ router.post(
 				const user = userMap.get(position.takenBy);
 
 				return {
-					name: position.pos,
-					value: user ? `${user.fname} ${user.lname}` : 'Unknown User',
+					name: trimText(position.pos, 256),
+					value: trimText(user ? `${user.fname} ${user.lname}` : 'Unknown User', 1024),
 					inline: true,
 				};
 			});
 
-			const fieldsChunked = chunkArray(positionFields, 25); // Chunk into arrays of 25 fields
+			const embeds = [];
+
+			for (let i = 0; i < positionFields.length; i += 25) {
+				const chunk = positionFields.slice(i, i + 25);
+
+				const isFirstChunk = i === 0;
+				const isLastChunk = i + 25 >= positionFields.length;
+
+				embeds.push({
+					title: isFirstChunk ? trimText(eventData.name, 256) : undefined,
+					description: isFirstChunk ? trimText(eventData.description, 4096) : undefined,
+					color: 2003199,
+					footer: !isLastChunk ? undefined : { text: 'Position information provided by WATSN' },
+					fields: chunk,
+					url: `https://www.zauartcc.org/events/${eventData.url}#${i}`,
+					image: !isLastChunk
+						? undefined
+						: {
+								url: `${process.env['S3_ORIGIN_ENDPOINT']}/events/` + eventData.bannerUrl,
+							},
+				});
+			}
 
 			const params = {
 				username: 'WATSN',
 				avatar_url:
 					'https://cdn.discordapp.com/avatars/1011884072479502406/feac626c2bdf43bfa8337cd3165e5a92.png?size=1024',
 				content: '',
-				embeds: [
-					{
-						title: eventData.name,
-						description: eventData.description,
-						color: 2003199,
-						footer:
-							fieldsChunked.length > 1
-								? undefined
-								: { text: 'Position information provided by WATSN' },
-						fields: fieldsChunked[0],
-						url: 'https://www.zauartcc.org/events/' + eventData.url,
-						image:
-							fieldsChunked.length > 1
-								? undefined
-								: {
-										url: `${process.env['S3_ORIGIN_ENDPOINT']}/events/` + eventData.bannerUrl,
-									},
-					},
-				],
+				embeds: embeds,
 			};
 
-			if (fieldsChunked.length > 1) {
-				// Second Embed if there are more than 25 fields
-				const secondEmbed = {
-					title: eventData.name,
-					description: '',
-					color: 2003199,
-					url: `https://www.zauartcc.org/events/${eventData.url}`,
-					fields: fieldsChunked[1],
-					image: {
-						url: `${process.env['S3_ORIGIN_ENDPOINT']}/events/` + eventData.bannerUrl,
-					},
-					footer: { text: 'Position information provided by WATSN' },
-				};
-				if (secondEmbed) {
-					params.embeds.push(secondEmbed);
-				}
-			}
+			const isEdit = !!eventData.discordId;
 
-			const webhookUrl =
-				eventData.discordId === undefined
-					? process.env['DISCORD_WEBHOOK']
-					: process.env['DISCORD_WEBHOOK'] + `/messages/${eventData.discordId}`;
+			const webhookUrl = !isEdit
+				? process.env['DISCORD_WEBHOOK']
+				: `${process.env['DISCORD_WEBHOOK']}/messages/${eventData.discordId}`;
 
 			if (!webhookUrl) {
 				throwInternalServerErrorException('Webook URL not found');
 			}
 
-			fetch(webhookUrl, {
-				method: 'POST',
-				headers: {
-					'Content-type': 'application/json',
-				},
-				body: JSON.stringify(params),
-			})
-				.then((res2) => res2.json())
-				.then(async (data) => {
-					let url = eventData.url;
-					let messageId = (data as { id: string }).id;
-					if (messageId !== undefined) {
-						await EventModel.findOneAndUpdate(
-							{ url: url },
-							{ $set: { discordId: String(messageId) } },
-							{ returnOriginal: false },
-						).exec();
-					} else {
-						return res
-							.status(status.NOT_FOUND)
-							.json({ message: 'Event could not be sent', status: status.NOT_FOUND });
-					}
-					return res
-						.status(status.OK)
-						.json({ message: 'Event sent successfully', status: status.OK });
-				})
-				.catch((error) => {
-					console.error(error);
+			try {
+				const response = await fetch(`${webhookUrl}?wait=true`, {
+					method: isEdit ? 'PATCH' : 'POST',
+					headers: {
+						'Content-type': 'application/json',
+					},
+					body: JSON.stringify(params),
 				});
 
-			return res.status(status.OK).json();
+				const data = (await response.json()) as any;
+				if (data) {
+					if (response.status === status.NOT_FOUND && data.code === 10008) {
+						const res2 = await fetch(`${process.env['DISCORD_WEBHOOK']}?wait=true`, {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify(params),
+						});
+
+						const data2 = (await res2.json()) as any;
+						if (data2 && data2.id) {
+							await EventModel.findOneAndUpdate(
+								{ url: url },
+								{ $set: { discordId: String(data2.id) } },
+								{ returnOriginal: false },
+							).exec();
+
+							return res.status(status.OK).json();
+						}
+						return;
+					}
+					let messageId = (data as { id: string }).id;
+					if (!messageId) {
+						captureMessage('Discord Webhook failed', data);
+						throwInternalServerErrorException('Discord failed to process our message.');
+					}
+
+					await EventModel.findOneAndUpdate(
+						{ url: url },
+						{ $set: { discordId: String(messageId) } },
+						{ returnOriginal: false },
+					).exec();
+
+					return res.status(status.OK).json();
+				} else {
+					throwInternalServerErrorException('Discord did not return any data');
+				}
+			} catch (e: any) {
+				console.error('error posting message to discord', e);
+				throwInternalServerErrorException(e.message);
+			}
 		} catch (e) {
 			return next(e);
 		}
@@ -942,12 +952,8 @@ router.put(
 
 export default router;
 
-function chunkArray(arr: string | any[], chunkSize: number) {
-	const chunkedArr = [];
-	let index = 0;
-	while (index < arr.length) {
-		chunkedArr.push(arr.slice(index, index + chunkSize));
-		index += chunkSize;
-	}
-	return chunkedArr;
+function trimText(text: string, length: number) {
+	if (text.length < length) return text;
+
+	return `${text.slice(0, length - 4)} ...`;
 }
