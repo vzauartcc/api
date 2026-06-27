@@ -6,10 +6,10 @@ import * as fs from 'fs';
 import multer from 'multer';
 import { getCacheInstance } from '../../app.js';
 import {
-    throwBadRequestException,
-    throwForbiddenException,
-    throwInternalServerErrorException,
-    throwNotFoundException,
+	throwBadRequestException,
+	throwForbiddenException,
+	throwInternalServerErrorException,
+	throwNotFoundException,
 } from '../../helpers/errors.js';
 import { sendMail } from '../../helpers/mailer.js';
 import { clearCachePrefix } from '../../helpers/redis.js';

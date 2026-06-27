@@ -200,6 +200,7 @@ router.patch(
 
 			waitlist.instructorCid = req.body.instructor;
 			waitlist.certCode = req.body.certification;
+			waitlist.availability = req.body.availability;
 			waitlist.assignedDate =
 				+req.body.instructor === -1 ? null : waitlist.assignedDate || new Date();
 			waitlist.notes = req.body.notes;
@@ -290,6 +291,39 @@ router.get(
 				.exec();
 
 			return res.status(status.OK).json(waitlist);
+		} catch (e) {
+			return next(e);
+		}
+	},
+);
+
+router.get(
+	'/:id',
+	getUser,
+	isSeniorStaff,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			if (!isValidObjectId(req.params['id'])) {
+				throwBadRequestException('Missing ID');
+			}
+
+			const data = await TrainingWaitlistModel.findById(req.params['id'])
+				.populate([
+					{
+						path: 'student',
+						select: 'fname lname cid rating certCodes certifications',
+						populate: {
+							path: 'certifications',
+							select: 'code name order class',
+						},
+					},
+				])
+				.populate('instructor', 'fname lname cid')
+				.populate('certification', 'name code order')
+				.lean({ virtuals: true })
+				.exec();
+
+			return res.status(status.OK).json(data);
 		} catch (e) {
 			return next(e);
 		}
