@@ -928,11 +928,15 @@ router.put(
 				throwBadRequestException('Invalid event slug');
 			}
 
+			if (req.body || req.body.open === undefined) {
+				throwBadRequestException('Body required');
+			}
+
 			const event = await EventModel.updateOne(
 				{ url: req.params['slug'] },
 				{
 					$set: {
-						open: false,
+						open: !!req.body.open,
 					},
 				},
 			).exec();
