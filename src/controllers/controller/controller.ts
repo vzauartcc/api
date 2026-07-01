@@ -71,8 +71,9 @@ interface IUserLean {
 }
 
 interface IRoleGroup {
-	title: string;
+	name: string;
 	code: string;
+	description: string;
 	users: IUserLean[];
 }
 
@@ -93,62 +94,33 @@ router.get('/staff', async (_req: Request, res: Response, next: NextFunction) =>
 			throwServiceUnavailableException('Unable to retrieve staff members');
 		}
 
-		const staff: IStaffDirectory = {
-			atm: {
-				title: 'Air Traffic Manager',
-				code: 'atm',
-				users: [],
-			},
-			datm: {
-				title: 'Deputy Air Traffic Manager',
-				code: 'datm',
-				users: [],
-			},
-			ta: {
-				title: 'Training Administrator',
-				code: 'ta',
-				users: [],
-			},
-			ec: {
-				title: 'Events Team',
-				code: 'events',
-				users: [],
-			},
-			wm: {
-				title: 'Web Team',
-				code: 'wm',
-				users: [],
-			},
-			fe: {
-				title: 'Facility Engineering Team',
-				code: 'facilities',
-				users: [],
-			},
-			ins: {
-				title: 'Instructors',
-				code: 'training',
-				users: [],
-			},
-			ia: {
-				title: 'Instructor Assistants',
-				code: 'training',
-				users: [],
-			},
-			mtr: {
-				title: 'Mentors',
-				code: 'training',
-				users: [],
-			},
-		};
+		const roles = await RoleModel.find()
+			.sort({ order: 'asc' })
+			.lean()
+			.cache('10 minutes', 'roles')
+			.exec();
+
+		const usersByRole = new Map<string, IUserLean[]>();
+
 		(users as IUserLean[]).forEach((user) => {
-			user.roleCodes.forEach((roleCode) => {
-				if (staff[roleCode as keyof IStaffDirectory]) {
-					staff[roleCode as keyof IStaffDirectory]!.users.push(user);
+			user.roleCodes.forEach((role) => {
+				if (!usersByRole.has(role)) {
+					usersByRole.set(role, []);
 				}
+
+				usersByRole.get(role)!.push(user);
 			});
 		});
 
-		return res.status(status.OK).json(staff);
+		return res.status(status.OK).json(
+			roles.reduce<IStaffDirectory>((acc, role) => {
+				acc[role.code] = {
+					...role,
+					users: usersByRole.get(role.code) || [],
+				};
+				return acc;
+			}, {}),
+		);
 	} catch (e) {
 		return next(e);
 	}
