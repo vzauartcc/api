@@ -49,6 +49,24 @@ export async function getUsersWithPrivacy(user: IUser, findOptions = {}) {
 			},
 		},
 		{
+			// 1. REPLACED POPULATE FOR ROLES
+			$lookup: {
+				from: 'roles', // <-- The actual MongoDB collection name for Roles
+				localField: 'roleCodes', // <-- The field on your User document
+				foreignField: 'code', // <-- The field on the Role document (change to '_id' if referencing by ObjectId)
+				as: 'roles',
+			},
+		},
+		{
+			// 2. REPLACED POPULATE FOR CERTIFICATIONS
+			$lookup: {
+				from: 'certifications', // <-- The actual MongoDB collection name for Certifications
+				localField: 'certCodes', // <-- The field on your User document
+				foreignField: 'code', // <-- The field on the Cert document (change to '_id' if referencing by ObjectId)
+				as: 'certifications',
+			},
+		},
+		{
 			$lookup: {
 				from: 'absence',
 				localField: 'cid',
@@ -82,5 +100,21 @@ export async function getUsersWithPrivacy(user: IUser, findOptions = {}) {
 		.cache('1 minute', cacheKey)
 		.exec();
 
-	return await UserModel.populate(results, 'roles certifications');
+	// Convert extended JSON date back to a normal date.
+	return results.map((user) => {
+		if (user.history && Array.isArray(user.history)) {
+			user.history = user.history.map((h: any) => {
+				const startDate = h.start && h.start.$date ? h.start.$date : h.start;
+				const endDate = h.end && h.end.$date ? h.end.$date : h.end;
+
+				return {
+					...h,
+					start: startDate ? new Date(startDate).toISOString() : null,
+					end: endDate ? new Date(endDate).toISOString() : null,
+				};
+			});
+		}
+
+		return user;
+	});
 }
