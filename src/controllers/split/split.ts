@@ -257,3 +257,24 @@ async function getOwnership(redis: Redis) {
 
 	return retval;
 }
+
+router.get('/isSplit', async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const keys = await req.app.redis.keys(`split:*`);
+
+		if (keys.length === 0) {
+			return res.status(status.OK).json(false);
+		}
+
+		for (const key of keys) {
+			const val = await req.app.redis.get(key);
+			if (val !== '35') {
+				return res.status(status.OK).json(true);
+			}
+		}
+
+		return res.status(status.OK).json(false);
+	} catch (e) {
+		return next(e);
+	}
+});
