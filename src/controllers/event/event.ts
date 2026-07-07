@@ -157,7 +157,7 @@ router.patch('/:slug/signup', getUser, async (req: Request, res: Response, next:
 		for (const r of req.body.requests) {
 			if (
 				(/^([A-Z]{2,3})(_([A-Z,0-9]{1,3}))?_(DEL|GND|TWR|APP|DEP|CTR)$/.test(r) ||
-					r.toLowerCase() === 'any') === false
+					r.toLowerCase().includes('any')) === false
 			) {
 				throwBadRequestException('Invalid callsign');
 			}
