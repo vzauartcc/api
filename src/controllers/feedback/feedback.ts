@@ -1,6 +1,10 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { getCacheInstance } from '../../app.js';
-import { throwBadRequestException, throwNotFoundException } from '../../helpers/errors.js';
+import {
+	throwBadRequestException,
+	throwForbiddenException,
+	throwNotFoundException,
+} from '../../helpers/errors.js';
 import { getUsersWithPrivacy } from '../../helpers/mongodb.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { isSeniorStaff } from '../../middleware/auth.js';
@@ -97,6 +101,10 @@ router.post('/', getUser, async (req: Request, res: Response, next: NextFunction
 
 		if (req.body.comments && req.body.comments.length > 5000) {
 			throwBadRequestException('Comments section too long');
+		}
+
+		if (`${req.body.controller}` === `${req.user.cid}`) {
+			throwForbiddenException('You cannot submit feedback about yourself');
 		}
 
 		await FeedbackModel.create({

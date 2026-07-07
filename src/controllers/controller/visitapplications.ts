@@ -215,19 +215,24 @@ router.patch(
 				throwBadRequestException('Invalid CID');
 			}
 
-			const application = await VisitApplicationModel.findOne({ cid: req.params['cid'] })
+			const application = await VisitApplicationModel.findOne({
+				cid: +req.params['cid'],
+				deleted: { $ne: true },
+			})
 				.cache()
 				.exec();
 			if (!application) {
 				throwNotFoundException('Visiting Application Not Found');
 			}
 
-			await vatusaApi.post(`/facility/ZAU/roster/manageVisitor/${req.params['cid']}`);
+			if (!zau.isDev) {
+				await vatusaApi.post(`/facility/ZAU/roster/manageVisitor/${req.params['cid']}`);
+			}
 
 			await application.delete();
 			await getCacheInstance().clear('visit-applications');
 
-			const user = await UserModel.findOne({ cid: req.params['cid'] })
+			const user = await UserModel.findOne({ cid: +req.params['cid'] })
 				.cache('10 minutes', `user-${req.params['cid']}`)
 				.exec();
 			if (!user) {
