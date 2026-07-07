@@ -928,7 +928,7 @@ router.put(
 				throwBadRequestException('Invalid event slug');
 			}
 
-			if (req.body || req.body.open === undefined) {
+			if (!req.body || req.body.open === undefined) {
 				throwBadRequestException('Body required');
 			}
 
