@@ -19,13 +19,14 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 		const amount = await NewsModel.countDocuments({ deleted: false })
 			.cache('5 minutes', 'news-count')
 			.exec();
+
 		const news = await NewsModel.find({ deleted: false })
 			.sort({ createdAt: 'desc' })
 			.skip(limit * (page - 1))
 			.limit(limit)
 			.populate('user', ['fname', 'lname'])
 			.lean()
-			.cache('10 minutes')
+			.cache('10 minutes', `news-${page}-${limit}`)
 			.exec();
 
 		return res.status(status.OK).json({ amount, news });
@@ -66,11 +67,13 @@ router.post('/', getUser, isStaff, async (req: Request, res: Response, next: Nex
 		});
 
 		try {
+			const cleanDescription = content.replace(/<\/?[^>]+(>|$)/g, '');
+
 			await discord.sendMessage('486966861632897034', {
 				embeds: [
 					{
 						title: title,
-						description: `**News Article Published!**\n\n${content.length > 1500 ? content.slice(0, 1500) + '...\n\nRead the full article on the website!' : content}`,
+						description: `**News Article Published!**\n\n${cleanDescription.length > 1500 ? cleanDescription.slice(0, 1500) + '...\n\nRead the full article on the website!' : cleanDescription}`,
 						color: 39423,
 						footer: {
 							text: 'Published by ' + req.user.name,
