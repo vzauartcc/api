@@ -1,4 +1,5 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
+import { clearCachePrefix } from 'helpers/redis.js';
 import { getCacheInstance } from '../../app.js';
 import {
 	throwBadRequestException,
@@ -30,7 +31,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 				.limit(limit)
 				.sort({ date: 'desc' })
 				.lean()
-				.cache()
+				.cache('10 minutes', `staffing-requests-${page}-${limit}`)
 				.exec();
 		}
 
@@ -64,7 +65,7 @@ router.get('/upcoming', async (req: Request, res: Response, next: NextFunction) 
 				.limit(limit)
 				.sort({ date: 'desc' })
 				.lean()
-				.cache()
+				.cache('10 minutes', `staffing-requests-upcoming-${page}-${limit}`)
 				.exec();
 		}
 
@@ -136,8 +137,8 @@ router.post('/', getUser, async (req: Request, res: Response, next: NextFunction
 			accepted: false,
 		});
 
-		await getCacheInstance().clear(`staffing-requests-submitted-${req.body.email}`);
 		await getCacheInstance().clear(`count-staffing-requests`);
+		await clearCachePrefix('staffing-requests');
 
 		// Send an email notification to the specified email address
 		sendMail({
@@ -191,6 +192,7 @@ router.put(
 
 			await staffingRequest.save();
 			await getCacheInstance().clear(`staffing-request-${staffingRequest.id}`);
+			await clearCachePrefix('staffing-requests');
 
 			if (req.body.accepted) {
 				sendMail({
@@ -250,6 +252,7 @@ router.delete(
 
 			await staffingRequest.delete();
 			await getCacheInstance().clear(`staffing-request-${staffingRequest.id}`);
+			await clearCachePrefix('staffing-requests');
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
