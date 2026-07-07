@@ -1,4 +1,5 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
+import zau from 'helpers/zau.js';
 import { getCacheInstance } from '../../app.js';
 import {
 	throwBadRequestException,
@@ -31,18 +32,33 @@ router.get('/', getUser, isManagement, async (_req: Request, res: Response, next
 			try {
 				let vatusaData = {} as IVisitingStatus;
 				if (process.env['NODE_ENV'] === 'development') {
-					vatusaData = {
-						visiting: true,
-						recentlyRostered: false,
-						hasRating: true,
-						ratingConsolidation: true,
-						needsBasic: false,
-						promo: false,
-						visitingDays: 0,
-						hasHome: true,
-						ratingHours: 0,
-						promoDays: 0,
-					};
+					if (Math.random() >= 0.5) {
+						vatusaData = {
+							visiting: false,
+							recentlyRostered: true,
+							hasRating: false,
+							ratingConsolidation: false,
+							needsBasic: true,
+							promo: true,
+							visitingDays: 1,
+							hasHome: false,
+							ratingHours: 1,
+							promoDays: 1,
+						};
+					} else {
+						vatusaData = {
+							visiting: true,
+							recentlyRostered: false,
+							hasRating: true,
+							ratingConsolidation: true,
+							needsBasic: false,
+							promo: false,
+							visitingDays: 60,
+							hasHome: true,
+							ratingHours: 50,
+							promoDays: 50,
+						};
+					}
 				} else {
 					const { data } = await vatusaApi.get(`/user/${app.cid}/transfer/checklist`);
 					vatusaData = {
@@ -128,6 +144,41 @@ router.get('/status', getUser, async (req: Request, res: Response, next: NextFun
 			.cache('5 minutes')
 			.exec();
 
+		if (zau.isDev) {
+			if (Math.random() >= 0.5) {
+				return res.status(status.OK).json({
+					count,
+					status: {
+						hasHome: true,
+						hasRating: true,
+						visiting: true,
+						recentlyRostered: true,
+						ratingConsolidation: true,
+						needsBasic: true,
+						promo: true,
+						visitingDays: 60,
+						promoDays: 50,
+						ratingHours: 50,
+					},
+				});
+			} else {
+				return res.status(status.OK).json({
+					count,
+					status: {
+						hasHome: false,
+						hasRating: false,
+						visiting: false,
+						recentlyRostered: false,
+						ratingConsolidation: false,
+						needsBasic: false,
+						promo: false,
+						visitingDays: 1,
+						promoDays: 1,
+						ratingHours: 1,
+					},
+				});
+			}
+		}
 		const { data: vatusaData } = await vatusaApi.get(`/user/${req.user.cid}/transfer/checklist`);
 
 		return res.status(status.OK).json({
