@@ -646,7 +646,7 @@ router.put(
 
 			const computedPositions: IEventPositionData[] = [];
 
-			for (const pos of JSON.parse(positions)) {
+			for (const pos of positions) {
 				const thePos = pos.match(/^([A-Z]{3})_(?:[A-Z0-9]{1,3}_)?([A-Z]{3})$/); // 🤮 so basically this extracts the first part and last part of a callsign.
 				if (['CTR'].includes(thePos[2])) {
 					computedPositions.push({

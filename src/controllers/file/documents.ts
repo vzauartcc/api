@@ -86,7 +86,11 @@ router.post('/', getUser, isStaff, async (req: Request, res: Response, next: Nex
 			];
 
 			if (!fileType || !allowedTypes.includes(fileType)) {
-				throwBadRequestException('Banner file type is not supported');
+				throwBadRequestException('File type is not supported');
+			}
+
+			if (!req.body.fileName) {
+				throwBadRequestException('File name is required');
 			}
 
 			const fileName = `${Date.now()}-${req.body.fileName}`;
@@ -191,6 +195,10 @@ router.put('/:slug', getUser, isStaff, async (req: Request, res: Response, next:
 
 				if (!fileType || !allowedTypes.includes(fileType)) {
 					throwBadRequestException('File type is not supported');
+				}
+
+				if (!req.body.fileName) {
+					throwBadRequestException('File name is required');
 				}
 
 				if (document.fileName) {

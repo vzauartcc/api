@@ -48,7 +48,6 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 
 router.post('/', getUser, isStaff, async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		console.log(req.body);
 		if (!req.body.category) {
 			throwBadRequestException('Invalid category');
 		}
@@ -64,7 +63,11 @@ router.post('/', getUser, isStaff, async (req: Request, res: Response, next: Nex
 		];
 
 		if (!req.body.fileType || !allowedTypes.includes(req.body.fileType)) {
-			throwBadRequestException('Banner file type is not supported');
+			throwBadRequestException('File type is not supported');
+		}
+
+		if (!req.body.fileName) {
+			throwBadRequestException('File name is required');
 		}
 
 		const fileName = `${Date.now()}-${req.body.fileName}`;
@@ -125,6 +128,10 @@ router.patch('/:id', getUser, isStaff, async (req: Request, res: Response, next:
 
 			if (!req.body.fileType || !allowedTypes.includes(req.body.fileType)) {
 				throwBadRequestException('File type is not supported');
+			}
+
+			if (!req.body.fileName) {
+				throwBadRequestException('File name is required');
 			}
 
 			if (download.fileName) {
