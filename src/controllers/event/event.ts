@@ -1,9 +1,5 @@
-import type { Progress } from '@aws-sdk/lib-storage';
 import { captureMessage } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { fileTypeFromFile } from 'file-type';
-import * as fs from 'fs';
-import multer from 'multer';
 import { getCacheInstance } from '../../app.js';
 import {
 	throwBadRequestException,
@@ -13,7 +9,7 @@ import {
 } from '../../helpers/errors.js';
 import { sendMail } from '../../helpers/mailer.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
-import { deleteFromS3, setUploadStatus, uploadToS3 } from '../../helpers/s3.js';
+import { deleteFromS3, generateS3SignedUrl } from '../../helpers/s3.js';
 import { isEventsTeam } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
@@ -25,20 +21,6 @@ import status from '../../types/status.js';
 import staffingRequestRouter from './staffingrequest.js';
 
 const router = Router();
-
-const upload = multer({
-	storage: multer.diskStorage({
-		destination: (_req, _file, cb) => {
-			cb(null, '/tmp');
-		},
-		filename: (_req, file, cb) => {
-			cb(null, `${Date.now()}-${file.originalname}`);
-		},
-	}),
-	limits: {
-		fileSize: 30 * 1024 * 1024, // 30MiB
-	},
-});
 
 router.use('/staffingrequest', staffingRequestRouter);
 
@@ -565,104 +547,65 @@ router.post(
 	},
 );
 
-router.post(
-	'/',
-	getUser,
-	isEventsTeam,
-	upload.single('banner'),
-	async (req: Request, res: Response, next: NextFunction) => {
-		try {
-			if (!req.file?.path) {
-				throwBadRequestException('File path missing');
-			}
-
-			console.log(req.body);
-
-			const url =
-				req.body.name
-					.replace(/\s+/g, '-')
-					.toLowerCase()
-					.replace(/^-+|-+(?=-|$)/g, '')
-					.replace(/[^a-zA-Z0-9-_]/g, '') +
-				'-' +
-				Date.now().toString().slice(-5);
-			const allowedTypes = ['image/jpg', 'image/jpeg', 'image/png', 'image/gif'];
-			const fileType = await fileTypeFromFile(req.file.path);
-
-			if (fileType === undefined || !allowedTypes.includes(fileType.mime)) {
-				throwBadRequestException('Banner file type is not supported');
-			}
-
-			setUploadStatus(req.body.uploadId, 0);
-
-			res.status(status.ACCEPTED).json();
-
-			const filePath = req.file.path;
-			let fileStream: fs.ReadStream | undefined;
-
-			try {
-				fileStream = fs.createReadStream(filePath);
-
-				await uploadToS3(
-					`events/${req.file.filename}`,
-					fileStream,
-					req.file.mimetype,
-					{
-						ContentDisposition: 'inline',
-					},
-					(progress: Progress) => {
-						const total = progress.total || 0;
-						const percent = total > 0 ? Math.round(((progress.loaded || 0) / total) * 100) : 0;
-						setUploadStatus(req.body.uploadId, percent);
-					},
-				);
-			} catch (e) {
-				setUploadStatus(req.body.uploadId, -1);
-
-				throwInternalServerErrorException('Error streaming file to storage');
-			} finally {
-				try {
-					fileStream?.close();
-					fs.unlinkSync(filePath);
-				} catch (_err) {
-					// Do nothing, we don't care about this error
-				}
-			}
-
-			await EventModel.create({
-				name: req.body.name,
-				description: req.body.description,
-				url: url,
-				bannerUrl: req.file.filename,
-				eventStart: req.body.startTime,
-				eventEnd: req.body.endTime,
-				createdBy: req.user.cid,
-				open: true,
-				submitted: false,
-				requiresEventEndorsement: req.body.requiresEventEndorsement,
-			});
-
-			await clearCachePrefix('event');
-
-			await DossierModel.create({
-				by: req.user.cid,
-				affected: -1,
-				action: `%b created the event *${req.body.name}*.`,
-				actionType: ACTION_TYPE.CREATE_EVENT,
-			});
-
-			return res.status(status.CREATED).json();
-		} catch (e) {
-			return next(e);
+router.post('/', getUser, isEventsTeam, async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		if (!req.body.fileType) {
+			throwBadRequestException('File path missing');
 		}
-	},
-);
+
+		const url =
+			req.body.name
+				.replace(/\s+/g, '-')
+				.toLowerCase()
+				.replace(/^-+|-+(?=-|$)/g, '')
+				.replace(/[^a-zA-Z0-9-_]/g, '') +
+			'-' +
+			Date.now().toString().slice(-5);
+		const allowedTypes = ['image/jpg', 'image/jpeg', 'image/png', 'image/gif'];
+
+		if (!req.body.fileType || !allowedTypes.includes(req.body.fileType)) {
+			throwBadRequestException('Banner file type is not supported');
+		}
+
+		if (!req.body.fileName) {
+			throwBadRequestException('File name is required');
+		}
+
+		const fileName = `${Date.now()}-${req.body.fileName}`;
+		const s3Url = await generateS3SignedUrl(`events/${fileName}`, req.body.fileType);
+
+		await EventModel.create({
+			name: req.body.name,
+			description: req.body.description,
+			url: url,
+			bannerUrl: fileName,
+			eventStart: req.body.startTime,
+			eventEnd: req.body.endTime,
+			createdBy: req.user.cid,
+			open: true,
+			submitted: false,
+			requiresEventEndorsement: req.body.requiresEventEndorsement,
+		});
+
+		await clearCachePrefix('event');
+
+		await DossierModel.create({
+			by: req.user.cid,
+			affected: -1,
+			action: `%b created the event *${req.body.name}*.`,
+			actionType: ACTION_TYPE.CREATE_EVENT,
+		});
+
+		return res.status(status.CREATED).json({ url: s3Url });
+	} catch (e) {
+		return next(e);
+	}
+});
 
 router.put(
 	'/:slug',
 	getUser,
 	isEventsTeam,
-	upload.single('banner'),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['slug'] || req.params['slug'] === 'undefined') {
@@ -676,8 +619,15 @@ router.put(
 				throwNotFoundException('Event Not Found');
 			}
 
-			const { name, description, startTime, endTime, positions, requiresEventEndorsement } =
-				req.body;
+			const {
+				name,
+				description,
+				startTime,
+				endTime,
+				positions,
+				requiresEventEndorsement,
+				fileType,
+			} = req.body;
 			if (eventData.name !== name) {
 				eventData.name = name;
 				eventData.url =
@@ -752,54 +702,25 @@ router.put(
 				eventData.positions = computedPositions as IEventPosition[];
 			}
 
-			if (req.file) {
+			let s3Url = '';
+			if (fileType) {
 				const allowedTypes = ['image/jpg', 'image/jpeg', 'image/png', 'image/gif'];
-				const fileType = await fileTypeFromFile(req.file.path);
-				if (fileType === undefined || !allowedTypes.includes(fileType.mime)) {
+				if (!fileType || !allowedTypes.includes(fileType)) {
 					throwBadRequestException('File type not supported');
+				}
+
+				if (!req.body.fileName) {
+					throwBadRequestException('File name is required');
 				}
 
 				if (eventData.bannerUrl) {
 					deleteFromS3(`events/${eventData.bannerUrl}`);
 				}
 
-				setUploadStatus(req.body.uploadId, 0);
+				const fileName = `${Date.now()}-${req.body.fileName}`;
+				s3Url = await generateS3SignedUrl(`events/${fileName}`, fileType);
 
-				res.status(status.ACCEPTED).json();
-
-				const filePath = req.file.path;
-				let fileStream: fs.ReadStream | undefined;
-
-				try {
-					fileStream = fs.createReadStream(filePath);
-
-					await uploadToS3(
-						`events/${req.file.filename}`,
-						fileStream,
-						req.file.mimetype,
-						{
-							ContentDisposition: 'inline',
-						},
-						(progress: Progress) => {
-							const total = progress.total || 0;
-							const percent = total > 0 ? Math.round(((progress.loaded || 0) / total) * 100) : 0;
-							setUploadStatus(req.body.uploadId, percent);
-						},
-					);
-				} catch (e) {
-					setUploadStatus(req.body.uploadId, -1);
-
-					throwInternalServerErrorException('Error streaming file to storage');
-				} finally {
-					try {
-						fileStream?.close();
-						fs.unlinkSync(filePath);
-					} catch (_err) {
-						// Do nothing, we don't care about this error
-					}
-				}
-
-				eventData.bannerUrl = req.file.filename;
+				eventData.bannerUrl = fileName;
 			}
 
 			await eventData.save();
@@ -813,7 +734,7 @@ router.put(
 				actionType: ACTION_TYPE.UPDATE_EVENT,
 			});
 
-			return res.status(status.OK).json();
+			return res.status(status.OK).json({ url: s3Url });
 		} catch (e) {
 			return next(e);
 		}

@@ -2,30 +2,17 @@ import {
 	DeleteObjectCommand,
 	HeadObjectCommand,
 	ListObjectsV2Command,
+	PutObjectCommand,
 	S3Client,
 	type CompleteMultipartUploadCommandInput,
 	type CreateMultipartUploadCommandInput,
 	type PutObjectCommandInput,
 	type UploadPartCommandInput,
 } from '@aws-sdk/client-s3';
-import { Upload } from '@aws-sdk/lib-storage';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { Readable } from 'stream';
 
 let client: S3Client | null = null;
-
-const uploadMap = new Map<string, number>();
-const EXPIRATION_TIME = 5 * 60 * 1000;
-
-export const setUploadStatus = (id: string, progress: number) => {
-	uploadMap.set(id, progress);
-
-	setTimeout(() => {
-		if (uploadMap.has(id)) {
-			uploadMap.delete(id);
-		}
-	}, EXPIRATION_TIME);
-};
-export const getUploadStatus = (id: string) => uploadMap.get(id);
 
 function getS3Bucket() {
 	return `${process.env['S3_BUCKET_NAME']}`;
@@ -61,31 +48,39 @@ export function uploadToS3(
 				UploadPartCommandInput &
 				CompleteMultipartUploadCommandInput
 		>,
-	progressHandler?: any,
 ) {
 	if (!client || !getS3Bucket()) {
 		throw new Error('S3 not set up.');
 	}
 
-	const upload = new Upload({
-		client: client,
-		params: {
+	return client.send(
+		new PutObjectCommand({
 			...options,
 			Bucket: getS3Bucket(),
 			Key: filename,
 			Body: file,
 			ContentType: mimeType,
 			ACL: 'public-read',
-		},
-		queueSize: 4,
-		partSize: 5242880, // 5MB
-	});
+		}),
+	);
+}
 
-	if (progressHandler) {
-		upload.on('httpUploadProgress', progressHandler);
+export function generateS3SignedUrl(fileName: string, contentType: string): Promise<string> {
+	if (!client || !getS3Bucket()) {
+		throw new Error('S3 not set up.');
 	}
 
-	return upload.done();
+	const cmd = new PutObjectCommand({
+		Bucket: getS3Bucket(),
+		Key: fileName,
+		ContentType: contentType,
+		ACL: 'public-read',
+	});
+
+	return getSignedUrl(client, cmd, {
+		expiresIn: 300,
+		signableHeaders: new Set(['host', 'content-type', 'x-amz-acl']),
+	});
 }
 
 export function deleteFromS3(filename: string) {
