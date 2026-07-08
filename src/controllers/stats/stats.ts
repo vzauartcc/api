@@ -571,13 +571,14 @@ router.post(
 			if (
 				!req.params['cid'] ||
 				req.params['cid'] === 'undefined' ||
+				Array.isArray(req.params['cid']) ||
 				isNaN(Number(req.params['cid']))
 			) {
 				throwBadRequestException('Invalid CID');
 			}
 			const { redis } = req.app;
-			const { cid } = req.params;
-			const fiftyData = await getFiftyData(cid!);
+			const cid = req.params['cid'];
+			const fiftyData = await getFiftyData(cid);
 			redis.set(`FIFTY:${cid}`, fiftyData);
 			redis.expire(`FIFTY:${cid}`, 86400);
 
