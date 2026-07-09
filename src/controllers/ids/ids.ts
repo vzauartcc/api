@@ -206,7 +206,7 @@ router.get('/stations/:station', async (req: Request, res: Response, next: NextF
 		const atisInfo = await req.app.redis.hgetall(`ATIS:${station}`);
 
 		return res.status(status.OK).json({
-			metar,
+			metar: metar ? JSON.parse(metar) : null,
 			dep: atisInfo['dep'] || null,
 			arr: atisInfo['arr'] || null,
 			letter: atisInfo['letter'] || null,
