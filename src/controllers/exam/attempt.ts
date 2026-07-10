@@ -24,6 +24,7 @@ router.get('/by-user/:cid', getUser, async (req: Request, res: Response, next: N
 		}
 
 		const attempts = await ExamAttemptModel.find({ student: cid, deleted: { $ne: true } })
+			.sort({ createdAt: 'desc' })
 			.populate({
 				path: 'exam',
 				select: 'title certCode',
@@ -257,6 +258,7 @@ router.patch('/:id', getUser, async (req: Request, res: Response, next: NextFunc
 
 		if (!attempt.startTime) {
 			attempt.startTime = new Date();
+			attempt.status = 'in_progress';
 		}
 
 		const updated = await attempt.save();
