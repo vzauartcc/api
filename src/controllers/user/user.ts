@@ -2,6 +2,7 @@ import axios from 'axios';
 import { randomUUID } from 'crypto';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
+import { isValidObjectId } from 'mongoose';
 import {
 	throwBadRequestException,
 	throwInternalServerErrorException,
@@ -359,6 +360,29 @@ router.put(
 			await clearCachePrefix(`notifications-${req.user.cid}`);
 
 			return res.status(status.OK).json();
+		} catch (e) {
+			return next(e);
+		}
+	},
+);
+
+router.delete(
+	'/notifications/:id',
+	getUser,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			if (
+				!req.params['id'] ||
+				req.params['id'] === 'undefined' ||
+				!isValidObjectId(req.params['id'])
+			) {
+				throwBadRequestException('Invalid ID');
+			}
+
+			await NotificationModel.deleteOne({ _id: req.params['id'] }).exec();
+			await clearCachePrefix(`notifications-${req.user.cid}`);
+
+			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
 			return next(e);
 		}
