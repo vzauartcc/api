@@ -103,9 +103,7 @@ router.get('/staff', async (_req: Request, res: Response, next: NextFunction) =>
 		const usersByRole = new Map<string, IUserLean[]>();
 
 		(users as IUserLean[]).forEach((user) => {
-			console.log(user);
-			user.roleCodes?.forEach((role) => {
-				console.log(role);
+			user.roleCodes.forEach((role) => {
 				if (!usersByRole.has(role)) {
 					usersByRole.set(role, []);
 				}
@@ -738,7 +736,7 @@ router.put(
 				throwNotFoundException('User not found');
 			}
 
-			const { fname, lname, email, oi, roles, certs } = req.body;
+			const { oi, roles, certs } = req.body;
 
 			// Handle certifications (certCodes and certificationDate)
 			const existingCertMap = new Map(user.certificationDate.map((cert) => [cert.code, cert]));
@@ -760,23 +758,11 @@ router.put(
 				}
 			});
 
-			if (fname) {
-				user.fname = fname;
-			}
-
-			if (lname) {
-				user.lname = lname;
-			}
-
-			if (email) {
-				user.email = email;
-			}
-
 			if (oi) {
 				user.oi = oi;
 			}
 
-			user.roleCodes = roles;
+			user.roleCodes = roles || [];
 			user.certCodes = updatedCertificationDate.map((c) => c.code);
 			user.certificationDate = updatedCertificationDate;
 
