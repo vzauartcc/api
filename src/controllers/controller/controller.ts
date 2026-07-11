@@ -103,7 +103,9 @@ router.get('/staff', async (_req: Request, res: Response, next: NextFunction) =>
 		const usersByRole = new Map<string, IUserLean[]>();
 
 		(users as IUserLean[]).forEach((user) => {
-			user.roleCodes.forEach((role) => {
+			console.log(user);
+			user.roleCodes?.forEach((role) => {
+				console.log(role);
 				if (!usersByRole.has(role)) {
 					usersByRole.set(role, []);
 				}
