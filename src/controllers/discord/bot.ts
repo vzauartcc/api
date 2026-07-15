@@ -32,7 +32,7 @@ router.get(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const { id } = req.params;
-			if (!id || id.trim() === '') {
+			if (!id || Array.isArray(id) || id.trim() === '') {
 				throwBadRequestException('Invalid request');
 			}
 
@@ -222,7 +222,7 @@ router.put(
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			const { id } = req.params;
-			if (!id || id === 'undefined') {
+			if (!id || Array.isArray(id) || id === 'undefined') {
 				throwBadRequestException('Invalid request');
 			}
 

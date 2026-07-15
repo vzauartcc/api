@@ -2,6 +2,7 @@ import axios from 'axios';
 import { randomUUID } from 'crypto';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
+import { isValidObjectId } from 'mongoose';
 import {
 	throwBadRequestException,
 	throwInternalServerErrorException,
@@ -9,7 +10,6 @@ import {
 	throwUnauthorizedException,
 } from '../../helpers/errors.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
-import { uploadToS3 } from '../../helpers/s3.js';
 import zau from '../../helpers/zau.js';
 import { userOrInternal } from '../../middleware/auth.js';
 import internalAuth from '../../middleware/internalAuth.js';
@@ -80,9 +80,23 @@ router.get('/', userOrInternal, async (req: Request, res: Response, next: NextFu
 				.exec();
 		}
 
-		const home = allUsers.filter((user) => user.vis === false && user.member === true);
-		const visiting = allUsers.filter((user) => user.vis === true && user.member === true);
-		const removed = allUsers.filter((user) => user.member === false);
+		const home = allUsers
+			.filter((user) => user.vis === false && user.member === true)
+			.sort(
+				(a, b) => a.lname.localeCompare(b.lname) || a.fname.localeCompare(b.lname) || a.cid - b.cid,
+			);
+
+		const visiting = allUsers
+			.filter((user) => user.vis === true && user.member === true)
+			.sort(
+				(a, b) => a.lname.localeCompare(b.lname) || a.fname.localeCompare(b.lname) || a.cid - b.cid,
+			);
+
+		const removed = allUsers
+			.filter((user) => user.member === false)
+			.sort(
+				(a, b) => a.lname.localeCompare(b.lname) || a.fname.localeCompare(b.lname) || a.cid - b.cid,
+			);
 
 		if (!home || !visiting || !removed) {
 			throwInternalServerErrorException('Unable to retrieve controllers');
@@ -219,19 +233,6 @@ router.post('/login', oAuth, async (req: Request, res: Response, next: NextFunct
 			user.rating = userData.ratingId;
 		}
 
-		if (user.oi && !user.avatar) {
-			const { data } = await axios.get(
-				`https://ui-avatars.com/api/?name=${user.oi}&size=256&background=122049&color=ffffff`,
-				{ responseType: 'arraybuffer' },
-			);
-
-			await uploadToS3(`avatars/${user.cid}-default.png`, data, 'image/png', {
-				ContentDisposition: 'inline',
-			});
-
-			user.avatar = `${user.cid}-default.png`;
-		}
-
 		await user.save();
 		clearUserCache(user.cid);
 
@@ -359,6 +360,29 @@ router.put(
 			await clearCachePrefix(`notifications-${req.user.cid}`);
 
 			return res.status(status.OK).json();
+		} catch (e) {
+			return next(e);
+		}
+	},
+);
+
+router.delete(
+	'/notifications/:id',
+	getUser,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			if (
+				!req.params['id'] ||
+				req.params['id'] === 'undefined' ||
+				!isValidObjectId(req.params['id'])
+			) {
+				throwBadRequestException('Invalid ID');
+			}
+
+			await NotificationModel.deleteOne({ _id: req.params['id'] }).exec();
+			await clearCachePrefix(`notifications-${req.user.cid}`);
+
+			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
 			return next(e);
 		}

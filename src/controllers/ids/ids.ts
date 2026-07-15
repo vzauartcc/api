@@ -198,11 +198,15 @@ router.get('/stations', async (req: Request, res: Response, next: NextFunction) 
 router.get('/stations/:station', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const station = req.params['station']!;
+		if (!station || Array.isArray(station)) {
+			throwBadRequestException('Station must be a string');
+		}
+
 		const metar = await req.app.redis.get(`METAR:${station.toUpperCase()}`);
 		const atisInfo = await req.app.redis.hgetall(`ATIS:${station}`);
 
 		return res.status(status.OK).json({
-			metar,
+			metar: metar ? JSON.parse(metar) : null,
 			dep: atisInfo['dep'] || null,
 			arr: atisInfo['arr'] || null,
 			letter: atisInfo['letter'] || null,
@@ -259,7 +263,11 @@ router.get('/vatsim-data', (_req: Request, res: Response, next: NextFunction) =>
 
 router.get('/charts/:airportCode', async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		const airportCode = req.params['airportCode']!.toUpperCase();
+		const code = req.params['airportCode'];
+		if (!code || Array.isArray(code)) {
+			throwBadRequestException('Airport code must be a string');
+		}
+		const airportCode = code.toUpperCase();
 		const response = await axios.get(`https://api.aviationapi.com/v1/charts?apt=${airportCode}`);
 		const charts = response.data[airportCode];
 

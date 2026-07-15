@@ -61,6 +61,22 @@ export async function getUsersWithPrivacy(user: IUser, findOptions = {}) {
 			},
 		},
 		{
+			$lookup: {
+				from: 'certifications',
+				localField: 'certCodes',
+				foreignField: 'code',
+				as: 'certifications',
+			},
+		},
+		{
+			$lookup: {
+				from: 'roles',
+				localField: 'roleCodes',
+				foreignField: 'code',
+				as: 'roles',
+			},
+		},
+		{
 			$project: {
 				prefName: 0,
 				deleted: 0,
@@ -82,5 +98,5 @@ export async function getUsersWithPrivacy(user: IUser, findOptions = {}) {
 		.cache('1 minute', cacheKey)
 		.exec();
 
-	return await UserModel.populate(results, 'roles certifications');
+	return results;
 }
