@@ -113,7 +113,7 @@ router.get('/self', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const cookie = zau.isProd ? 'token' : 'dev-token';
 		if (!req.cookies[cookie]) {
-			throwUnauthorizedException('Token Cookie Not Found');
+			return res.status(status.UNAUTHORIZED).json({ message: 'Not Logged In' });
 		}
 
 		const decoded = jwt.verify(req.cookies[cookie], process.env['JWT_SECRET']!) as UserPayload;

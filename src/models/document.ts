@@ -10,7 +10,7 @@ interface IDocument extends Document, ITimestamps {
 	slug: string;
 	author: number;
 	type: string;
-	fileName: string;
+	fileName?: string;
 
 	// Virtuals
 	user?: PopulatedDoc<IUser & ITimestamps & Document>;
@@ -25,7 +25,7 @@ const DocumentSchema = new Schema<IDocument>(
 		slug: { type: String, required: true },
 		author: { type: Number, required: true, ref: 'User' },
 		type: { type: String, required: true },
-		fileName: { type: String, required: true },
+		fileName: { type: String },
 	},
 	{
 		collection: 'documents',

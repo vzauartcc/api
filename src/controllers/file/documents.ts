@@ -168,32 +168,23 @@ router.put('/:slug', getUser, isStaff, async (req: Request, res: Response, next:
 			document.category = category;
 			document.description = description;
 			document.content = content;
+			delete document.fileName;
 
 			await document.save();
 		} else {
-			if (type !== 'file') {
-				await DocumentModel.findOneAndUpdate(
-					{ slug: req.params['slug'] },
-					{
-						name,
-						description,
-						category,
-						type: 'file',
-					},
-				).exec();
-			} else {
-				const allowedTypes = [
-					'image/jpg',
-					'image/jpeg',
-					'image/png',
-					'image/gif',
-					'application/pdf',
-					'application/zip',
-					'application/x-zip-compressed',
-					'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-				];
+			const allowedTypes = [
+				'image/jpg',
+				'image/jpeg',
+				'image/png',
+				'image/gif',
+				'application/pdf',
+				'application/zip',
+				'application/x-zip-compressed',
+				'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+			];
 
-				if (!fileType || !allowedTypes.includes(fileType)) {
+			if (fileType && req.body.fileName) {
+				if (!allowedTypes.includes(fileType)) {
 					throwBadRequestException('File type is not supported');
 				}
 
@@ -208,16 +199,20 @@ router.put('/:slug', getUser, isStaff, async (req: Request, res: Response, next:
 				const fileName = `${Date.now()}-${req.body.fileName}`;
 				s3Url = await generateS3SignedUrl(`documents/${fileName}`, fileType);
 
-				await DocumentModel.findOneAndUpdate(
-					{ slug: req.params['slug'] },
-					{
-						name,
-						description,
-						category,
-						fileName,
-						type: 'file',
-					},
-				).exec();
+				document.fileName = fileName;
+				document.type = 'file';
+				document.name = name;
+				document.description = description;
+				document.category = category;
+
+				await document.save();
+			} else {
+				document.type = 'file';
+				document.category = category;
+				document.description = description;
+				document.name = name;
+
+				await document.save();
 			}
 		}
 
