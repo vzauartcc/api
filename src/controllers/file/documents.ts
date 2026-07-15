@@ -1,5 +1,5 @@
-import { getCacheInstance } from 'app.js';
 import { Router, type NextFunction, type Request, type Response } from 'express';
+import { getCacheInstance } from '../../app.js';
 import { throwBadRequestException, throwNotFoundException } from '../../helpers/errors.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { deleteFromS3, generateS3SignedUrl } from '../../helpers/s3.js';

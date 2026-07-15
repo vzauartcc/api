@@ -1,5 +1,4 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { clearCachePrefix } from 'helpers/redis.js';
 import { getCacheInstance } from '../../app.js';
 import {
 	throwBadRequestException,
@@ -7,6 +6,7 @@ import {
 	throwTooManyRequestsException,
 } from '../../helpers/errors.js';
 import { sendMail } from '../../helpers/mailer.js';
+import { clearCachePrefix } from '../../helpers/redis.js';
 import { isEventsTeam } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
