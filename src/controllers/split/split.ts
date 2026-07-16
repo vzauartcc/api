@@ -1,7 +1,6 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { Redis } from 'ioredis';
-import { throwBadRequestException } from '../../helpers/errors.js';
-import { isEventsTeam } from '../../middleware/auth.js';
+import { throwBadRequestException, throwForbiddenException } from '../../helpers/errors.js';
 import getUser from '../../middleware/user.js';
 import status from '../../types/status.js';
 import {
@@ -161,57 +160,54 @@ router.get('/ownership', async (req: Request, res: Response, next: NextFunction)
 	}
 });
 
-router.put(
-	'/ownership',
-	getUser,
-	isEventsTeam,
-	async (req: Request, res: Response, next: NextFunction) => {
-		try {
-			if (!req.body || !req.body.high || !req.body.low) {
-				throwBadRequestException('Invalid request');
-			}
-
-			for (const id of Object.keys(req.body.high)) {
-				await req.app.redis.set(`split:high:${id}`, req.body.high[id]);
-				// Boiler Climb Corridor
-				if (id === '1') {
-					await req.app.redis.set(`split:high:9`, req.body.high[id]);
-				}
-				// IOW Climb Corridor
-				if (id === '8') {
-					await req.app.redis.set(`split:high:6`, req.body.high[id]);
-				}
-			}
-
-			for (const id of Object.keys(req.body.low)) {
-				await req.app.redis.set(`split:low:${id}`, req.body.low[id]);
-			}
-
-			const data = await getOwnership(req.app.redis);
-
-			return res.status(status.OK).json(data);
-		} catch (e) {
-			return next(e);
+router.put('/ownership', getUser, async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		if (!req.body || !req.body.high || !req.body.low) {
+			throwBadRequestException('Invalid request');
 		}
-	},
-);
 
-router.delete(
-	'/ownership',
-	getUser,
-	isEventsTeam,
-	async (req: Request, res: Response, next: NextFunction) => {
-		try {
-			await resetSplit(req.app.redis);
-
-			const ownership = await getOwnership(req.app.redis);
-
-			return res.status(status.OK).json(ownership);
-		} catch (e) {
-			return next(e);
+		if (!req.user.isStaff && req.user.rating < 5) {
+			throwForbiddenException();
 		}
-	},
-);
+
+		for (const id of Object.keys(req.body.high)) {
+			await req.app.redis.set(`split:high:${id}`, req.body.high[id]);
+			// Boiler Climb Corridor
+			if (id === '1') {
+				await req.app.redis.set(`split:high:9`, req.body.high[id]);
+			}
+			// IOW Climb Corridor
+			if (id === '8') {
+				await req.app.redis.set(`split:high:6`, req.body.high[id]);
+			}
+		}
+
+		for (const id of Object.keys(req.body.low)) {
+			await req.app.redis.set(`split:low:${id}`, req.body.low[id]);
+		}
+
+		const data = await getOwnership(req.app.redis);
+
+		return res.status(status.OK).json(data);
+	} catch (e) {
+		return next(e);
+	}
+});
+
+router.delete('/ownership', getUser, async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		if (!req.user.isStaff && req.user.rating < 5) {
+			throwForbiddenException();
+		}
+		await resetSplit(req.app.redis);
+
+		const ownership = await getOwnership(req.app.redis);
+
+		return res.status(status.OK).json(ownership);
+	} catch (e) {
+		return next(e);
+	}
+});
 
 export default router;
 
