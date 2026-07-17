@@ -101,17 +101,13 @@ router.post(
 				throwBadRequestException('Solo endorsements cannot be issued for more than 45 days');
 			}
 
-			let vatusaId = 0;
 			if (zau.isProd) {
 				try {
-					const { data: vatusaResponse } = await vatusaApi.post('/solo', {
+					await vatusaApi.post('/solo', {
 						cid: student.cid,
 						position: req.body.position,
 						expDate: DateTime.fromJSDate(endDate).toUTC().toFormat('yyyy-MM-dd'),
 					});
-					vatusaId = vatusaResponse.data.id || 0;
-
-					console.log('vatusa solo endorsement id', vatusaId, vatusaResponse.data);
 				} catch (err) {
 					throwInternalServerErrorException(
 						(err as any).response?.data?.data?.msg || 'Error posting to VATUSA',
@@ -123,7 +119,7 @@ router.post(
 				studentCid: student.cid,
 				instructorCid: req.user.cid,
 				position: req.body.position,
-				vatusaId: vatusaId,
+				vatusaId: 0, // VATUSA does not return any data during creation.
 				expires: endDate,
 			});
 
@@ -213,12 +209,12 @@ router.patch(
 				}
 
 				try {
-					const { data: vatusaResponse } = await vatusaApi.post('/solo', {
+					await vatusaApi.post('/solo', {
 						cid: solo.studentCid,
 						position: solo.position,
 						expDate: DateTime.fromJSDate(newEndDate).toUTC().toFormat('yyyy-MM-dd'),
 					});
-					solo.vatusaId = vatusaResponse.data.id || 0;
+					solo.vatusaId = 0; // VATUSA does not return any data during creation.
 				} catch (err) {
 					e += `\n${err}`;
 				}
