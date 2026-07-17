@@ -581,7 +581,6 @@ router.patch(
 				}
 
 				user.oi = userOi;
-
 				user.joinDate = req.body.joinDate || new Date();
 				user.removalDate = null;
 
@@ -604,6 +603,7 @@ router.patch(
 				user.removalDate = new Date();
 				user.oi = '';
 			}
+
 			user.member = req.body.member;
 
 			await user.save();
@@ -622,7 +622,7 @@ router.patch(
 						rating: zau.ratingsShort[user.rating],
 						vis: user.vis,
 						type: user.vis ? 'visitor' : 'member',
-						home: 'NA',
+						home: user.homeFacility ?? '',
 					},
 				});
 			}
@@ -670,11 +670,6 @@ router.patch(
 			user.vis = req.body.vis;
 
 			if (req.body.vis === true) {
-				const certDates = grantCerts(user.rating, user.certificationDate);
-
-				user.certCodes = certDates.map((c) => c.code);
-				user.certificationDate = certDates;
-
 				user.homeFacility = req.body.homeFacility;
 
 				const userOi = await checkOI(user);
