@@ -73,7 +73,7 @@ app.redis.on('connect', () => {
 console.log('Connecting to cache instance. . . .');
 const redisCache = new Redis(`${MONGO_CACHE_URI}?family=4&connectionName=cache`);
 redisCache.on('error', (err) => {
-	throw new Error(`Redis error: ${err}.`);
+	throw new Error(`Cache Redis error: ${err}.`);
 });
 redisCache.on('connect', () => {
 	console.log('Successfully connected to Redis Cache');
@@ -89,7 +89,6 @@ if (!CORS_ORIGIN) {
 }
 const origins = CORS_ORIGIN.split('|');
 
-console.log('Allowing CORS origins. . . .');
 app.use(
 	cors({
 		origin: origins,
