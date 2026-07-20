@@ -508,7 +508,7 @@ interface IVATUSAUser {
 }
 
 async function syncController(user: IUser) {
-	if (!zau.isDev) return;
+	if (zau.isDev) return;
 
 	try {
 		const { data } = await vatusaApi.get(`/user/${user.cid}`);
