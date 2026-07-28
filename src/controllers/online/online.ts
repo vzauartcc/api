@@ -62,6 +62,26 @@ router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 	}
 });
 
+router.get('/atc', async (_req: Request, res: Response, next: NextFunction) => {
+	try {
+		const atc = await AtcOnlineModel.find().lean({ virtuals: true }).exec();
+
+		return res.status(status.OK).json(atc);
+	} catch (e) {
+		return next(e);
+	}
+});
+
+router.get('/pilots', async (_req: Request, res: Response, next: NextFunction) => {
+	try {
+		const pilots = await PilotOnlineModel.find().lean().exec();
+
+		return res.status(status.OK).json(pilots);
+	} catch (e) {
+		return next(e);
+	}
+});
+
 router.get('/top', async (_req: Request, res: Response, next: NextFunction) => {
 	try {
 		const d = new Date();

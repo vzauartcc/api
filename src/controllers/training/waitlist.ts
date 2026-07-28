@@ -19,6 +19,7 @@ const router = Router();
 router.get('/', getUser, isMember, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		let waitlist = await TrainingWaitlistModel.find({})
+			.sort({ createdAt: 'asc' })
 			.populate([
 				{
 					path: 'student',
@@ -199,6 +200,7 @@ router.patch(
 
 			waitlist.instructorCid = req.body.instructor;
 			waitlist.certCode = req.body.certification;
+			waitlist.availability = req.body.availability;
 			waitlist.assignedDate =
 				+req.body.instructor === -1 ? null : waitlist.assignedDate || new Date();
 			waitlist.notes = req.body.notes;
@@ -260,7 +262,7 @@ router.get('/instructors', getUser, async (_req: Request, res: Response, next: N
 			.cache('10 minutes', 'waitlist-instructors')
 			.exec();
 
-		return res.status(status.OK).json(instructors);
+		return res.status(status.OK).json(instructors.sort((a, b) => a.cid - b.cid));
 	} catch (e) {
 		return next(e);
 	}
@@ -289,6 +291,39 @@ router.get(
 				.exec();
 
 			return res.status(status.OK).json(waitlist);
+		} catch (e) {
+			return next(e);
+		}
+	},
+);
+
+router.get(
+	'/:id',
+	getUser,
+	isSeniorStaff,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			if (!isValidObjectId(req.params['id'])) {
+				throwBadRequestException('Missing ID');
+			}
+
+			const data = await TrainingWaitlistModel.findById(req.params['id'])
+				.populate([
+					{
+						path: 'student',
+						select: 'fname lname cid rating certCodes certifications',
+						populate: {
+							path: 'certifications',
+							select: 'code name order class',
+						},
+					},
+				])
+				.populate('instructor', 'fname lname cid')
+				.populate('certification', 'name code order')
+				.lean({ virtuals: true })
+				.exec();
+
+			return res.status(status.OK).json(data);
 		} catch (e) {
 			return next(e);
 		}

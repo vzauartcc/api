@@ -55,12 +55,31 @@ export async function syncVatusaSoloEndorsements() {
 			const facility = solo.position.slice(0, 3);
 			if (!ZAU_FACILITIES.includes(facility)) continue;
 
-			const ours = await SoloEndorsementModel.findOne({ vatusaId: solo.id }).exec();
-			if (ours) {
-				if (ours.expires.getTime() === new Date(solo.expires).getTime()) continue;
+			const match = await SoloEndorsementModel.findOne({ vatusaId: solo.id }).exec();
+			if (match) {
+				if (match.expires.getTime() !== new Date(solo.expires).getTime()) {
+					match.expires = new Date(solo.expires);
+					await match.save();
+				}
 
-				ours.expires = new Date(solo.expires);
-				await ours.save();
+				continue;
+			}
+
+			const minDate = new Date(new Date(solo.created_at).getTime() - 10_000);
+			const maxDate = new Date(new Date(solo.created_at).getTime() + 10_000);
+
+			const exists = await SoloEndorsementModel.findOne({
+				studentCid: solo.cid,
+				vatusaId: 0,
+				createdAt: {
+					$lte: maxDate,
+					$gte: minDate,
+				},
+			}).exec();
+			if (exists) {
+				exists.vatusaId = solo.id;
+				exists.expires = new Date(solo.expires);
+				await exists.save();
 
 				continue;
 			}

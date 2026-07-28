@@ -31,7 +31,6 @@ export interface IUser extends SoftDeleteDocument, ITimestamps {
 	vis: boolean;
 	homeFacility?: string;
 	bio: string;
-	avatar?: string;
 	joinDate?: Date | null;
 	removalDate?: Date | null;
 	prefName: boolean;
@@ -101,7 +100,6 @@ const UserSchema = new Schema<IUser>(
 		member: { type: Boolean, required: true },
 		vis: { type: Boolean, required: true },
 		homeFacility: { type: String },
-		avatar: { type: String },
 		joinDate: { type: Date },
 		removalDate: { type: Date },
 		prefName: { type: Boolean, default: false, required: true },

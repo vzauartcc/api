@@ -30,7 +30,7 @@ import { TrainingWaitlistModel } from '../../models/trainingWaitlist.js';
 import { UserModel, type IUser } from '../../models/user.js';
 import status from '../../types/status.js';
 import absenceRouter from './absence.js';
-import { checkOI, clearUserCache, grantCerts, syncUserHistory, uploadAvatar } from './utils.js';
+import { checkOI, clearUserCache, grantCerts, syncUserHistory } from './utils.js';
 import visitRouter from './visitapplications.js';
 
 const router = Router();
@@ -42,8 +42,16 @@ router.get('/', getUser, async (req: Request, res: Response, next: NextFunction)
 	try {
 		const allUsers = await getUsersWithPrivacy(req.user, { member: true });
 
-		const home = allUsers.filter((user) => user.vis === false);
-		const visiting = allUsers.filter((user) => user.vis === true);
+		const home = allUsers
+			.filter((user) => user.vis === false)
+			.sort(
+				(a, b) => a.lname.localeCompare(b.lname) || a.fname.localeCompare(b.fname) || a.cid - b.cid,
+			);
+		const visiting = allUsers
+			.filter((user) => user.vis === true)
+			.sort(
+				(a, b) => a.lname.localeCompare(b.lname) || a.fname.localeCompare(b.fname) || a.cid - b.cid,
+			);
 
 		if (!home || !visiting) {
 			throwInternalServerErrorException('Unable to retrieve controllers');
@@ -63,8 +71,9 @@ interface IUserLean {
 }
 
 interface IRoleGroup {
-	title: string;
+	name: string;
 	code: string;
+	description: string;
 	users: IUserLean[];
 }
 
@@ -85,62 +94,33 @@ router.get('/staff', async (_req: Request, res: Response, next: NextFunction) =>
 			throwServiceUnavailableException('Unable to retrieve staff members');
 		}
 
-		const staff: IStaffDirectory = {
-			atm: {
-				title: 'Air Traffic Manager',
-				code: 'atm',
-				users: [],
-			},
-			datm: {
-				title: 'Deputy Air Traffic Manager',
-				code: 'datm',
-				users: [],
-			},
-			ta: {
-				title: 'Training Administrator',
-				code: 'ta',
-				users: [],
-			},
-			ec: {
-				title: 'Events Team',
-				code: 'events',
-				users: [],
-			},
-			wm: {
-				title: 'Web Team',
-				code: 'wm',
-				users: [],
-			},
-			fe: {
-				title: 'Facility Engineering Team',
-				code: 'facilities',
-				users: [],
-			},
-			ins: {
-				title: 'Instructors',
-				code: 'training',
-				users: [],
-			},
-			ia: {
-				title: 'Instructor Assistants',
-				code: 'training',
-				users: [],
-			},
-			mtr: {
-				title: 'Mentors',
-				code: 'training',
-				users: [],
-			},
-		};
+		const roles = await RoleModel.find()
+			.sort({ order: 'asc' })
+			.lean()
+			.cache('10 minutes', 'roles')
+			.exec();
+
+		const usersByRole = new Map<string, IUserLean[]>();
+
 		(users as IUserLean[]).forEach((user) => {
-			user.roleCodes.forEach((roleCode) => {
-				if (staff[roleCode as keyof IStaffDirectory]) {
-					staff[roleCode as keyof IStaffDirectory]!.users.push(user);
+			user.roleCodes.forEach((role) => {
+				if (!usersByRole.has(role)) {
+					usersByRole.set(role, []);
 				}
+
+				usersByRole.get(role)!.push(user);
 			});
 		});
 
-		return res.status(status.OK).json(staff);
+		return res.status(status.OK).json(
+			roles.reduce<IStaffDirectory>((acc, role) => {
+				acc[role.code] = {
+					...role,
+					users: usersByRole.get(role.code) || [],
+				};
+				return acc;
+			}, {}),
+		);
 	} catch (e) {
 		return next(e);
 	}
@@ -160,7 +140,7 @@ router.get('/certifications', async (_req: Request, res: Response, next: NextFun
 	try {
 		const certifications = await CertificationModel.find().lean().cache('10 minutes').exec();
 
-		return res.status(status.OK).json(certifications);
+		return res.status(status.OK).json(certifications.sort((a, b) => a.order - b.order));
 	} catch (e) {
 		return next(e);
 	}
@@ -376,7 +356,26 @@ router.patch(
 	},
 );
 
-// @TODO: fix this to remove the ts-ignore and structure the data properly
+interface ActivityHistory {
+	name: string;
+	month: number;
+	year: number;
+	del: number;
+	gnd: number;
+	twr: number;
+	app: number;
+	ctr: number;
+}
+
+type PosType = 'del' | 'gnd' | 'twr' | 'app' | 'ctr';
+
+interface HoursResponse {
+	total: Record<PosType, number>;
+	sessionCount: number;
+	sessionAvg: number;
+	activity: ActivityHistory[];
+}
+
 router.get('/stats/:cid', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (
@@ -391,14 +390,7 @@ router.get('/stats/:cid', async (req: Request, res: Response, next: NextFunction
 			.cache('5 minutes')
 			.exec();
 
-		const hours = {
-			gtyear: {
-				del: 0,
-				gnd: 0,
-				twr: 0,
-				app: 0,
-				ctr: 0,
-			},
+		const hours: HoursResponse = {
 			total: {
 				del: 0,
 				gnd: 0,
@@ -408,9 +400,9 @@ router.get('/stats/:cid', async (req: Request, res: Response, next: NextFunction
 			},
 			sessionCount: controllerHours.length,
 			sessionAvg: 0,
-			months: [],
+			activity: [],
 		};
-		const pos = {
+		const pos: Record<string, PosType> = {
 			del: 'del',
 			gnd: 'gnd',
 			twr: 'twr',
@@ -426,18 +418,29 @@ router.get('/stats/:cid', async (req: Request, res: Response, next: NextFunction
 		for (let i = 0; i < 12; i++) {
 			const theMonth = today.minus({ months: i });
 			const ms = getMonthYearString(theMonth);
-			// @ts-ignore
-			hours[ms] = {
+
+			hours.activity.push({
+				name: ms,
+				month: theMonth.month,
+				year: theMonth.year,
 				del: 0,
 				gnd: 0,
 				twr: 0,
 				app: 0,
 				ctr: 0,
-			};
-
-			// @ts-ignore
-			hours.months.push(ms);
+			});
 		}
+
+		hours.activity.push({
+			name: '> 1 year',
+			month: 0,
+			year: 0,
+			del: 0,
+			gnd: 0,
+			twr: 0,
+			app: 0,
+			ctr: 0,
+		});
 
 		for (const sess of controllerHours) {
 			if (!sess.timeEnd) continue;
@@ -448,20 +451,21 @@ router.get('/stats/:cid', async (req: Request, res: Response, next: NextFunction
 				const start = DateTime.fromJSDate(sess.timeStart).toUTC();
 				const end = DateTime.fromJSDate(sess.timeEnd).toUTC();
 
-				// @ts-ignore
 				const type = pos[thePos[1]];
+				if (!type) {
+					continue;
+				}
+
 				const length = Number(end.diff(start)) / 1000;
 				let ms = getMonthYearString(start);
 
-				// @ts-ignore
-				if (!hours[ms]) {
-					ms = 'gtyear';
+				let found = hours.activity.find((a) => a.name === ms);
+				if (!found) {
+					found = hours.activity.find((a) => a.name === '> 1 year')!;
 				}
 
-				// @ts-ignore
-				hours[ms][type] += length;
+				found[type] += length;
 
-				// @ts-ignore
 				hours.total[type] += length;
 			}
 		}
@@ -509,7 +513,6 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response, next: Nex
 		await UserModel.create({
 			...req.body,
 			oi: userOi,
-			avatar: `${req.body.cid}-default.png`,
 			certCodes: certDates.map((c) => c.code),
 			certificationDate: certDates,
 		});
@@ -578,7 +581,6 @@ router.patch(
 				}
 
 				user.oi = userOi;
-
 				user.joinDate = req.body.joinDate || new Date();
 				user.removalDate = null;
 
@@ -601,6 +603,7 @@ router.patch(
 				user.removalDate = new Date();
 				user.oi = '';
 			}
+
 			user.member = req.body.member;
 
 			await user.save();
@@ -619,7 +622,7 @@ router.patch(
 						rating: zau.ratingsShort[user.rating],
 						vis: user.vis,
 						type: user.vis ? 'visitor' : 'member',
-						home: 'NA',
+						home: user.homeFacility ?? '',
 					},
 				});
 			}
@@ -667,11 +670,6 @@ router.patch(
 			user.vis = req.body.vis;
 
 			if (req.body.vis === true) {
-				const certDates = grantCerts(user.rating, user.certificationDate);
-
-				user.certCodes = certDates.map((c) => c.code);
-				user.certificationDate = certDates;
-
 				user.homeFacility = req.body.homeFacility;
 
 				const userOi = await checkOI(user);
@@ -714,7 +712,7 @@ router.put(
 	isNotSelf(),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			if (!req.body.form) {
+			if (!req.body) {
 				throwBadRequestException('Invalid form data');
 			}
 
@@ -733,48 +731,33 @@ router.put(
 				throwNotFoundException('User not found');
 			}
 
-			const { fname, lname, email, oi, roles, certs, vis } = req.body.form;
-			const toApply = {
-				roles: [] as string[],
-			};
-
-			// Prepare roles to update
-			for (const [code, set] of Object.entries(roles)) {
-				if (set) {
-					toApply.roles.push(code);
-				}
-			}
+			const { oi, roles, certs } = req.body;
 
 			// Handle certifications (certCodes and certificationDate)
 			const existingCertMap = new Map(user.certificationDate.map((cert) => [cert.code, cert]));
-			const updatedCertificationDate = [];
+			const updatedCertificationDate = [] as any[];
 
-			for (const [code, set] of Object.entries(certs)) {
-				if (set) {
-					if (existingCertMap.has(code)) {
-						// Keep the existing gainedDate if certification already exists
-						updatedCertificationDate.push({
-							code,
-							gainedDate: existingCertMap.get(code)!.gainedDate,
-						});
-					} else {
-						// If it's a new certification, add with today's date
-						updatedCertificationDate.push({
-							code,
-							gainedDate: new Date(), // Assign current date as gainedDate
-						});
-					}
+			certs.forEach((code: string) => {
+				if (existingCertMap.has(code)) {
+					// Keep the existing gainedDate if certification already exists
+					updatedCertificationDate.push({
+						code,
+						gainedDate: existingCertMap.get(code)!.gainedDate,
+					});
+				} else {
+					// If it's a new certification, add with today's date
+					updatedCertificationDate.push({
+						code,
+						gainedDate: new Date(), // Assign current date as gainedDate
+					});
 				}
+			});
+
+			if (oi) {
+				user.oi = oi;
 			}
 
-			await uploadAvatar(user, oi);
-
-			user.fname = fname;
-			user.lname = lname;
-			user.email = email;
-			user.oi = oi;
-			user.vis = vis;
-			user.roleCodes = toApply.roles;
+			user.roleCodes = roles || [];
 			user.certCodes = updatedCertificationDate.map((c) => c.code);
 			user.certificationDate = updatedCertificationDate;
 

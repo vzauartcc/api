@@ -1,6 +1,10 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { getCacheInstance } from '../../app.js';
-import { throwBadRequestException, throwNotFoundException } from '../../helpers/errors.js';
+import {
+	throwBadRequestException,
+	throwForbiddenException,
+	throwNotFoundException,
+} from '../../helpers/errors.js';
 import { getUsersWithPrivacy } from '../../helpers/mongodb.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { isSeniorStaff } from '../../middleware/auth.js';
@@ -81,17 +85,15 @@ router.get('/own', getUser, async (req: Request, res: Response, next: NextFuncti
 	}
 });
 
-router.post('/', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	// Submit feedback
+	console.log(req.body);
 	try {
 		if (
-			req.body.name === '' ||
-			req.body.email === '' ||
-			req.body.cid === null ||
 			req.body.controller === null ||
 			req.body.rating === null ||
 			req.body.position === null ||
-			req.body.comments === ''
+			req.body.comments.trim() === ''
 		) {
 			// Validation
 			throwBadRequestException('All fields are required');
@@ -101,10 +103,14 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 			throwBadRequestException('Comments section too long');
 		}
 
+		if (`${req.body.controller}` === `${req.user.cid}`) {
+			throwForbiddenException('You cannot submit feedback about yourself');
+		}
+
 		await FeedbackModel.create({
-			name: req.body.name,
-			email: req.body.email,
-			submitter: req.body.cid,
+			name: req.user.name,
+			email: req.user.email,
+			submitter: req.user.cid,
 			controllerCid: req.body.controller,
 			rating: req.body.rating,
 			position: req.body.position,
@@ -115,7 +121,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 		await getCacheInstance().clear('feedback-count');
 
 		await DossierModel.create({
-			by: req.body.cid,
+			by: req.user.cid,
 			affected: req.body.controller,
 			action: `%b submitted feedback about %a.`,
 			actionType: ACTION_TYPE.SUBMIT_FEEDBACK,
@@ -144,26 +150,13 @@ router.get('/controllers', getUser, async (req: Request, res: Response, next: Ne
 				cid: user.cid,
 				rating: user.rating,
 				vis: user.vis,
+				name: `${user.fname} ${user.lname}`,
 			});
 		}
 
-		controllers.sort((a, b) => {
-			const nameA = a.fname.toUpperCase();
-			const nameB = b.fname.toUpperCase();
-
-			if (nameA < nameB) return -1;
-
-			if (nameA > nameB) return 1;
-
-			const aName = a.lname.toUpperCase();
-			const bName = b.lname.toUpperCase();
-
-			if (aName < bName) return -1;
-
-			if (aName > bName) return 1;
-
-			return 0;
-		});
+		controllers.sort(
+			(a, b) => a.lname.localeCompare(b.lname) || a.fname.localeCompare(b.lname) || a.cid - b.cid,
+		);
 
 		return res.status(status.OK).json(controllers);
 	} catch (e) {

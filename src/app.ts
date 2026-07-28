@@ -27,6 +27,7 @@ import { throwBadRequestException } from './helpers/errors.js';
 import { clearCacheKeys, parseRedisConnectionString, setCache, setRedis } from './helpers/redis.js';
 import { setupS3 } from './helpers/s3.js';
 import zau from './helpers/zau.js';
+import { closeEventSignups } from './tasks/events.js';
 import { expireExamAttempts } from './tasks/examAttempts.js';
 import { soloExpiringNotifications, syncVatusaSoloEndorsements } from './tasks/solo.js';
 import { syncVatusaTrainingRecords } from './tasks/trainingRecords.js';
@@ -72,7 +73,7 @@ app.redis.on('connect', () => {
 console.log('Connecting to cache instance. . . .');
 const redisCache = new Redis(`${MONGO_CACHE_URI}?family=4&connectionName=cache`);
 redisCache.on('error', (err) => {
-	throw new Error(`Redis error: ${err}.`);
+	throw new Error(`Cache Redis error: ${err}.`);
 });
 redisCache.on('connect', () => {
 	console.log('Successfully connected to Redis Cache');
@@ -88,7 +89,6 @@ if (!CORS_ORIGIN) {
 }
 const origins = CORS_ORIGIN.split('|');
 
-console.log('Allowing CORS origins. . . .');
 app.use(
 	cors({
 		origin: origins,
@@ -233,6 +233,9 @@ console.log(`Starting VATUSA Solo Endorsement Sync task. . . .`);
 new Cron('0 * * * *', { name: 'Solo Endorsement Sync', catch: true }, () =>
 	syncVatusaSoloEndorsements(),
 );
+
+console.log(`Starting Close Old Event Signups task. . . .`);
+new Cron('30 * * * *', { name: 'Close Old Event Signups', catch: true }, () => closeEventSignups());
 
 console.log(`Starting Exam Attempt Expiration task. . . .`);
 new Cron('0 6 * * *', { name: 'Exam Attempt Expiration', timezone: 'Etc/UTC', catch: true }, () => {

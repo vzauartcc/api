@@ -2,6 +2,7 @@ import axios from 'axios';
 import { randomUUID } from 'crypto';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
+import { isValidObjectId } from 'mongoose';
 import {
 	throwBadRequestException,
 	throwInternalServerErrorException,
@@ -9,7 +10,7 @@ import {
 	throwUnauthorizedException,
 } from '../../helpers/errors.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
-import { uploadToS3 } from '../../helpers/s3.js';
+import { vatusaApi } from '../../helpers/vatusa.js';
 import zau from '../../helpers/zau.js';
 import { userOrInternal } from '../../middleware/auth.js';
 import internalAuth from '../../middleware/internalAuth.js';
@@ -19,7 +20,7 @@ import { ControllerHoursModel } from '../../models/controllerHours.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { NotificationModel } from '../../models/notification.js';
 import { TrainingSessionModel } from '../../models/trainingSession.js';
-import { UserModel } from '../../models/user.js';
+import { UserModel, type IUser } from '../../models/user.js';
 import status from '../../types/status.js';
 import { clearUserCache } from '../controller/utils.js';
 import gdrpRouter from './gdrp.js';
@@ -80,9 +81,23 @@ router.get('/', userOrInternal, async (req: Request, res: Response, next: NextFu
 				.exec();
 		}
 
-		const home = allUsers.filter((user) => user.vis === false && user.member === true);
-		const visiting = allUsers.filter((user) => user.vis === true && user.member === true);
-		const removed = allUsers.filter((user) => user.member === false);
+		const home = allUsers
+			.filter((user) => user.vis === false && user.member === true)
+			.sort(
+				(a, b) => a.lname.localeCompare(b.lname) || a.fname.localeCompare(b.lname) || a.cid - b.cid,
+			);
+
+		const visiting = allUsers
+			.filter((user) => user.vis === true && user.member === true)
+			.sort(
+				(a, b) => a.lname.localeCompare(b.lname) || a.fname.localeCompare(b.lname) || a.cid - b.cid,
+			);
+
+		const removed = allUsers
+			.filter((user) => user.member === false)
+			.sort(
+				(a, b) => a.lname.localeCompare(b.lname) || a.fname.localeCompare(b.lname) || a.cid - b.cid,
+			);
 
 		if (!home || !visiting || !removed) {
 			throwInternalServerErrorException('Unable to retrieve controllers');
@@ -99,7 +114,7 @@ router.get('/self', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const cookie = zau.isProd ? 'token' : 'dev-token';
 		if (!req.cookies[cookie]) {
-			throwUnauthorizedException('Token Cookie Not Found');
+			return res.status(status.UNAUTHORIZED).json({ message: 'Not Logged In' });
 		}
 
 		const decoded = jwt.verify(req.cookies[cookie], process.env['JWT_SECRET']!) as UserPayload;
@@ -206,33 +221,10 @@ router.post('/login', oAuth, async (req: Request, res: Response, next: NextFunct
 				member: false,
 				vis: false,
 			});
-		} else {
-			if (!user.email || user.email !== userData.email) {
-				user.email = userData.email;
-			}
-			if (!user.fname || user.lname !== userData.firstName) {
-				user.fname = userData.firstName;
-			}
-			if (!user.lname || user.lname !== userData.lastName) {
-				user.lname = userData.lastName;
-			}
-			user.rating = userData.ratingId;
 		}
 
-		if (user.oi && !user.avatar) {
-			const { data } = await axios.get(
-				`https://ui-avatars.com/api/?name=${user.oi}&size=256&background=122049&color=ffffff`,
-				{ responseType: 'arraybuffer' },
-			);
+		syncController(user).catch((err) => console.error('Uncaught error in VATUSA user sync', err));
 
-			await uploadToS3(`avatars/${user.cid}-default.png`, data, 'image/png', {
-				ContentDisposition: 'inline',
-			});
-
-			user.avatar = `${user.cid}-default.png`;
-		}
-
-		await user.save();
 		clearUserCache(user.cid);
 
 		const apiToken = jwt.sign({ cid: userData.cid }, process.env['JWT_SECRET']!, {
@@ -365,6 +357,29 @@ router.put(
 	},
 );
 
+router.delete(
+	'/notifications/:id',
+	getUser,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			if (
+				!req.params['id'] ||
+				req.params['id'] === 'undefined' ||
+				!isValidObjectId(req.params['id'])
+			) {
+				throwBadRequestException('Invalid ID');
+			}
+
+			await NotificationModel.deleteOne({ _id: req.params['id'] }).exec();
+			await clearCachePrefix(`notifications-${req.user.cid}`);
+
+			return res.status(status.NO_CONTENT).json();
+		} catch (e) {
+			return next(e);
+		}
+	},
+);
+
 router.put(
 	'/notifications/read/:id',
 	getUser,
@@ -451,3 +466,84 @@ router.patch('/:cid', internalAuth, async (req: Request, res: Response, next: Ne
 });
 
 export default router;
+
+interface IVATUSAUser {
+	cid: number;
+	fname: string;
+	lname: string;
+	email: string;
+	facility: string;
+	rating: number;
+	rating_short: string;
+	rating_long: string;
+	created_at: string; // ISO Date
+	updated_at: string; // ISO Date
+	flag_needbasic: boolean;
+	flag_xferOverride: boolean;
+	flag_broadcastOptedIn: boolean;
+	flag_preventStaffAssign: null;
+	flag_nameprivacy: boolean;
+	facility_join: string;
+	promotion_eligible: boolean;
+	transfer_eligible: null;
+	last_promotion: string; // ISO Date
+	flag_homeController: boolean;
+	lastactivity: string; // ISO Date
+	isMentor: boolean;
+	isSupIns: boolean;
+	roles: {
+		id: number;
+		cid: number;
+		facility: string;
+		role: string;
+		created_at: string; // ISO Date
+	}[];
+	visiting_facilities: {
+		id: number;
+		cid: number;
+		facility: string;
+		created_at: string; // ISO Date
+		updated_at: string; // ISO Date
+	}[];
+}
+
+async function syncController(user: IUser) {
+	if (zau.isDev) return;
+
+	try {
+		const { data } = await vatusaApi.get(`/user/${user.cid}`);
+
+		const vatusa = data.data as IVATUSAUser;
+
+		if (vatusa.fname !== user.fname) {
+			user.fname = vatusa.fname;
+		}
+		if (vatusa.lname !== user.lname) {
+			user.lname = vatusa.lname;
+		}
+		if (vatusa.email !== user.email) {
+			user.email = vatusa.email;
+		}
+		if (vatusa.rating !== user.rating) {
+			user.rating = vatusa.rating;
+		}
+		if (vatusa.flag_nameprivacy !== user.prefName) {
+			user.prefName = vatusa.flag_nameprivacy;
+		}
+		if (vatusa.facility !== user.homeFacility) {
+			user.homeFacility = vatusa.facility;
+		}
+		if (vatusa.facility === 'ZAU' && !user.member) {
+			user.member = true;
+		}
+		if (vatusa.visiting_facilities.some((f) => f.facility === 'ZAU') && !user.vis) {
+			user.vis = true;
+		}
+
+		if (user.isModified()) {
+			console.log('Updating', user.cid, 'with VATUSA data.');
+		}
+	} catch (e) {
+		console.warn('Failed to fetch VATUSA details for', user.cid, 'during login.');
+	}
+}

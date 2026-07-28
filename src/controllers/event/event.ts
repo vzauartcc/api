@@ -1,8 +1,5 @@
-import type { Progress } from '@aws-sdk/lib-storage';
+import { captureMessage } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { fileTypeFromFile } from 'file-type';
-import * as fs from 'fs';
-import multer from 'multer';
 import { getCacheInstance } from '../../app.js';
 import {
 	throwBadRequestException,
@@ -12,7 +9,7 @@ import {
 } from '../../helpers/errors.js';
 import { sendMail } from '../../helpers/mailer.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
-import { deleteFromS3, setUploadStatus, uploadToS3 } from '../../helpers/s3.js';
+import { deleteFromS3, generateS3SignedUrl } from '../../helpers/s3.js';
 import { isEventsTeam } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
@@ -24,20 +21,6 @@ import status from '../../types/status.js';
 import staffingRequestRouter from './staffingrequest.js';
 
 const router = Router();
-
-const upload = multer({
-	storage: multer.diskStorage({
-		destination: (_req, _file, cb) => {
-			cb(null, '/tmp');
-		},
-		filename: (_req, file, cb) => {
-			cb(null, `${Date.now()}-${file.originalname}`);
-		},
-	}),
-	limits: {
-		fileSize: 30 * 1024 * 1024, // 30MiB
-	},
-});
 
 router.use('/staffingrequest', staffingRequestRouter);
 
@@ -156,7 +139,7 @@ router.patch('/:slug/signup', getUser, async (req: Request, res: Response, next:
 		for (const r of req.body.requests) {
 			if (
 				(/^([A-Z]{2,3})(_([A-Z,0-9]{1,3}))?_(DEL|GND|TWR|APP|DEP|CTR)$/.test(r) ||
-					r.toLowerCase() === 'any') === false
+					r.toLowerCase().includes('any')) === false
 			) {
 				throwBadRequestException('Invalid callsign');
 			}
@@ -439,6 +422,10 @@ router.post(
 
 			const positions = eventData.positions;
 
+			if (positions.length >= 25 * 10) {
+				throwBadRequestException(`A maximum of ${25 * 10} positions are permitted per event.`);
+			}
+
 			const userCids = [...new Set(positions.map((p) => p.takenBy).filter((cid) => !!cid))];
 			const users = await UserModel.find({ cid: { $in: userCids } })
 				.lean()
@@ -457,199 +444,168 @@ router.post(
 				const user = userMap.get(position.takenBy);
 
 				return {
-					name: position.pos,
-					value: user ? `${user.fname} ${user.lname}` : 'Unknown User',
+					name: trimText(position.pos, 256),
+					value: trimText(user ? `${user.fname} ${user.lname}` : 'Unknown User', 1024),
 					inline: true,
 				};
 			});
 
-			const fieldsChunked = chunkArray(positionFields, 25); // Chunk into arrays of 25 fields
+			const embeds = [];
+
+			for (let i = 0; i < positionFields.length; i += 25) {
+				const chunk = positionFields.slice(i, i + 25);
+
+				const isFirstChunk = i === 0;
+				const isLastChunk = i + 25 >= positionFields.length;
+
+				embeds.push({
+					title: isFirstChunk ? trimText(eventData.name, 256) : undefined,
+					description: isFirstChunk ? trimText(eventData.description, 4096) : undefined,
+					color: 2003199,
+					footer: !isLastChunk ? undefined : { text: 'Position information provided by WATSN' },
+					fields: chunk,
+					url: `https://www.zauartcc.org/events/${eventData.url}#${i}`,
+					image: !isLastChunk
+						? undefined
+						: {
+								url: `${process.env['S3_ORIGIN_ENDPOINT']}/events/` + eventData.bannerUrl,
+							},
+				});
+			}
 
 			const params = {
 				username: 'WATSN',
 				avatar_url:
 					'https://cdn.discordapp.com/avatars/1011884072479502406/feac626c2bdf43bfa8337cd3165e5a92.png?size=1024',
 				content: '',
-				embeds: [
-					{
-						title: eventData.name,
-						description: eventData.description,
-						color: 2003199,
-						footer:
-							fieldsChunked.length > 1
-								? undefined
-								: { text: 'Position information provided by WATSN' },
-						fields: fieldsChunked[0],
-						url: 'https://www.zauartcc.org/events/' + eventData.url,
-						image:
-							fieldsChunked.length > 1
-								? undefined
-								: {
-										url: `${process.env['S3_ORIGIN_ENDPOINT']}/events/` + eventData.bannerUrl,
-									},
-					},
-				],
+				embeds: embeds,
 			};
 
-			if (fieldsChunked.length > 1) {
-				// Second Embed if there are more than 25 fields
-				const secondEmbed = {
-					title: eventData.name,
-					description: '',
-					color: 2003199,
-					url: `https://www.zauartcc.org/events/${eventData.url}`,
-					fields: fieldsChunked[1],
-					image: {
-						url: `${process.env['S3_ORIGIN_ENDPOINT']}/events/` + eventData.bannerUrl,
-					},
-					footer: { text: 'Position information provided by WATSN' },
-				};
-				if (secondEmbed) {
-					params.embeds.push(secondEmbed);
-				}
-			}
+			const isEdit = !!eventData.discordId;
 
-			const webhookUrl =
-				eventData.discordId === undefined
-					? process.env['DISCORD_WEBHOOK']
-					: process.env['DISCORD_WEBHOOK'] + `/messages/${eventData.discordId}`;
+			const webhookUrl = !isEdit
+				? process.env['DISCORD_WEBHOOK']
+				: `${process.env['DISCORD_WEBHOOK']}/messages/${eventData.discordId}`;
 
 			if (!webhookUrl) {
 				throwInternalServerErrorException('Webook URL not found');
 			}
 
-			fetch(webhookUrl, {
-				method: 'POST',
-				headers: {
-					'Content-type': 'application/json',
-				},
-				body: JSON.stringify(params),
-			})
-				.then((res2) => res2.json())
-				.then(async (data) => {
-					let url = eventData.url;
-					let messageId = (data as { id: string }).id;
-					if (messageId !== undefined) {
-						await EventModel.findOneAndUpdate(
-							{ url: url },
-							{ $set: { discordId: String(messageId) } },
-							{ returnOriginal: false },
-						).exec();
-					} else {
-						return res
-							.status(status.NOT_FOUND)
-							.json({ message: 'Event could not be sent', status: status.NOT_FOUND });
-					}
-					return res
-						.status(status.OK)
-						.json({ message: 'Event sent successfully', status: status.OK });
-				})
-				.catch((error) => {
-					console.error(error);
+			try {
+				const response = await fetch(`${webhookUrl}?wait=true`, {
+					method: isEdit ? 'PATCH' : 'POST',
+					headers: {
+						'Content-type': 'application/json',
+					},
+					body: JSON.stringify(params),
 				});
 
-			return res.status(status.OK).json();
-		} catch (e) {
-			return next(e);
-		}
-	},
-);
+				const data = (await response.json()) as any;
+				if (data) {
+					if (response.status === status.NOT_FOUND && data.code === 10008) {
+						const res2 = await fetch(`${process.env['DISCORD_WEBHOOK']}?wait=true`, {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify(params),
+						});
 
-router.post(
-	'/',
-	getUser,
-	isEventsTeam,
-	upload.single('banner'),
-	async (req: Request, res: Response, next: NextFunction) => {
-		try {
-			if (!req.file?.path) {
-				throwBadRequestException('File path missing');
-			}
+						const data2 = (await res2.json()) as any;
+						if (data2 && data2.id) {
+							await EventModel.findOneAndUpdate(
+								{ url: url },
+								{ $set: { discordId: String(data2.id) } },
+								{ returnOriginal: false },
+							).exec();
 
-			const url =
-				req.body.name
-					.replace(/\s+/g, '-')
-					.toLowerCase()
-					.replace(/^-+|-+(?=-|$)/g, '')
-					.replace(/[^a-zA-Z0-9-_]/g, '') +
-				'-' +
-				Date.now().toString().slice(-5);
-			const allowedTypes = ['image/jpg', 'image/jpeg', 'image/png', 'image/gif'];
-			const fileType = await fileTypeFromFile(req.file.path);
+							return res.status(status.OK).json();
+						}
+						return;
+					}
+					let messageId = (data as { id: string }).id;
+					if (!messageId) {
+						captureMessage('Discord Webhook failed', data);
+						throwInternalServerErrorException('Discord failed to process our message.');
+					}
 
-			if (fileType === undefined || !allowedTypes.includes(fileType.mime)) {
-				throwBadRequestException('Banner file type is not supported');
-			}
+					await EventModel.findOneAndUpdate(
+						{ url: url },
+						{ $set: { discordId: String(messageId) } },
+						{ returnOriginal: false },
+					).exec();
 
-			setUploadStatus(req.body.uploadId, 0);
-
-			res.status(status.ACCEPTED).json();
-
-			const filePath = req.file.path;
-			let fileStream: fs.ReadStream | undefined;
-
-			try {
-				fileStream = fs.createReadStream(filePath);
-
-				await uploadToS3(
-					`events/${req.file.filename}`,
-					fileStream,
-					req.file.mimetype,
-					{
-						ContentDisposition: 'inline',
-					},
-					(progress: Progress) => {
-						const total = progress.total || 0;
-						const percent = total > 0 ? Math.round(((progress.loaded || 0) / total) * 100) : 0;
-						setUploadStatus(req.body.uploadId, percent);
-					},
-				);
-			} catch (e) {
-				setUploadStatus(req.body.uploadId, -1);
-
-				throwInternalServerErrorException('Error streaming file to storage');
-			} finally {
-				try {
-					fileStream?.close();
-					fs.unlinkSync(filePath);
-				} catch (_err) {
-					// Do nothing, we don't care about this error
+					return res.status(status.OK).json();
+				} else {
+					throwInternalServerErrorException('Discord did not return any data');
 				}
+			} catch (e: any) {
+				console.error('error posting message to discord', e);
+				throwInternalServerErrorException(e.message);
 			}
-
-			await EventModel.create({
-				name: req.body.name,
-				description: req.body.description,
-				url: url,
-				bannerUrl: req.file.filename,
-				eventStart: req.body.startTime,
-				eventEnd: req.body.endTime,
-				createdBy: req.user.cid,
-				open: true,
-				submitted: false,
-			});
-
-			getCacheInstance().clear('events');
-
-			await DossierModel.create({
-				by: req.user.cid,
-				affected: -1,
-				action: `%b created the event *${req.body.name}*.`,
-				actionType: ACTION_TYPE.CREATE_EVENT,
-			});
-
-			return res.status(status.CREATED).json();
 		} catch (e) {
 			return next(e);
 		}
 	},
 );
+
+router.post('/', getUser, isEventsTeam, async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		if (!req.body.fileType) {
+			throwBadRequestException('File path missing');
+		}
+
+		const url =
+			req.body.name
+				.replace(/\s+/g, '-')
+				.toLowerCase()
+				.replace(/^-+|-+(?=-|$)/g, '')
+				.replace(/[^a-zA-Z0-9-_]/g, '') +
+			'-' +
+			Date.now().toString().slice(-5);
+		const allowedTypes = ['image/jpg', 'image/jpeg', 'image/png', 'image/gif'];
+
+		if (!req.body.fileType || !allowedTypes.includes(req.body.fileType)) {
+			throwBadRequestException('Banner file type is not supported');
+		}
+
+		if (!req.body.fileName) {
+			throwBadRequestException('File name is required');
+		}
+
+		const fileName = `${Date.now()}-${req.body.fileName}`;
+		const s3Url = await generateS3SignedUrl(`events/${fileName}`, req.body.fileType);
+
+		await EventModel.create({
+			name: req.body.name,
+			description: req.body.description,
+			url: url,
+			bannerUrl: fileName,
+			eventStart: req.body.startTime,
+			eventEnd: req.body.endTime,
+			createdBy: req.user.cid,
+			open: true,
+			submitted: false,
+			requiresEventEndorsement: req.body.requiresEventEndorsement,
+		});
+
+		await clearCachePrefix('event');
+
+		await DossierModel.create({
+			by: req.user.cid,
+			affected: -1,
+			action: `%b created the event *${req.body.name}*.`,
+			actionType: ACTION_TYPE.CREATE_EVENT,
+		});
+
+		return res.status(status.CREATED).json({ url: s3Url });
+	} catch (e) {
+		return next(e);
+	}
+});
 
 router.put(
 	'/:slug',
 	getUser,
 	isEventsTeam,
-	upload.single('banner'),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!req.params['slug'] || req.params['slug'] === 'undefined') {
@@ -663,7 +619,15 @@ router.put(
 				throwNotFoundException('Event Not Found');
 			}
 
-			const { name, description, startTime, endTime, positions } = req.body;
+			const {
+				name,
+				description,
+				startTime,
+				endTime,
+				positions,
+				requiresEventEndorsement,
+				fileType,
+			} = req.body;
 			if (eventData.name !== name) {
 				eventData.name = name;
 				eventData.url =
@@ -678,10 +642,11 @@ router.put(
 			eventData.description = description;
 			eventData.eventStart = startTime;
 			eventData.eventEnd = endTime;
+			eventData.requiresEventEndorsement = requiresEventEndorsement;
 
 			const computedPositions: IEventPositionData[] = [];
 
-			for (const pos of JSON.parse(positions)) {
+			for (const pos of positions) {
 				const thePos = pos.match(/^([A-Z]{3})_(?:[A-Z0-9]{1,3}_)?([A-Z]{3})$/); // 🤮 so basically this extracts the first part and last part of a callsign.
 				if (['CTR'].includes(thePos[2])) {
 					computedPositions.push({
@@ -737,54 +702,25 @@ router.put(
 				eventData.positions = computedPositions as IEventPosition[];
 			}
 
-			if (req.file) {
+			let s3Url = '';
+			if (fileType) {
 				const allowedTypes = ['image/jpg', 'image/jpeg', 'image/png', 'image/gif'];
-				const fileType = await fileTypeFromFile(req.file.path);
-				if (fileType === undefined || !allowedTypes.includes(fileType.mime)) {
+				if (!fileType || !allowedTypes.includes(fileType)) {
 					throwBadRequestException('File type not supported');
+				}
+
+				if (!req.body.fileName) {
+					throwBadRequestException('File name is required');
 				}
 
 				if (eventData.bannerUrl) {
 					deleteFromS3(`events/${eventData.bannerUrl}`);
 				}
 
-				setUploadStatus(req.body.uploadId, 0);
+				const fileName = `${Date.now()}-${req.body.fileName}`;
+				s3Url = await generateS3SignedUrl(`events/${fileName}`, fileType);
 
-				res.status(status.ACCEPTED).json();
-
-				const filePath = req.file.path;
-				let fileStream: fs.ReadStream | undefined;
-
-				try {
-					fileStream = fs.createReadStream(filePath);
-
-					await uploadToS3(
-						`events/${req.file.filename}`,
-						fileStream,
-						req.file.mimetype,
-						{
-							ContentDisposition: 'inline',
-						},
-						(progress: Progress) => {
-							const total = progress.total || 0;
-							const percent = total > 0 ? Math.round(((progress.loaded || 0) / total) * 100) : 0;
-							setUploadStatus(req.body.uploadId, percent);
-						},
-					);
-				} catch (e) {
-					setUploadStatus(req.body.uploadId, -1);
-
-					throwInternalServerErrorException('Error streaming file to storage');
-				} finally {
-					try {
-						fileStream?.close();
-						fs.unlinkSync(filePath);
-					} catch (_err) {
-						// Do nothing, we don't care about this error
-					}
-				}
-
-				eventData.bannerUrl = req.file.filename;
+				eventData.bannerUrl = fileName;
 			}
 
 			await eventData.save();
@@ -798,7 +734,7 @@ router.put(
 				actionType: ACTION_TYPE.UPDATE_EVENT,
 			});
 
-			return res.status(status.OK).json();
+			return res.status(status.OK).json({ url: s3Url });
 		} catch (e) {
 			return next(e);
 		}
@@ -913,11 +849,15 @@ router.put(
 				throwBadRequestException('Invalid event slug');
 			}
 
+			if (!req.body || req.body.open === undefined) {
+				throwBadRequestException('Body required');
+			}
+
 			const event = await EventModel.updateOne(
 				{ url: req.params['slug'] },
 				{
 					$set: {
-						open: false,
+						open: !!req.body.open,
 					},
 				},
 			).exec();
@@ -937,12 +877,8 @@ router.put(
 
 export default router;
 
-function chunkArray(arr: string | any[], chunkSize: number) {
-	const chunkedArr = [];
-	let index = 0;
-	while (index < arr.length) {
-		chunkedArr.push(arr.slice(index, index + chunkSize));
-		index += chunkSize;
-	}
-	return chunkedArr;
+function trimText(text: string, length: number) {
+	if (text.length < length) return text;
+
+	return `${text.slice(0, length - 4)} ...`;
 }

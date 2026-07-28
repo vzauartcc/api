@@ -1,7 +1,6 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { Redis } from 'ioredis';
-import { throwBadRequestException } from '../../helpers/errors.js';
-import { isEventsTeam } from '../../middleware/auth.js';
+import { throwBadRequestException, throwForbiddenException } from '../../helpers/errors.js';
 import getUser from '../../middleware/user.js';
 import status from '../../types/status.js';
 import {
@@ -18,115 +17,115 @@ const router = Router();
 const DEFAULT_SECTOR = 35;
 const sectors = [
 	{
-		id: 35,
-		name: 'BEARZ',
-		frequency: '134.875',
-		color: '#ff7f27',
-	},
-	{
-		id: 25,
+		id: '25',
 		name: 'PMM',
 		frequency: '126.125',
 		color: '#4aa564',
 	},
 	{
-		id: 26,
+		id: '26',
 		name: 'KUBBS',
 		frequency: '133.200',
 		color: '#5674b9',
 	},
 	{
-		id: 36,
+		id: '35',
+		name: 'BEARZ',
+		frequency: '134.875',
+		color: '#ff7f27',
+	},
+	{
+		id: '36',
 		name: 'FWA',
 		frequency: '126.325',
 		color: '#f06eaa',
 	},
 	{
-		id: 44,
+		id: '44',
 		name: 'EON',
 		frequency: '120.125',
 		color: '#9999ff',
 	},
 	{
-		id: 46,
+		id: '46',
 		name: 'BVT',
 		frequency: '121.275',
 		color: '#a4d5ee',
 	},
 	{
-		id: 51,
+		id: '51',
 		name: 'PLANO',
 		frequency: '135.150',
 		color: '#cccc00',
 	},
 	{
-		id: 52,
+		id: '52',
 		name: 'BDF',
 		frequency: '132.225',
 		color: '#f5989d',
 	},
 	{
-		id: 55,
+		id: '55',
 		name: 'BRL',
 		frequency: '118.750',
 		color: '#7accc8',
 	},
 	{
-		id: 60,
+		id: '60',
 		name: 'BAE',
 		frequency: '126.875',
 		color: '#f26d7d',
 	},
 	{
-		id: 62,
+		id: '62',
 		name: 'HARLY',
 		frequency: '123.825',
 		color: '#fbaf5d',
 	},
 	{
-		id: 63,
+		id: '63',
 		name: 'DBQ',
 		frequency: '133.950',
 		color: '#f26d7d',
 	},
 	{
-		id: 64,
+		id: '64',
 		name: 'LNR',
 		frequency: '133.300',
 		color: '#7fd2a8',
 	},
 	{
-		id: 74,
+		id: '74',
 		name: 'FARMM',
 		frequency: '133.350',
 		color: '#f9ad81',
 	},
 	{
-		id: 75,
+		id: '75',
 		name: 'COTON',
 		frequency: '127.775',
 		color: '#fbc98e',
 	},
 	{
-		id: 77,
+		id: '77',
 		name: 'MALTA',
 		frequency: '134.825',
 		color: '#f06eaa',
 	},
 	{
-		id: 81,
+		id: '81',
 		name: 'CRIBB',
 		frequency: '120.350',
 		color: '#c2c2c2',
 	},
 	{
-		id: 89,
+		id: '89',
 		name: 'GIJ',
 		frequency: '126.475',
 		color: '#41b6e6',
 	},
 	{
-		id: 94,
+		id: '94',
 		name: 'IOW',
 		frequency: '125.575',
 		color: '#2e8540',
@@ -161,55 +160,54 @@ router.get('/ownership', async (req: Request, res: Response, next: NextFunction)
 	}
 });
 
-router.put(
-	'/ownership',
-	getUser,
-	isEventsTeam,
-	async (req: Request, res: Response, next: NextFunction) => {
-		try {
-			if (!req.body || !req.body.high || !req.body.low) {
-				throwBadRequestException('Invalid request');
-			}
-
-			for (const id of Object.keys(req.body.high)) {
-				await req.app.redis.set(`split:high:${id}`, req.body.high[id]);
-				// Boiler Climb Corridor
-				if (id === '1') {
-					await req.app.redis.set(`split:high:9`, req.body.high[id]);
-				}
-				// IOW Climb Corridor
-				if (id === '8') {
-					await req.app.redis.set(`split:high:6`, req.body.high[id]);
-				}
-			}
-
-			for (const id of Object.keys(req.body.low)) {
-				await req.app.redis.set(`split:low:${id}`, req.body.low[id]);
-			}
-
-			return res.status(status.OK).json(req.body);
-		} catch (e) {
-			return next(e);
+router.put('/ownership', getUser, async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		if (!req.body || !req.body.high || !req.body.low) {
+			throwBadRequestException('Invalid request');
 		}
-	},
-);
 
-router.delete(
-	'/ownership',
-	getUser,
-	isEventsTeam,
-	async (req: Request, res: Response, next: NextFunction) => {
-		try {
-			await resetSplit(req.app.redis);
-
-			const ownership = await getOwnership(req.app.redis);
-
-			return res.status(status.OK).json(ownership);
-		} catch (e) {
-			return next(e);
+		if (!req.user.isStaff && req.user.rating < 5) {
+			throwForbiddenException();
 		}
-	},
-);
+
+		for (const id of Object.keys(req.body.high)) {
+			await req.app.redis.set(`split:high:${id}`, req.body.high[id]);
+			// Boiler Climb Corridor
+			if (id === '1') {
+				await req.app.redis.set(`split:high:9`, req.body.high[id]);
+			}
+			// IOW Climb Corridor
+			if (id === '8') {
+				await req.app.redis.set(`split:high:6`, req.body.high[id]);
+			}
+		}
+
+		for (const id of Object.keys(req.body.low)) {
+			await req.app.redis.set(`split:low:${id}`, req.body.low[id]);
+		}
+
+		const data = await getOwnership(req.app.redis);
+
+		return res.status(status.OK).json(data);
+	} catch (e) {
+		return next(e);
+	}
+});
+
+router.delete('/ownership', getUser, async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		if (!req.user.isStaff && req.user.rating < 5) {
+			throwForbiddenException();
+		}
+		await resetSplit(req.app.redis);
+
+		const ownership = await getOwnership(req.app.redis);
+
+		return res.status(status.OK).json(ownership);
+	} catch (e) {
+		return next(e);
+	}
+});
 
 export default router;
 
@@ -255,3 +253,24 @@ async function getOwnership(redis: Redis) {
 
 	return retval;
 }
+
+router.get('/isSplit', async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const keys = await req.app.redis.keys(`split:*`);
+
+		if (keys.length === 0) {
+			return res.status(status.OK).json(false);
+		}
+
+		for (const key of keys) {
+			const val = await req.app.redis.get(key);
+			if (val !== '35') {
+				return res.status(status.OK).json(true);
+			}
+		}
+
+		return res.status(status.OK).json(false);
+	} catch (e) {
+		return next(e);
+	}
+});
