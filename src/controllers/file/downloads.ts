@@ -1,17 +1,21 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { getCacheInstance } from '../../app.js';
-import { throwBadRequestException, throwNotFoundException } from '../../helpers/errors.js';
+import {
+	throwBadRequestException,
+	throwForbiddenException,
+	throwNotFoundException,
+} from '../../helpers/errors.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { deleteFromS3, generateS3SignedUrl } from '../../helpers/s3.js';
 import { isStaff } from '../../middleware/auth.js';
-import getUser from '../../middleware/user.js';
+import getUser, { isUserValid } from '../../middleware/user.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { DownloadModel } from '../../models/download.js';
 import status from '../../types/status.js';
 
 const router = Router();
 
-router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const downloads = await DownloadModel.find({ deletedAt: null })
 			.sort({ category: 'asc', name: 'asc' })
@@ -19,7 +23,16 @@ router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 			.cache('5 minutes', 'downloads')
 			.exec();
 
-		return res.status(status.OK).json(downloads);
+		// Load user onto req, if logged in
+		await isUserValid(req);
+
+		if (req.user && req.user.isTrainingStaff) {
+			return res.status(status.OK).json(downloads);
+		}
+
+		return res
+			.status(status.OK)
+			.json(downloads.filter((d) => d.category !== 'ins' && d.category !== 'insguides'));
 	} catch (e) {
 		return next(e);
 	}
@@ -38,6 +51,17 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 
 		if (!download) {
 			throwNotFoundException('Download Not Found');
+		}
+
+		// Load user onto req, if logged in
+		await isUserValid(req);
+
+		if (
+			(download.category === 'ins' || download.category === 'insguides') &&
+			req.user &&
+			!req.user.isTrainingStaff
+		) {
+			throwForbiddenException('You are not authorized to access this');
 		}
 
 		return res.status(status.OK).json(download);
