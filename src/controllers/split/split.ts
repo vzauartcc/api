@@ -171,19 +171,19 @@ router.put('/ownership', getUser, async (req: Request, res: Response, next: Next
 		}
 
 		for (const id of Object.keys(req.body.high)) {
-			await req.app.redis.set(`split:high:${id}`, req.body.high[id]);
+			await req.app.redis.set(`split:g:high:${id}`, req.body.high[id]);
 			// Boiler Climb Corridor
 			if (id === '1') {
-				await req.app.redis.set(`split:high:9`, req.body.high[id]);
+				await req.app.redis.set(`split:g:high:9`, req.body.high[id]);
 			}
 			// IOW Climb Corridor
 			if (id === '8') {
-				await req.app.redis.set(`split:high:6`, req.body.high[id]);
+				await req.app.redis.set(`split:g:high:6`, req.body.high[id]);
 			}
 		}
 
 		for (const id of Object.keys(req.body.low)) {
-			await req.app.redis.set(`split:low:${id}`, req.body.low[id]);
+			await req.app.redis.set(`split:g:low:${id}`, req.body.low[id]);
 		}
 
 		const data = await getOwnership(req.app.redis);
@@ -212,7 +212,7 @@ router.delete('/ownership', getUser, async (req: Request, res: Response, next: N
 export default router;
 
 export async function resetSplit(redis: Redis) {
-	const keys = await redis.keys(`split:*`);
+	const keys = await redis.keys(`split:g:*`);
 
 	if (keys.length > 0) {
 		await redis.del(keys);
@@ -220,10 +220,10 @@ export async function resetSplit(redis: Redis) {
 
 	// Reset back to default sector
 	for (const sector of ZAU_Hi.features) {
-		redis.set(`split:high:${sector.properties.id}`, DEFAULT_SECTOR);
+		redis.set(`split:g:high:${sector.properties.id}`, DEFAULT_SECTOR);
 	}
 	for (const sector of ZAU_Lo.features) {
-		redis.set(`split:low:${sector.properties.id}`, DEFAULT_SECTOR);
+		redis.set(`split:g:low:${sector.properties.id}`, DEFAULT_SECTOR);
 	}
 }
 
@@ -233,7 +233,7 @@ async function getOwnership(redis: Redis) {
 		low: {},
 	} as any;
 
-	const keys = await redis.keys(`split:*`);
+	const keys = await redis.keys(`split:g:*`);
 
 	if (keys.length === 0) {
 		console.warn('Split data does not exist, setting defaults');
@@ -244,10 +244,10 @@ async function getOwnership(redis: Redis) {
 
 	for (const key of keys) {
 		const val = await redis.get(key);
-		if (key.startsWith('split:high:')) {
-			retval.high[key.replace('split:high:', '')] = val;
-		} else if (key.startsWith('split:low:')) {
-			retval.low[key.replace('split:low:', '')] = val;
+		if (key.startsWith('split:g:high:')) {
+			retval.high[key.replace('split:g:high:', '')] = val;
+		} else if (key.startsWith('split:g:low:')) {
+			retval.low[key.replace('split:g:low:', '')] = val;
 		}
 	}
 
@@ -256,7 +256,7 @@ async function getOwnership(redis: Redis) {
 
 router.get('/isSplit', async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		const keys = await req.app.redis.keys(`split:*`);
+		const keys = await req.app.redis.keys(`split:g:*`);
 
 		if (keys.length === 0) {
 			return res.status(status.OK).json(false);
