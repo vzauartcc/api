@@ -204,8 +204,8 @@ router.get(
 			const sessions = await TrainingSessionModel.aggregate([
 				{
 					$project: {
-						month: { $month: '$createdAt' },
-						year: { $year: '$createdAt' },
+						month: { $month: '$startTime' },
+						year: { $year: '$startTime' },
 						durationMs: { $subtract: ['$endTime', '$startTime'] },
 					},
 				},
