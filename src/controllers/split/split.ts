@@ -4,12 +4,16 @@ import { throwBadRequestException, throwForbiddenException } from '../../helpers
 import getUser from '../../middleware/user.js';
 import status from '../../types/status.js';
 import {
-	EON_Border,
-	PMM_Border,
-	ZAU_Hi,
-	ZAU_Hi_Borders,
-	ZAU_Lo,
-	ZAU_Lo_Borders,
+    EON_Border,
+    PMM_Border,
+    ZAU_Hi,
+    ZAU_Hi_Borders,
+    ZAU_Lo,
+    ZAU_Lo_Borders,
+    ZMP_Hi,
+    ZMP_Lo,
+    ZOB_Hi,
+    ZOB_Lo,
 } from './geojson.js';
 
 const router = Router();
@@ -144,6 +148,14 @@ router.get('/geojson', async (_req: Request, res: Response, next: NextFunction) 
 			sectors: {
 				high: ZAU_Hi,
 				low: ZAU_Lo,
+			},
+			zob: {
+				high: ZOB_Hi,
+				low: ZOB_Lo,
+			},
+			zmp: {
+				high: ZMP_Hi,
+				low: ZMP_Lo,
 			},
 		});
 	} catch (e) {
