@@ -5,7 +5,7 @@ export const ZAU_Hi = {
 			type: 'Feature',
 			properties: {
 				name: 'FORT WAYNE',
-				id: 5,
+				id: 36,
 				area: 'SE',
 				special: false,
 				level: 'hi',
@@ -47,7 +47,7 @@ export const ZAU_Hi = {
 			type: 'Feature',
 			properties: {
 				name: 'PULLMAN',
-				id: 0,
+				id: 25,
 				area: 'NE',
 				special: false,
 				level: 'hi',
@@ -76,7 +76,7 @@ export const ZAU_Hi = {
 			type: 'Feature',
 			properties: {
 				name: 'BOILER',
-				id: 1,
+				id: 46,
 				area: 'S',
 				special: false,
 				level: 'hi',
@@ -106,7 +106,7 @@ export const ZAU_Hi = {
 			type: 'Feature',
 			properties: {
 				name: 'BRADFORD',
-				id: 2,
+				id: 52,
 				area: 'SW',
 				special: false,
 				level: 'hi',
@@ -140,7 +140,7 @@ export const ZAU_Hi = {
 			type: 'Feature',
 			properties: {
 				name: 'BADGER',
-				id: 3,
+				id: 60,
 				area: 'N',
 				special: false,
 				level: 'hi',
@@ -182,7 +182,7 @@ export const ZAU_Hi = {
 			type: 'Feature',
 			properties: {
 				name: 'GIPPER',
-				id: 4,
+				id: 89,
 				area: 'E',
 				special: false,
 				level: 'hi',
@@ -260,7 +260,7 @@ export const ZAU_Hi = {
 			type: 'Feature',
 			properties: {
 				name: 'COTON',
-				id: 7,
+				id: 75,
 				area: 'NW',
 				special: false,
 				level: 'hi',
@@ -301,7 +301,7 @@ export const ZAU_Hi = {
 			type: 'Feature',
 			properties: {
 				name: 'IOWA CITY',
-				id: 8,
+				id: 94,
 				area: 'W',
 				special: false,
 				level: 'hi',
@@ -370,7 +370,7 @@ export const ZAU_Lo = {
 			type: 'Feature',
 			properties: {
 				name: 'BEARZ',
-				id: 7,
+				id: 35,
 				area: 'NW',
 				special: false,
 				level: 'lo',
@@ -419,7 +419,7 @@ export const ZAU_Lo = {
 			type: 'Feature',
 			properties: {
 				name: 'PLANO',
-				id: 0,
+				id: 51,
 				area: 'SW',
 				special: false,
 				level: 'lo',
@@ -473,7 +473,7 @@ export const ZAU_Lo = {
 			type: 'Feature',
 			properties: {
 				name: 'HARLY',
-				id: 1,
+				id: 62,
 				area: 'N',
 				special: false,
 				level: 'lo',
@@ -512,7 +512,7 @@ export const ZAU_Lo = {
 			type: 'Feature',
 			properties: {
 				name: 'DUBUQUE',
-				id: 2,
+				id: 63,
 				area: 'N',
 				special: false,
 				level: 'lo',
@@ -555,7 +555,7 @@ export const ZAU_Lo = {
 			type: 'Feature',
 			properties: {
 				name: 'LONE ROCK',
-				id: 3,
+				id: 64,
 				area: 'N',
 				special: false,
 				level: 'lo',
@@ -603,7 +603,7 @@ export const ZAU_Lo = {
 			type: 'Feature',
 			properties: {
 				name: 'FARMM',
-				id: 4,
+				id: 74,
 				area: 'NW',
 				special: false,
 				level: 'lo',
@@ -642,7 +642,7 @@ export const ZAU_Lo = {
 			type: 'Feature',
 			properties: {
 				name: 'MALTA',
-				id: 5,
+				id: 77,
 				area: 'NW',
 				special: false,
 				level: 'lo',
@@ -678,7 +678,7 @@ export const ZAU_Lo = {
 			type: 'Feature',
 			properties: {
 				name: 'PEOTONE',
-				id: 6,
+				id: 44,
 				area: 'NW',
 				special: false,
 				level: 'lo',
@@ -747,7 +747,7 @@ export const ZAU_Lo = {
 			type: 'Feature',
 			properties: {
 				name: 'BURLINGTON',
-				id: 9,
+				id: 55,
 				area: 'SW',
 				special: false,
 				level: 'lo',
@@ -807,7 +807,7 @@ export const ZAU_Lo = {
 			type: 'Feature',
 			properties: {
 				name: 'KUBBS',
-				id: 10,
+				id: 26,
 				area: 'NE',
 				special: false,
 				level: 'lo',
@@ -848,7 +848,7 @@ export const ZAU_Lo = {
 			type: 'Feature',
 			properties: {
 				name: 'CRIBB',
-				id: 11,
+				id: 81,
 				area: 'E',
 				special: false,
 				level: 'lo',

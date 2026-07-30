@@ -173,11 +173,11 @@ router.put('/ownership', getUser, async (req: Request, res: Response, next: Next
 		for (const id of Object.keys(req.body.high)) {
 			await req.app.redis.set(`split:g:high:${id}`, req.body.high[id]);
 			// Boiler Climb Corridor
-			if (id === '1') {
+			if (id === '46') {
 				await req.app.redis.set(`split:g:high:9`, req.body.high[id]);
 			}
 			// IOW Climb Corridor
-			if (id === '8') {
+			if (id === '94') {
 				await req.app.redis.set(`split:g:high:6`, req.body.high[id]);
 			}
 		}
