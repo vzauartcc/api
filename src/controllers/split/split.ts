@@ -4,16 +4,16 @@ import { throwBadRequestException, throwForbiddenException } from '../../helpers
 import getUser from '../../middleware/user.js';
 import status from '../../types/status.js';
 import {
-    EON_Border,
-    PMM_Border,
-    ZAU_Hi,
-    ZAU_Hi_Borders,
-    ZAU_Lo,
-    ZAU_Lo_Borders,
-    ZMP_Hi,
-    ZMP_Lo,
-    ZOB_Hi,
-    ZOB_Lo,
+	EON_Border,
+	PMM_Border,
+	ZAU_Hi,
+	ZAU_Hi_Borders,
+	ZAU_Lo,
+	ZAU_Lo_Borders,
+	ZMP_Hi,
+	ZMP_Lo,
+	ZOB_Hi,
+	ZOB_Lo,
 } from './geojson.js';
 
 const router = Router();
@@ -241,8 +241,18 @@ export async function resetSplit(redis: Redis) {
 
 async function getOwnership(redis: Redis) {
 	const retval = {
-		high: {},
-		low: {},
+		zau: {
+			high: {},
+			low: {},
+		},
+		zmp: {
+			high: {},
+			low: {},
+		},
+		zob: {
+			high: {},
+			low: {},
+		},
 	} as any;
 
 	const keys = await redis.keys(`split:g:*`);
@@ -257,9 +267,17 @@ async function getOwnership(redis: Redis) {
 	for (const key of keys) {
 		const val = await redis.get(key);
 		if (key.startsWith('split:g:high:')) {
-			retval.high[key.replace('split:g:high:', '')] = val;
+			retval.zau.high[key.replace('split:g:high:', '')] = val;
 		} else if (key.startsWith('split:g:low:')) {
-			retval.low[key.replace('split:g:low:', '')] = val;
+			retval.zau.low[key.replace('split:g:low:', '')] = val;
+		} else if (key.startsWith('split:p:high')) {
+			retval.zmp.high[key.replace('split:p:high:', '')] = val;
+		} else if (key.startsWith('split:p:low:')) {
+			retval.zmp.low[key.replace('split:p:low:', '')] = val;
+		} else if (key.startsWith('split:c:high')) {
+			retval.zob.high[key.replace('split:c:high:', '')] = val;
+		} else if (key.startsWith('split:c:low')) {
+			retval.zob.low[key.replace('split:c:low:', '')] = val;
 		}
 	}
 
