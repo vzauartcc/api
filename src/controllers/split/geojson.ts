@@ -1226,6 +1226,7 @@ export const ZOB_Hi = {
 				sector: 'ZOB18',
 				name: 'ZOB18',
 				source_id: 1,
+				labelAnchor: [43.23684, -83.91979],
 			},
 			geometry: {
 				type: 'Polygon',
@@ -1258,6 +1259,7 @@ export const ZOB_Hi = {
 				sector: 'ZOB28',
 				name: 'ZOB28',
 				source_id: 1,
+				labelAnchor: [32.24349, -84.24444],
 			},
 			geometry: {
 				type: 'Polygon',
@@ -1284,6 +1286,7 @@ export const ZOB_Hi = {
 				sector: 'ZOB07',
 				name: 'ZOB07',
 				source_id: 1,
+				labelAnchor: [41.29525, -83.93333],
 			},
 			geometry: {
 				type: 'Polygon',
@@ -1319,6 +1322,7 @@ export const ZOB_Lo = {
 				sector: 'ZOB12',
 				name: 'ZOB12',
 				source_id: 1,
+				labelAnchor: [42.90895, -84.42063],
 			},
 			geometry: {
 				type: 'Polygon',
@@ -1351,6 +1355,7 @@ export const ZOB_Lo = {
 				sector: 'ZOB14',
 				name: 'ZOB14',
 				source_id: 1,
+				labelAnchor: [42.34599, -84.57365],
 			},
 			geometry: {
 				type: 'Polygon',
@@ -1381,6 +1386,7 @@ export const ZOB_Lo = {
 				sector: 'ZOB15',
 				name: 'ZOB15',
 				source_id: 1,
+				labelAnchor: [41.70658, -84.63104],
 			},
 			geometry: {
 				type: 'Polygon',
@@ -1413,6 +1419,7 @@ export const ZOB_Lo = {
 				sector: 'ZOB02',
 				name: 'ZOB02',
 				source_id: 1,
+				labelAnchor: [41.00304, -84.10501],
 			},
 			geometry: {
 				type: 'Polygon',
