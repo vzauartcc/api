@@ -6,14 +6,14 @@ import status from '../../types/status.js';
 import {
 	EON_Border,
 	PMM_Border,
-	ZAU_Hi,
-	ZAU_Hi_Borders,
-	ZAU_Lo,
-	ZAU_Lo_Borders,
-	ZMP_Hi,
-	ZMP_Lo,
-	ZOB_Hi,
-	ZOB_Lo,
+	ZAU_High,
+	ZAU_High_Borders,
+	ZAU_Low,
+	ZAU_Low_Borders,
+	ZMP_High,
+	ZMP_Low,
+	ZOB_High,
+	ZOB_Low,
 } from './geojson.js';
 
 const router = Router();
@@ -140,22 +140,22 @@ router.get('/geojson', async (_req: Request, res: Response, next: NextFunction) 
 	try {
 		return res.status(status.OK).json({
 			borders: {
-				high: ZAU_Hi_Borders,
-				low: ZAU_Lo_Borders,
+				high: ZAU_High_Borders,
+				low: ZAU_Low_Borders,
 				PMM: PMM_Border,
 				EON: EON_Border,
 			},
 			sectors: {
-				high: ZAU_Hi,
-				low: ZAU_Lo,
+				high: ZAU_High,
+				low: ZAU_Low,
 			},
 			zob: {
-				high: ZOB_Hi,
-				low: ZOB_Lo,
+				high: ZOB_High,
+				low: ZOB_Low,
 			},
 			zmp: {
-				high: ZMP_Hi,
-				low: ZMP_Lo,
+				high: ZMP_High,
+				low: ZMP_Low,
 			},
 		});
 	} catch (e) {
@@ -231,10 +231,10 @@ export async function resetSplit(redis: Redis) {
 	}
 
 	// Reset back to default sector
-	for (const sector of ZAU_Hi.features) {
+	for (const sector of ZAU_High.features) {
 		redis.set(`split:g:high:${sector.properties.id}`, DEFAULT_SECTOR);
 	}
-	for (const sector of ZAU_Lo.features) {
+	for (const sector of ZAU_Low.features) {
 		redis.set(`split:g:low:${sector.properties.id}`, DEFAULT_SECTOR);
 	}
 }

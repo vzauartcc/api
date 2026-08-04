@@ -1,4 +1,4 @@
-export const ZAU_Hi = {
+export const ZAU_High = {
 	type: 'FeatureCollection',
 	features: [
 		{
@@ -8,7 +8,7 @@ export const ZAU_Hi = {
 				id: 36,
 				area: 'SE',
 				special: false,
-				level: 'hi',
+				level: 'high',
 				labelAnchor: [41.13118, -86.17859],
 			},
 			geometry: {
@@ -50,7 +50,7 @@ export const ZAU_Hi = {
 				id: 25,
 				area: 'NE',
 				special: false,
-				level: 'hi',
+				level: 'high',
 				labelAnchor: [43.255313, -86.422054],
 			},
 			geometry: {
@@ -79,7 +79,7 @@ export const ZAU_Hi = {
 				id: 46,
 				area: 'S',
 				special: false,
-				level: 'hi',
+				level: 'high',
 				labelAnchor: [40.701904, -88.450917],
 			},
 			geometry: {
@@ -109,7 +109,7 @@ export const ZAU_Hi = {
 				id: 52,
 				area: 'SW',
 				special: false,
-				level: 'hi',
+				level: 'high',
 				labelAnchor: [40.8, -90.7],
 			},
 			geometry: {
@@ -143,7 +143,7 @@ export const ZAU_Hi = {
 				id: 60,
 				area: 'N',
 				special: false,
-				level: 'hi',
+				level: 'high',
 				labelAnchor: [43.432372, -88.755247],
 			},
 			geometry: {
@@ -185,7 +185,7 @@ export const ZAU_Hi = {
 				id: 89,
 				area: 'E',
 				special: false,
-				level: 'hi',
+				level: 'high',
 				labelAnchor: [42.142026, -87.544691],
 			},
 			geometry: {
@@ -236,7 +236,7 @@ export const ZAU_Hi = {
 				id: 6,
 				area: 'NW',
 				special: true,
-				level: 'hi',
+				level: 'high',
 			},
 			geometry: {
 				type: 'Polygon',
@@ -263,7 +263,7 @@ export const ZAU_Hi = {
 				id: 75,
 				area: 'NW',
 				special: false,
-				level: 'hi',
+				level: 'high',
 				labelAnchor: [42.860003, -91.156068],
 			},
 			geometry: {
@@ -304,7 +304,7 @@ export const ZAU_Hi = {
 				id: 94,
 				area: 'W',
 				special: false,
-				level: 'hi',
+				level: 'high',
 				labelAnchor: [41.395525, -92.251655],
 			},
 			geometry: {
@@ -344,7 +344,7 @@ export const ZAU_Hi = {
 				id: 9,
 				area: 'S',
 				special: true,
-				level: 'hi',
+				level: 'high',
 			},
 			geometry: {
 				type: 'Polygon',
@@ -363,7 +363,7 @@ export const ZAU_Hi = {
 	],
 };
 
-export const ZAU_Lo = {
+export const ZAU_Low = {
 	type: 'FeatureCollection',
 	features: [
 		{
@@ -373,7 +373,7 @@ export const ZAU_Lo = {
 				id: 35,
 				area: 'NW',
 				special: false,
-				level: 'lo',
+				level: 'low',
 				labelAnchor: [41.32446, -86.422054],
 			},
 			geometry: {
@@ -422,7 +422,7 @@ export const ZAU_Lo = {
 				id: 51,
 				area: 'SW',
 				special: false,
-				level: 'lo',
+				level: 'low',
 				labelAnchor: [41.32446, -89.519452],
 			},
 			geometry: {
@@ -476,7 +476,7 @@ export const ZAU_Lo = {
 				id: 62,
 				area: 'N',
 				special: false,
-				level: 'lo',
+				level: 'low',
 				labelAnchor: [42.84017, -88.423866],
 			},
 			geometry: {
@@ -515,7 +515,7 @@ export const ZAU_Lo = {
 				id: 63,
 				area: 'N',
 				special: false,
-				level: 'lo',
+				level: 'low',
 				labelAnchor: [42.780635, -91.399532],
 			},
 			geometry: {
@@ -558,7 +558,7 @@ export const ZAU_Lo = {
 				id: 64,
 				area: 'N',
 				special: false,
-				level: 'lo',
+				level: 'low',
 				labelAnchor: [43.599119, -89.708813],
 			},
 			geometry: {
@@ -606,7 +606,7 @@ export const ZAU_Lo = {
 				id: 74,
 				area: 'NW',
 				special: false,
-				level: 'lo',
+				level: 'low',
 				labelAnchor: [42.730978, -89.830544],
 			},
 			geometry: {
@@ -645,7 +645,7 @@ export const ZAU_Lo = {
 				id: 77,
 				area: 'NW',
 				special: false,
-				level: 'lo',
+				level: 'low',
 				labelAnchor: [42.101897, -89.830544],
 			},
 			geometry: {
@@ -681,7 +681,7 @@ export const ZAU_Lo = {
 				id: 44,
 				area: 'NW',
 				special: false,
-				level: 'lo',
+				level: 'low',
 				labelAnchor: [41.880732, -88.112773],
 			},
 			geometry: {
@@ -716,7 +716,7 @@ export const ZAU_Lo = {
 				id: 8,
 				area: 'S',
 				special: true,
-				level: 'lo',
+				level: 'low',
 			},
 			geometry: {
 				type: 'Polygon',
@@ -750,7 +750,7 @@ export const ZAU_Lo = {
 				id: 55,
 				area: 'SW',
 				special: false,
-				level: 'lo',
+				level: 'low',
 				labelAnchor: [41.527296, -92.359861],
 			},
 			geometry: {
@@ -810,7 +810,7 @@ export const ZAU_Lo = {
 				id: 26,
 				area: 'NE',
 				special: false,
-				level: 'lo',
+				level: 'low',
 				labelAnchor: [43.127117, -86.543786],
 			},
 			geometry: {
@@ -851,7 +851,7 @@ export const ZAU_Lo = {
 				id: 81,
 				area: 'E',
 				special: false,
-				level: 'lo',
+				level: 'low',
 				labelAnchor: [42.212191, -86.814301],
 			},
 			geometry: {
@@ -897,7 +897,7 @@ export const ZAU_Lo = {
 	],
 };
 
-export const ZAU_Hi_Borders = {
+export const ZAU_High_Borders = {
 	type: 'FeatureCollection',
 	features: [
 		{
@@ -1037,7 +1037,7 @@ export const ZAU_Hi_Borders = {
 	],
 };
 
-export const ZAU_Lo_Borders = {
+export const ZAU_Low_Borders = {
 	type: 'FeatureCollection',
 	features: [
 		{
@@ -1225,7 +1225,7 @@ export const EON_Border = {
 	],
 };
 
-export const ZOB_Hi = {
+export const ZOB_High = {
 	type: 'FeatureCollection',
 	features: [
 		{
@@ -1321,7 +1321,7 @@ export const ZOB_Hi = {
 	],
 };
 
-export const ZOB_Lo = {
+export const ZOB_Low = {
 	type: 'FeatureCollection',
 	features: [
 		{
@@ -1462,7 +1462,7 @@ export const ZOB_Lo = {
 	],
 };
 
-export const ZMP_Hi = {
+export const ZMP_High = {
 	type: 'FeatureCollection',
 	features: [
 		{
@@ -1739,7 +1739,7 @@ export const ZMP_Hi = {
 	],
 };
 
-export const ZMP_Lo = {
+export const ZMP_Low = {
 	type: 'FeatureCollection',
 	features: [
 		{
