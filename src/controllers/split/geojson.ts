@@ -1460,6 +1460,7 @@ export const ZMP_Hi = {
 			type: 'Feature',
 			properties: {
 				id: '12',
+				labelAnchor: [44.23884, -85.80869],
 			},
 			geometry: {
 				type: 'MultiPolygon',
@@ -1505,6 +1506,7 @@ export const ZMP_Hi = {
 			type: 'Feature',
 			properties: {
 				id: '13',
+				labelAnchor: [44.62186, -88.88195],
 			},
 			geometry: {
 				type: 'MultiPolygon',
@@ -1555,6 +1557,7 @@ export const ZMP_Hi = {
 			type: 'Feature',
 			properties: {
 				id: '15',
+				labelAnchor: [43.94732, -91.50583],
 			},
 			geometry: {
 				type: 'MultiPolygon',
@@ -1591,6 +1594,7 @@ export const ZMP_Hi = {
 			type: 'Feature',
 			properties: {
 				id: '16',
+				labelAnchor: [44.75584, -91.09993],
 			},
 			geometry: {
 				type: 'MultiPolygon',
@@ -1627,6 +1631,7 @@ export const ZMP_Hi = {
 			type: 'Feature',
 			properties: {
 				id: '17',
+				labelAnchor: [43.18052, -92.57857],
 			},
 			geometry: {
 				type: 'MultiPolygon',
@@ -1661,6 +1666,7 @@ export const ZMP_Hi = {
 			type: 'Feature',
 			properties: {
 				id: '30',
+				labelAnchor: [42.30756, -94.31816],
 			},
 			geometry: {
 				type: 'MultiPolygon',
@@ -1689,6 +1695,7 @@ export const ZMP_Hi = {
 			type: 'Feature',
 			properties: {
 				id: '38',
+				labelAnchor: [41.07354, -94.65158],
 			},
 			geometry: {
 				type: 'MultiPolygon',
@@ -1761,6 +1768,7 @@ export const ZMP_Lo = {
 				artcc: 'zmp',
 				sector: '02',
 				label: 'ZMP02',
+				labelAnchor: [43.96819, -86.41754],
 			},
 		},
 		{
@@ -1806,6 +1814,7 @@ export const ZMP_Lo = {
 				artcc: 'zmp',
 				sector: '04',
 				label: 'ZMP04',
+				labelAnchor: [44.49792, -88.89645],
 			},
 		},
 		{
@@ -1852,6 +1861,7 @@ export const ZMP_Lo = {
 			},
 			properties: {
 				id: 5,
+				labelAnchor: [43.86376, -91.33187],
 			},
 		},
 		{
@@ -1902,6 +1912,7 @@ export const ZMP_Lo = {
 			},
 			properties: {
 				id: 36,
+				labelAnchor: [42.97934, -92.79602],
 			},
 		},
 		{
@@ -1943,6 +1954,7 @@ export const ZMP_Lo = {
 			},
 			properties: {
 				id: 27,
+				labelAnchor: [40.89845, -94.46313],
 			},
 		},
 	],
