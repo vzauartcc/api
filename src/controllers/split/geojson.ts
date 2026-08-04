@@ -904,14 +904,16 @@ export const ZAU_Hi_Borders = {
 			type: 'Feature',
 			properties: {
 				borderType: 'Neighbor',
+				id: 'ZMP-ZOB',
 			},
 			geometry: {
 				type: 'LineString',
 				coordinates: [
 					[-84.9636162339592, 43.58667495900751],
-					[-84.5225049925508, 43.6338972130078],
-					[-84.160560440978, 43.6713972388782],
-					[-83.2933379581026, 43.7558417432841],
+					[-84.5225049925508, 43.6338972120656],
+					[-84.037227070176, 43.6836194686204],
+					[-82.72928865828379, 43.80577092351317],
+					[-82.169444, 43.855278],
 				],
 			},
 		},
@@ -919,6 +921,7 @@ export const ZAU_Hi_Borders = {
 			type: 'Feature',
 			properties: {
 				borderType: 'Neighbor',
+				id: 'ZOB-ZID',
 			},
 			geometry: {
 				type: 'LineString',
@@ -934,6 +937,7 @@ export const ZAU_Hi_Borders = {
 			type: 'Feature',
 			properties: {
 				borderType: 'Neighbor',
+				id: 'ZID-ZKC',
 			},
 			geometry: {
 				type: 'LineString',
@@ -949,6 +953,7 @@ export const ZAU_Hi_Borders = {
 			type: 'Feature',
 			properties: {
 				borderType: 'Neighbor',
+				id: 'ZKC-ZMP',
 			},
 			geometry: {
 				type: 'LineString',
@@ -1039,14 +1044,14 @@ export const ZAU_Lo_Borders = {
 			type: 'Feature',
 			properties: {
 				borderType: 'Neighbor',
+				id: 'ZMP-ZOB',
 			},
 			geometry: {
 				type: 'LineString',
 				coordinates: [
 					[-84.9636162339592, 43.58667495900751],
-					[-84.5225049925508, 43.6338972120656],
-					[-84.037227070176, 43.6836194686204],
-					[-82.72928865828379, 43.80577092351317],
+					[-84.5225049925508, 43.6338972130078],
+					[-84.160560440978, 43.6713972388782],
 				],
 			},
 		},
@@ -1054,6 +1059,7 @@ export const ZAU_Lo_Borders = {
 			type: 'Feature',
 			properties: {
 				borderType: 'Neighbor',
+				id: 'ZOB-ZID',
 			},
 			geometry: {
 				type: 'LineString',
@@ -1061,6 +1067,7 @@ export const ZAU_Lo_Borders = {
 					[-84.7000047883834, 40.9083411712146],
 					[-84.3472269005313, 40.8630634026111],
 					[-83.7458378235554, 40.7833411945319],
+					[-83.64999791794746, 40.73754287737118],
 				],
 			},
 		},
@@ -1068,6 +1075,7 @@ export const ZAU_Lo_Borders = {
 			type: 'Feature',
 			properties: {
 				borderType: 'Neighbor',
+				id: 'ZID-ZKC',
 			},
 			geometry: {
 				type: 'LineString',
@@ -1083,6 +1091,7 @@ export const ZAU_Lo_Borders = {
 			type: 'Feature',
 			properties: {
 				borderType: 'Neighbor',
+				id: 'ZKC-ZMP',
 			},
 			geometry: {
 				type: 'LineString',
@@ -1090,7 +1099,7 @@ export const ZAU_Lo_Borders = {
 					[-93.4916739477802, 40.5250072867029],
 					[-93.908340720877, 40.4583405836374],
 					[-94.0725074294549, 40.427785013699],
-					[-95.9166745560405, 40.0791737333554],
+					[-95.55, 40.15],
 				],
 			},
 		},
@@ -1222,7 +1231,7 @@ export const ZOB_Hi = {
 		{
 			type: 'Feature',
 			properties: {
-				id: 'ZOB18',
+				id: '18',
 				sector: 'ZOB18',
 				name: 'ZOB18',
 				source_id: 1,
@@ -1255,7 +1264,7 @@ export const ZOB_Hi = {
 		{
 			type: 'Feature',
 			properties: {
-				id: 'ZOB28',
+				id: '28',
 				sector: 'ZOB28',
 				name: 'ZOB28',
 				source_id: 1,
@@ -1282,7 +1291,7 @@ export const ZOB_Hi = {
 		{
 			type: 'Feature',
 			properties: {
-				id: 'ZOB07',
+				id: '07',
 				sector: 'ZOB07',
 				name: 'ZOB07',
 				source_id: 1,
@@ -1318,7 +1327,7 @@ export const ZOB_Lo = {
 		{
 			type: 'Feature',
 			properties: {
-				id: 'ZOB12',
+				id: '12',
 				sector: 'ZOB12',
 				name: 'ZOB12',
 				source_id: 1,
@@ -1351,7 +1360,7 @@ export const ZOB_Lo = {
 		{
 			type: 'Feature',
 			properties: {
-				id: 'ZOB14',
+				id: '14',
 				sector: 'ZOB14',
 				name: 'ZOB14',
 				source_id: 1,
@@ -1382,7 +1391,7 @@ export const ZOB_Lo = {
 		{
 			type: 'Feature',
 			properties: {
-				id: 'ZOB15',
+				id: '15',
 				sector: 'ZOB15',
 				name: 'ZOB15',
 				source_id: 1,
@@ -1415,7 +1424,7 @@ export const ZOB_Lo = {
 		{
 			type: 'Feature',
 			properties: {
-				id: 'ZOB02',
+				id: '02',
 				sector: 'ZOB02',
 				name: 'ZOB02',
 				source_id: 1,
@@ -1763,7 +1772,7 @@ export const ZMP_Lo = {
 				],
 			},
 			properties: {
-				id: 2,
+				id: '2',
 				OBJECTID: 303,
 				artcc: 'zmp',
 				sector: '02',
@@ -1809,7 +1818,7 @@ export const ZMP_Lo = {
 				],
 			},
 			properties: {
-				id: 4,
+				id: '4',
 				OBJECTID: 305,
 				artcc: 'zmp',
 				sector: '04',
@@ -1860,7 +1869,7 @@ export const ZMP_Lo = {
 				],
 			},
 			properties: {
-				id: 5,
+				id: '5',
 				labelAnchor: [43.86376, -91.33187],
 			},
 		},
@@ -1911,7 +1920,7 @@ export const ZMP_Lo = {
 				],
 			},
 			properties: {
-				id: 36,
+				id: '36',
 				labelAnchor: [42.97934, -92.79602],
 			},
 		},
@@ -1953,7 +1962,7 @@ export const ZMP_Lo = {
 				],
 			},
 			properties: {
-				id: 27,
+				id: '27',
 				labelAnchor: [40.89845, -94.46313],
 			},
 		},
