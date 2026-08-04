@@ -263,7 +263,7 @@ new Cron('0 6 * * *', { name: 'Exam Attempt Expiration', timezone: 'Etc/UTC', ca
 });
 
 console.log(`Starting Neighbor Split fetch task. . . .`);
-new Cron('0 */5 * * *', { name: 'Sync Neighbor Splits', timezone: 'Etc/UTC', catch: true }, () =>
+new Cron('*/5 * * * *', { name: 'Sync Neighbor Splits', timezone: 'Etc/UTC', catch: true }, () =>
 	getNeighborSplits(app.redis),
 );
 getNeighborSplits(app.redis);

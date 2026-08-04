@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { ZMP_High, ZMP_Low } from '../controllers/split/geojson.js';
 
 interface ZMPSplit {
 	type: string;
@@ -27,13 +28,21 @@ export async function getNeighborSplits(redis: any) {
 		);
 
 		const zmp = zmpSplit.find((s) => s.type === 'current');
-		if (zmp) {
+		if (zmp && Object.keys(zmp.split).length > 0) {
 			for (const [key, value] of Object.entries(zmp.split)) {
 				const sectors = value.split('|');
 				sectors.forEach((s) => {
 					redis.set(`split:p:${s}`, key.replaceAll('MSP_', '').replaceAll('_CTR', ''));
 				});
 			}
+		} else {
+			// No split, make P11 own all.
+			ZMP_High.features.forEach((f) => {
+				redis.set(`split:p:${f.properties.id}`, '11');
+			});
+			ZMP_Low.features.forEach((f) => {
+				redis.set(`split:p:${f.properties.id}`, '11');
+			});
 		}
 	} catch (e) {
 		console.error('error fetching zmp split', e);
