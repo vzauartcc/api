@@ -245,17 +245,11 @@ async function getOwnership(redis: Redis) {
 			high: {},
 			low: {},
 		},
-		zmp: {
-			high: {},
-			low: {},
-		},
-		zob: {
-			high: {},
-			low: {},
-		},
+		zmp: {},
+		zob: {},
 	} as any;
 
-	const keys = await redis.keys(`split:g:*`);
+	const keys = await redis.keys(`split:*`);
 
 	if (keys.length === 0) {
 		console.warn('Split data does not exist, setting defaults');
@@ -270,14 +264,10 @@ async function getOwnership(redis: Redis) {
 			retval.zau.high[key.replace('split:g:high:', '')] = val;
 		} else if (key.startsWith('split:g:low:')) {
 			retval.zau.low[key.replace('split:g:low:', '')] = val;
-		} else if (key.startsWith('split:p:high')) {
-			retval.zmp.high[key.replace('split:p:high:', '')] = val;
-		} else if (key.startsWith('split:p:low:')) {
-			retval.zmp.low[key.replace('split:p:low:', '')] = val;
-		} else if (key.startsWith('split:c:high')) {
-			retval.zob.high[key.replace('split:c:high:', '')] = val;
-		} else if (key.startsWith('split:c:low')) {
-			retval.zob.low[key.replace('split:c:low:', '')] = val;
+		} else if (key.startsWith('split:p:')) {
+			retval.zmp[key.replace('split:p:', '')] = val;
+		} else if (key.startsWith('split:c:')) {
+			retval.zob[key.replace('split:c:', '')] = val;
 		}
 	}
 
