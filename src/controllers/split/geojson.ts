@@ -1232,10 +1232,6 @@ export const ZOB_High = {
 			type: 'Feature',
 			properties: {
 				id: '18',
-				sector: 'ZOB18',
-				name: 'ZOB18',
-				source_id: 1,
-				labelAnchor: [43.23684, -83.91979],
 			},
 			geometry: {
 				type: 'Polygon',
@@ -1259,16 +1255,11 @@ export const ZOB_High = {
 					],
 				],
 			},
-			id: 'ZOB18',
 		},
 		{
 			type: 'Feature',
 			properties: {
 				id: '28',
-				sector: 'ZOB28',
-				name: 'ZOB28',
-				source_id: 1,
-				labelAnchor: [32.24349, -84.24444],
 			},
 			geometry: {
 				type: 'Polygon',
@@ -1286,16 +1277,12 @@ export const ZOB_High = {
 					],
 				],
 			},
-			id: 'ZOB28',
 		},
 		{
 			type: 'Feature',
 			properties: {
 				id: '07',
-				sector: 'ZOB07',
-				name: 'ZOB07',
 				source_id: 1,
-				labelAnchor: [41.29525, -83.93333],
 			},
 			geometry: {
 				type: 'Polygon',
@@ -1316,7 +1303,6 @@ export const ZOB_High = {
 					],
 				],
 			},
-			id: 'ZOB07',
 		},
 	],
 };
@@ -1328,10 +1314,6 @@ export const ZOB_Low = {
 			type: 'Feature',
 			properties: {
 				id: '12',
-				sector: 'ZOB12',
-				name: 'ZOB12',
-				source_id: 1,
-				labelAnchor: [42.90895, -84.42063],
 			},
 			geometry: {
 				type: 'Polygon',
@@ -1355,16 +1337,11 @@ export const ZOB_Low = {
 					],
 				],
 			},
-			id: 'ZOB12',
 		},
 		{
 			type: 'Feature',
 			properties: {
 				id: '14',
-				sector: 'ZOB14',
-				name: 'ZOB14',
-				source_id: 1,
-				labelAnchor: [42.34599, -84.57365],
 			},
 			geometry: {
 				type: 'Polygon',
@@ -1386,16 +1363,11 @@ export const ZOB_Low = {
 					],
 				],
 			},
-			id: 'ZOB14',
 		},
 		{
 			type: 'Feature',
 			properties: {
 				id: '15',
-				sector: 'ZOB15',
-				name: 'ZOB15',
-				source_id: 1,
-				labelAnchor: [41.70658, -84.63104],
 			},
 			geometry: {
 				type: 'Polygon',
@@ -1419,16 +1391,11 @@ export const ZOB_Low = {
 					],
 				],
 			},
-			id: 'ZOB15',
 		},
 		{
 			type: 'Feature',
 			properties: {
 				id: '02',
-				sector: 'ZOB02',
-				name: 'ZOB02',
-				source_id: 1,
-				labelAnchor: [41.00304, -84.10501],
 			},
 			geometry: {
 				type: 'Polygon',
@@ -1457,7 +1424,6 @@ export const ZOB_Low = {
 					],
 				],
 			},
-			id: 'ZOB02',
 		},
 	],
 };
@@ -1469,7 +1435,6 @@ export const ZMP_High = {
 			type: 'Feature',
 			properties: {
 				id: '12',
-				labelAnchor: [44.23884, -85.80869],
 			},
 			geometry: {
 				type: 'MultiPolygon',
@@ -1515,7 +1480,6 @@ export const ZMP_High = {
 			type: 'Feature',
 			properties: {
 				id: '13',
-				labelAnchor: [44.62186, -88.88195],
 			},
 			geometry: {
 				type: 'MultiPolygon',
@@ -1566,7 +1530,6 @@ export const ZMP_High = {
 			type: 'Feature',
 			properties: {
 				id: '15',
-				labelAnchor: [43.94732, -91.50583],
 			},
 			geometry: {
 				type: 'MultiPolygon',
@@ -1603,7 +1566,6 @@ export const ZMP_High = {
 			type: 'Feature',
 			properties: {
 				id: '16',
-				labelAnchor: [44.75584, -91.09993],
 			},
 			geometry: {
 				type: 'MultiPolygon',
@@ -1640,7 +1602,6 @@ export const ZMP_High = {
 			type: 'Feature',
 			properties: {
 				id: '17',
-				labelAnchor: [43.18052, -92.57857],
 			},
 			geometry: {
 				type: 'MultiPolygon',
@@ -1675,7 +1636,6 @@ export const ZMP_High = {
 			type: 'Feature',
 			properties: {
 				id: '30',
-				labelAnchor: [42.30756, -94.31816],
 			},
 			geometry: {
 				type: 'MultiPolygon',
@@ -1704,7 +1664,6 @@ export const ZMP_High = {
 			type: 'Feature',
 			properties: {
 				id: '38',
-				labelAnchor: [41.07354, -94.65158],
 			},
 			geometry: {
 				type: 'MultiPolygon',
@@ -1773,11 +1732,6 @@ export const ZMP_Low = {
 			},
 			properties: {
 				id: '2',
-				OBJECTID: 303,
-				artcc: 'zmp',
-				sector: '02',
-				label: 'ZMP02',
-				labelAnchor: [43.96819, -86.41754],
 			},
 		},
 		{
@@ -1819,11 +1773,6 @@ export const ZMP_Low = {
 			},
 			properties: {
 				id: '4',
-				OBJECTID: 305,
-				artcc: 'zmp',
-				sector: '04',
-				label: 'ZMP04',
-				labelAnchor: [44.49792, -88.89645],
 			},
 		},
 		{
@@ -1870,7 +1819,6 @@ export const ZMP_Low = {
 			},
 			properties: {
 				id: '5',
-				labelAnchor: [43.86376, -91.33187],
 			},
 		},
 		{
@@ -1921,7 +1869,6 @@ export const ZMP_Low = {
 			},
 			properties: {
 				id: '36',
-				labelAnchor: [42.97934, -92.79602],
 			},
 		},
 		{
@@ -1963,7 +1910,6 @@ export const ZMP_Low = {
 			},
 			properties: {
 				id: '27',
-				labelAnchor: [40.89845, -94.46313],
 			},
 		},
 	],
@@ -2008,9 +1954,7 @@ export const ZID_High = {
 				],
 			},
 			properties: {
-				isLineDefaults: null,
 				id: '75',
-				labelAnchor: [],
 			},
 		},
 		{
@@ -2044,8 +1988,6 @@ export const ZID_High = {
 			},
 			properties: {
 				id: '88',
-				labelAnchor: [],
-				isLineDefaults: null,
 			},
 		},
 	],
@@ -2086,8 +2028,6 @@ export const ZID_Low = {
 			},
 			properties: {
 				id: '35',
-				labelAnchor: [],
-				isLineDefaults: null,
 			},
 		},
 		{
@@ -2125,8 +2065,6 @@ export const ZID_Low = {
 			},
 			properties: {
 				id: 34,
-				labelAnchor: [],
-				isLineDefaults: null,
 			},
 		},
 		{
@@ -2160,8 +2098,6 @@ export const ZID_Low = {
 			},
 			properties: {
 				id: '33',
-				labelAnchor: [],
-				isLineDefaults: null,
 			},
 		},
 		{
@@ -2194,8 +2130,6 @@ export const ZID_Low = {
 			},
 			properties: {
 				id: '32',
-				labelAnchor: [],
-				isLineDefaults: null,
 			},
 		},
 	],
