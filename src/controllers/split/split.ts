@@ -182,21 +182,24 @@ router.put('/ownership', getUser, async (req: Request, res: Response, next: Next
 			throwForbiddenException();
 		}
 
+		const entries: string[] = [];
 		for (const id of Object.keys(req.body.high)) {
-			await req.app.redis.set(`split:g:high:${id}`, req.body.high[id]);
+			entries.push(`split:g:high:${id}`, req.body.high[id]);
 			// Boiler Climb Corridor
 			if (id === '46') {
-				await req.app.redis.set(`split:g:high:9`, req.body.high[id]);
+				entries.push(`split:g:high:9`, req.body.high[id]);
 			}
 			// IOW Climb Corridor
 			if (id === '94') {
-				await req.app.redis.set(`split:g:high:6`, req.body.high[id]);
+				entries.push(`split:g:high:6`, req.body.high[id]);
 			}
 		}
 
 		for (const id of Object.keys(req.body.low)) {
-			await req.app.redis.set(`split:g:low:${id}`, req.body.low[id]);
+			entries.push(`split:g:low:${id}`, req.body.low[id]);
 		}
+
+		await req.app.redis.mset(entries);
 
 		const data = await getOwnership(req.app.redis);
 
