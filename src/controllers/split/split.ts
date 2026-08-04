@@ -1,6 +1,10 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { Redis } from 'ioredis';
-import { throwBadRequestException, throwForbiddenException } from '../../helpers/errors.js';
+import {
+	throwBadRequestException,
+	throwForbiddenException,
+	throwInternalServerErrorException,
+} from '../../helpers/errors.js';
 import getUser from '../../middleware/user.js';
 import status from '../../types/status.js';
 import {
@@ -752,6 +756,37 @@ router.get('/ownership', async (req: Request, res: Response, next: NextFunction)
 	try {
 		const ownership = await getOwnership(req.app.redis);
 		return res.status(status.OK).json({ positions: sectors, ownership: ownership });
+	} catch (e) {
+		return next(e);
+	}
+});
+
+router.get('/active', async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const retval = {} as any;
+
+		const keys = await req.app.redis.keys(`split:g:*`);
+
+		if (keys.length === 0) {
+			throwInternalServerErrorException('Split not set');
+		}
+
+		for (const key of keys) {
+			const val = await req.app.redis.get(key);
+			if (key.startsWith('split:g:high:')) {
+				retval[key.replace('split:g:high:', '')] = val;
+			} else if (key.startsWith('split:g:low:')) {
+				retval[key.replace('split:g:low:', '')] = val;
+			}
+		}
+
+		return res.status(status.OK).json({
+			geojson: {
+				high: ZAU_High,
+				low: ZAU_Low,
+			},
+			ownership: retval,
+		});
 	} catch (e) {
 		return next(e);
 	}

@@ -1282,7 +1282,6 @@ export const ZOB_High = {
 			type: 'Feature',
 			properties: {
 				id: '07',
-				source_id: 1,
 			},
 			geometry: {
 				type: 'Polygon',
