@@ -16,6 +16,8 @@ import {
 	ZAU_Low_Borders,
 	ZID_High,
 	ZID_Low,
+	ZKC_High,
+	ZKC_Low,
 	ZMP_High,
 	ZMP_Low,
 	ZOB_High,
@@ -719,6 +721,223 @@ const sectors = {
 			frequency: '125.075',
 		},
 	],
+	zkc: [
+		{
+			name: 'FARGO SH',
+			id: '94',
+			frequency: '125.725',
+		},
+		{
+			name: 'WICHITA HI',
+			id: '02',
+			frequency: '132.250',
+		},
+		{
+			name: 'EMPORIA SH',
+			id: '03',
+			frequency: '124.975',
+		},
+		{
+			name: 'ANTHONY HI',
+			id: '06',
+			frequency: '133.200',
+		},
+		{
+			name: 'HUTCHINSON SH',
+			id: '07',
+			frequency: '132.825',
+		},
+		{
+			name: 'COWES HI',
+			id: '12',
+			frequency: '135.050',
+		},
+		{
+			name: 'FARMINGTON HI',
+			id: '14',
+			frequency: '120.825',
+		},
+		{
+			name: 'HAYS HI',
+			id: '20',
+			frequency: '134.300',
+		},
+		{
+			name: 'DODGE CITY SH',
+			id: '21',
+			frequency: '120.725',
+		},
+		{
+			name: 'GARDEN CITY HI',
+			id: '22',
+			frequency: '133.450',
+		},
+		{
+			name: 'LIBERAL HI',
+			id: '23',
+			frequency: '134.675',
+		},
+		{
+			name: 'SALINA HI',
+			id: '24',
+			frequency: '125.175',
+		},
+		{
+			name: 'KANSAS CITY HI',
+			id: '26',
+			frequency: '133.800',
+		},
+		{
+			name: 'TULSA HI',
+			id: '27',
+			frequency: '127.625',
+		},
+		{
+			name: 'SPRINGFIELD HI',
+			id: '28',
+			frequency: '133.475',
+		},
+		{
+			name: 'VICHY HI',
+			id: '29',
+			frequency: '132.650',
+		},
+		{
+			name: 'HALLSVILLE HI',
+			id: '30',
+			frequency: '119.475',
+		},
+		{
+			name: 'SWISS SH',
+			id: '31',
+			frequency: '125.675',
+		},
+		{
+			name: 'TRIX HI',
+			id: '32',
+			frequency: '134.625',
+		},
+		{
+			name: 'MITBY SH',
+			id: '33',
+			frequency: '126.975',
+		},
+		{
+			name: 'KIRKSVILLE LO',
+			id: '40',
+			frequency: '125.250',
+		},
+		{
+			name: 'CHIEF SH',
+			id: '41',
+			frequency: '134.725',
+		},
+		{
+			name: 'NAPOLEAN LO',
+			id: '42',
+			frequency: '125.550',
+		},
+		{
+			name: 'TOPEKA LO',
+			id: '44',
+			frequency: '123.800',
+		},
+		{
+			name: 'ST. JOESPH LO',
+			id: '46',
+			frequency: '127.900',
+		},
+		{
+			name: 'TRAPR SH',
+			id: '47',
+			frequency: '125.425',
+		},
+		{
+			name: 'EMPORIA LO',
+			id: '48',
+			frequency: '127.725',
+		},
+		{
+			name: 'QUINCY LO',
+			id: '50',
+			frequency: '126.225',
+		},
+		{
+			name: 'COLUMBIA LO',
+			id: '52',
+			frequency: '134.500',
+		},
+		{
+			name: 'VICHY LO',
+			id: '53',
+			frequency: '128.350',
+		},
+		{
+			name: 'JAZZ LO',
+			id: '54',
+			frequency: '127.475',
+		},
+		{
+			name: 'VANDALIA LO',
+			id: '58',
+			frequency: '124.300',
+		},
+		{
+			name: 'CAPITOL LO',
+			id: '59',
+			frequency: '127.275',
+		},
+		{
+			name: 'STILLWATER LO',
+			id: '62',
+			frequency: '127.800',
+		},
+		{
+			name: 'SALINA LO',
+			id: '66',
+			frequency: '120.200',
+		},
+		{
+			name: 'RUSSELL LO',
+			id: '67',
+			frequency: '124.200',
+		},
+		{
+			name: 'GARDEN CITY LO',
+			id: '68',
+			frequency: '125.200',
+		},
+		{
+			name: 'VINTA LO',
+			id: '72',
+			frequency: '128.600',
+		},
+		{
+			name: 'ST. LOUIS HI',
+			id: '84',
+			frequency: '133.150',
+		},
+		{
+			name: 'BLUES SH',
+			id: '90',
+			frequency: '132.875',
+		},
+		{
+			name: 'COLIE SH',
+			id: '92',
+			frequency: '133.725',
+		},
+		{
+			name: 'CHANNUTE SH',
+			id: '97',
+			frequency: '118.125',
+		},
+		{
+			name: 'ROCK SH',
+			id: '98',
+			frequency: '133.225',
+		},
+	],
 };
 
 router.get('/geojson', async (_req: Request, res: Response, next: NextFunction) => {
@@ -745,6 +964,10 @@ router.get('/geojson', async (_req: Request, res: Response, next: NextFunction) 
 			zid: {
 				high: ZID_High,
 				low: ZID_Low,
+			},
+			zkc: {
+				high: ZKC_High,
+				low: ZKC_Low,
 			},
 		});
 	} catch (e) {
@@ -871,6 +1094,7 @@ async function getOwnership(redis: Redis) {
 		zmp: {},
 		zob: {},
 		zid: {},
+		zkc: {},
 	} as any;
 
 	const keys = await redis.keys(`split:*`);
@@ -894,6 +1118,8 @@ async function getOwnership(redis: Redis) {
 			retval.zob[key.replace('split:c:', '')] = val;
 		} else if (key.startsWith('split:i:')) {
 			retval.zid[key.replace('split:i:', '')] = val;
+		} else if (key.startsWith('split:k:')) {
+			retval.zkc[key.replace('split:k:', '')] = val;
 		}
 	}
 
