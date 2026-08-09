@@ -65,7 +65,11 @@ export function uploadToS3(
 	);
 }
 
-export function generateS3SignedUrl(fileName: string, contentType: string): Promise<string> {
+export function generateS3SignedUrl(
+	fileName: string,
+	contentType: string,
+	fileSize: number,
+): Promise<string> {
 	if (!client || !getS3Bucket()) {
 		throw new Error('S3 not set up.');
 	}
@@ -74,12 +78,13 @@ export function generateS3SignedUrl(fileName: string, contentType: string): Prom
 		Bucket: getS3Bucket(),
 		Key: fileName,
 		ContentType: contentType,
+		ContentLength: fileSize,
 		ACL: 'public-read',
 	});
 
 	return getSignedUrl(client, cmd, {
 		expiresIn: 300,
-		signableHeaders: new Set(['host', 'content-type', 'x-amz-acl']),
+		signableHeaders: new Set(['content-length', 'content-type', 'host', 'x-amz-acl']),
 	});
 }
 

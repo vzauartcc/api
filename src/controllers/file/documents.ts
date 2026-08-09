@@ -10,6 +10,7 @@ import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import status from '../../types/status.js';
 
 const router = Router();
+const DOCUMENT_SIZE_LIMIT = 500 * 1024 * 1024;
 
 router.get('/', async (_req: Request, res: Response, next: NextFunction) => {
 	try {
@@ -93,8 +94,21 @@ router.post('/', getUser, isStaff, async (req: Request, res: Response, next: Nex
 				throwBadRequestException('File name is required');
 			}
 
+			if (!req.body.fileSize) {
+				throwBadRequestException('File size is required');
+			}
+
+			if (!/^\d+$/.test(String(req.body.fileSize))) {
+				throwBadRequestException('Invalid file size');
+			}
+
+			const fileSize = Number(String(req.body.fileSize));
+			if (fileSize < 1 || fileSize >= DOCUMENT_SIZE_LIMIT) {
+				throwBadRequestException(`File must be less than ${DOCUMENT_SIZE_LIMIT / 1024 / 1024} MB`);
+			}
+
 			const fileName = `${Date.now()}-${req.body.fileName}`;
-			s3Url = await generateS3SignedUrl(`documents/${fileName}`, fileType);
+			s3Url = await generateS3SignedUrl(`documents/${fileName}`, fileType, fileSize);
 
 			await DocumentModel.create({
 				name,
@@ -192,12 +206,27 @@ router.put('/:slug', getUser, isStaff, async (req: Request, res: Response, next:
 					throwBadRequestException('File name is required');
 				}
 
+				if (!req.body.fileSize) {
+					throwBadRequestException('File size is required');
+				}
+
+				if (!/^\d+$/.test(String(req.body.fileSize))) {
+					throwBadRequestException('Invalid file size');
+				}
+
+				const fileSize = Number(String(req.body.fileSize));
+				if (fileSize < 1 || fileSize >= DOCUMENT_SIZE_LIMIT) {
+					throwBadRequestException(
+						`File must be less than ${DOCUMENT_SIZE_LIMIT / 1024 / 1024} MB`,
+					);
+				}
+
 				if (document.fileName) {
 					await deleteFromS3(`documents/${document.fileName}`);
 				}
 
 				const fileName = `${Date.now()}-${req.body.fileName}`;
-				s3Url = await generateS3SignedUrl(`documents/${fileName}`, fileType);
+				s3Url = await generateS3SignedUrl(`documents/${fileName}`, fileType, fileSize);
 
 				document.fileName = fileName;
 				document.type = 'file';
