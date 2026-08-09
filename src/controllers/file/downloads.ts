@@ -14,6 +14,7 @@ import { DownloadModel } from '../../models/download.js';
 import status from '../../types/status.js';
 
 const router = Router();
+const DOWNLOAD_SIZE_LIMIT = 500 * 1024 * 1024;
 
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 	try {
@@ -94,8 +95,21 @@ router.post('/', getUser, isStaff, async (req: Request, res: Response, next: Nex
 			throwBadRequestException('File name is required');
 		}
 
+		if (!req.body.fileSize) {
+			throwBadRequestException('File size is required');
+		}
+
+		if (!/^\d+$/.test(String(req.body.fileSize))) {
+			throwBadRequestException('Invalid file size');
+		}
+
+		const fileSize = Number(String(req.body.fileSize));
+		if (fileSize < 1 || fileSize >= DOWNLOAD_SIZE_LIMIT) {
+			throwBadRequestException(`File must be less than ${DOWNLOAD_SIZE_LIMIT / 1024 / 1024} MB`);
+		}
+
 		const fileName = `${Date.now()}-${req.body.fileName}`;
-		const s3Url = await generateS3SignedUrl(`downloads/${fileName}`, req.body.fileType);
+		const s3Url = await generateS3SignedUrl(`downloads/${fileName}`, req.body.fileType, fileSize);
 
 		await DownloadModel.create({
 			name: req.body.name,
@@ -158,12 +172,25 @@ router.patch('/:id', getUser, isStaff, async (req: Request, res: Response, next:
 				throwBadRequestException('File name is required');
 			}
 
+			if (!req.body.fileSize) {
+				throwBadRequestException('File size is required');
+			}
+
+			if (!/^\d+$/.test(String(req.body.fileSize))) {
+				throwBadRequestException('Invalid file size');
+			}
+
+			const fileSize = Number(String(req.body.fileSize));
+			if (fileSize < 1 || fileSize >= DOWNLOAD_SIZE_LIMIT) {
+				throwBadRequestException(`File must be less than ${DOWNLOAD_SIZE_LIMIT / 1024 / 1024} MB`);
+			}
+
 			if (download.fileName) {
 				deleteFromS3(`downloads/${download.fileName}`);
 			}
 
 			const fileName = `${Date.now()}-${req.body.fileName}`;
-			s3Url = await generateS3SignedUrl(`downloads/${fileName}`, req.body.fileType);
+			s3Url = await generateS3SignedUrl(`downloads/${fileName}`, req.body.fileType, fileSize);
 
 			await DownloadModel.findByIdAndUpdate(req.params['id'], {
 				name: req.body.name,

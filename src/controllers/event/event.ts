@@ -21,6 +21,7 @@ import status from '../../types/status.js';
 import staffingRequestRouter from './staffingrequest.js';
 
 const router = Router();
+const BANNER_SIZE_LIMIT = 5 * 1024 * 1024;
 
 router.use('/staffingrequest', staffingRequestRouter);
 
@@ -571,8 +572,20 @@ router.post('/', getUser, isEventsTeam, async (req: Request, res: Response, next
 			throwBadRequestException('File name is required');
 		}
 
+		if (!req.body.fileSize) {
+			throwBadRequestException('File size is required');
+		}
+		if (!/^\d+$/.test(String(req.body.fileSize))) {
+			throwBadRequestException('Invalid file size');
+		}
+
+		const fileSize = Number(String(req.body.fileSize));
+		if (fileSize < 1 || fileSize >= BANNER_SIZE_LIMIT) {
+			throwBadRequestException(`File must be less than ${BANNER_SIZE_LIMIT / 1024 / 1024} MB`);
+		}
+
 		const fileName = `${Date.now()}-${req.body.fileName}`;
-		const s3Url = await generateS3SignedUrl(`events/${fileName}`, req.body.fileType);
+		const s3Url = await generateS3SignedUrl(`events/${fileName}`, req.body.fileType, fileSize);
 
 		await EventModel.create({
 			name: req.body.name,
@@ -713,12 +726,24 @@ router.put(
 					throwBadRequestException('File name is required');
 				}
 
+				if (!req.body.fileSize) {
+					throwBadRequestException('File size is required');
+				}
+				if (!/^\d+$/.test(String(req.body.fileSize))) {
+					throwBadRequestException('Invalid file size');
+				}
+
+				const fileSize = Number(String(req.body.fileSize));
+				if (fileSize < 1 || fileSize >= BANNER_SIZE_LIMIT) {
+					throwBadRequestException(`File must be less than ${BANNER_SIZE_LIMIT / 1024 / 1024} MB`);
+				}
+
 				if (eventData.bannerUrl) {
 					deleteFromS3(`events/${eventData.bannerUrl}`);
 				}
 
 				const fileName = `${Date.now()}-${req.body.fileName}`;
-				s3Url = await generateS3SignedUrl(`events/${fileName}`, fileType);
+				s3Url = await generateS3SignedUrl(`events/${fileName}`, fileType, fileSize);
 
 				eventData.bannerUrl = fileName;
 			}
