@@ -25,7 +25,7 @@ router.get('/user', getUser, async (req: Request, res: Response, next: NextFunct
 	}
 });
 
-router.post('/info', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/info', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		if (
 			!process.env['DISCORD_CLIENT_ID'] ||
@@ -35,12 +35,12 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 			throwInternalServerErrorException('Internal Server Error');
 		}
 
-		if (!req.body.code || !req.body.cid) {
+		const { code } = req.body;
+		if (!code) {
 			throwBadRequestException('Invalid request');
 		}
 
-		const { cid, code } = req.body;
-		const user = await UserModel.findOne({ cid }).exec();
+		const user = await UserModel.findOne({ cid: req.user.cid }).exec();
 
 		if (!user) {
 			throwUnauthorizedException('User Not Found');
@@ -76,14 +76,6 @@ router.post('/info', async (req: Request, res: Response, next: NextFunction) => 
 		};
 
 		user.discord = discordUser.id;
-
-		let nickname = `${user.name} | ${user.ratingShort}`;
-
-		// @TODO: remove this since the js bot is dead.
-		await req.app.redis
-			.lpush('newUser4512', JSON.stringify([discordUser.id, token.access_token, nickname]))
-			.then(() => console.log('Task sent to queue', discordUser.id))
-			.catch((err) => console.error('Error sending task', err));
 
 		await req.app.redis.lpush(
 			'dbot:new_discord_user',
