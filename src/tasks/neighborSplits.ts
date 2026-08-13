@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { Redis } from 'ioredis';
 import { ZMP_High, ZMP_Low } from '../controllers/split/geojson.js';
 
 interface ZMPSplit {
@@ -35,7 +36,16 @@ interface ZIDSplit {
 	}[];
 }
 
-export async function getNeighborSplits(redis: any) {
+async function msetWithTtl(redis: Redis, entries: string[]) {
+	if (entries.length === 0) return;
+	const keys = entries.filter((_, i) => i % 2 === 0);
+	const pipeline = redis.pipeline();
+	pipeline.mset(entries);
+	keys.forEach((key) => pipeline.expire(key, 600));
+	await pipeline.exec();
+}
+
+export async function getNeighborSplits(redis: Redis) {
 	await clearSplits(redis);
 
 	try {
@@ -61,9 +71,7 @@ export async function getNeighborSplits(redis: any) {
 				entries.push(`split:p:${f.properties.id}`, '11');
 			});
 		}
-		if (entries.length > 0) {
-			await redis.mset(entries);
-		}
+		await msetWithTtl(redis, entries);
 	} catch (e) {
 		console.error('error fetching zmp split', e);
 	}
@@ -82,9 +90,7 @@ export async function getNeighborSplits(redis: any) {
 					);
 				});
 			});
-			if (entries.length > 0) {
-				await redis.mset(entries);
-			}
+			await msetWithTtl(redis, entries);
 		}
 	} catch (e) {
 		console.error('error fetching zob split', e);
@@ -115,9 +121,7 @@ export async function getNeighborSplits(redis: any) {
 					});
 				});
 
-				if (entries.length > 0) {
-					await redis.mset(entries);
-				}
+				await msetWithTtl(redis, entries);
 			} catch (e) {
 				console.error('error fetching zid split', e);
 			}
