@@ -19,6 +19,22 @@ interface ZOBSplit {
 	}[];
 }
 
+interface ZIDSplitList {
+	id: string;
+	isPublished: boolean;
+	isDefault: boolean;
+}
+
+interface ZIDSplit {
+	groups: {
+		name: string;
+		areas: {
+			short: string;
+			category: string;
+		}[];
+	}[];
+}
+
 export async function getNeighborSplits(redis: any) {
 	await clearSplits(redis);
 
@@ -72,6 +88,42 @@ export async function getNeighborSplits(redis: any) {
 		}
 	} catch (e) {
 		console.error('error fetching zob split', e);
+	}
+
+	try {
+		const { data: zidSplitList } = await axios.get<ZIDSplitList[]>(
+			'https://tools.flyindycenter.com/api/splits',
+		);
+
+		const activeSplit = zidSplitList?.find((s) => s.isDefault === true && s.isPublished === true);
+		if (activeSplit && activeSplit.id.trim() !== '') {
+			try {
+				const { data: zidSplit } = await axios.get<ZIDSplit>(
+					`https://tools.flyindycenter.com/api/splits/${activeSplit.id}`,
+				);
+
+				const entries: string[] = [];
+				zidSplit.groups.forEach((g) => {
+					const owner = g.name.replace(/\D/g, '');
+
+					g.areas.forEach((a) => {
+						if (a.category !== 'Center') return;
+						const sector = a.short.replace(/\D/g, '');
+						if (sector.trim() === '') return;
+
+						entries.push(`split:i:${sector}`, owner);
+					});
+				});
+
+				if (entries.length > 0) {
+					await redis.mset(entries);
+				}
+			} catch (e) {
+				console.error('error fetching zid split', e);
+			}
+		}
+	} catch (e) {
+		console.error('error fetching zid split list', e);
 	}
 }
 
