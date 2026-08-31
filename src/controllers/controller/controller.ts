@@ -547,6 +547,51 @@ router.post('/:cid', internalAuth, async (req: Request, res: Response, next: Nex
 	}
 });
 
+router.patch('/:cid', internalAuth, async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		if (
+			!req.params['cid'] ||
+			req.params['cid'] === 'undefined' ||
+			isNaN(Number(req.params['cid']))
+		) {
+			throwBadRequestException('Invalid CID');
+		}
+
+		if (!req.body) {
+			throwBadRequestException('No data provided');
+		}
+
+		const user = await UserModel.findOne({ cid: req.params['cid'] })
+			.cache('10 minutes', `user-${req.params['cid']}`)
+			.exec();
+		if (!user) {
+			throwNotFoundException('user not found');
+		}
+
+		user.fname = req.body.fname ?? user.fname;
+		user.lname = req.body.lname ?? user.lname;
+		user.email = req.body.email ?? user.email;
+		user.broadcast = req.body.broadcast ?? user.broadcast;
+		user.prefName = req.body.prefName ?? user.prefName;
+
+		await user.save();
+
+		clearUserCache(user.cid);
+		await getCacheInstance().clear('users');
+
+		await DossierModel.create({
+			by: -1,
+			affected: req.body.cid,
+			action: `%a was updated by an external service.`,
+			actionType: ACTION_TYPE.UPDATE_USER,
+		});
+
+		return res.status(status.CREATED).json();
+	} catch (e) {
+		return next(e);
+	}
+});
+
 router.patch(
 	'/:cid/member',
 	internalAuth,
@@ -607,6 +652,7 @@ router.patch(
 			user.member = req.body.member;
 
 			await user.save();
+
 			clearUserCache(user.cid);
 			await getCacheInstance().clear('operating-initials');
 
