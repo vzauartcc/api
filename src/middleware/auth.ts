@@ -13,6 +13,22 @@ export async function userOrInternal(req: Request, res: Response, next: NextFunc
 		return next();
 	}
 
+	if (isJwtValid(req)) {
+		return next();
+	}
+
+	return res.status(status.FORBIDDEN).json();
+}
+
+export async function userOrInternalBearer(req: Request, res: Response, next: NextFunction) {
+	if (await isUserValid(req)) {
+		return next();
+	}
+
+	if (isKeyValid(req)) {
+		return next();
+	}
+
 	return res.status(status.FORBIDDEN).json();
 }
 
