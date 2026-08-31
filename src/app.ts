@@ -182,6 +182,25 @@ app.get('/charts', async (req: Request, res: Response, next: NextFunction) => {
 	}
 });
 
+app.get(['/health', '/healthz'], (_req: Request, res: Response) => {
+	return res.status(200).json({ status: 'ok' });
+});
+
+app.get(['/ready', '/readyz'], (_req: Request, res: Response) => {
+	const checks = {
+		mongo: mongoose.connection.readyState === 1,
+		redis: app.redis.status === 'ready',
+		redisCache: redisCache.status === 'ready',
+	};
+
+	const ready = Object.values(checks).every(Boolean);
+
+	return res.status(ready ? 200 : 503).json({
+		status: ready ? 'ready' : 'not ready',
+		checks,
+	});
+});
+
 // Sentry error capturing should be after all routes are registered.
 if (process.env['NODE_ENV'] === 'production') {
 	console.log('Setting up Sentry Express error handler. . . .');
