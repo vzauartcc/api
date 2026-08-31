@@ -857,6 +857,44 @@ router.put(
 );
 
 router.patch(
+	'/:cid/roles',
+	internalAuth,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			if (
+				!req.params['cid'] ||
+				req.params['cid'] === 'undefined' ||
+				isNaN(Number(req.params['cid']))
+			) {
+				throwBadRequestException('Invalid CID');
+			}
+
+			const user = await UserModel.findOne({ cid: req.params['cid'] })
+				.cache('10 minutes', `user-${req.params['cid']}`)
+				.exec();
+
+			if (!user) {
+				throwNotFoundException('User not found');
+			}
+
+			user.roleCodes = req.body.roles;
+
+			await user.save();
+			clearUserCache(user.cid);
+
+			req.app.redis.lpush(
+				'dbot:update_user',
+				JSON.stringify(user.toJSON({ virtuals: false, version: false })),
+			);
+
+			return res.status(status.OK).json({ message: 'Roles updated successfully' });
+		} catch (e) {
+			return next(e);
+		}
+	},
+);
+
+router.patch(
 	'/:cid/remove-cert',
 	internalAuth,
 	async (req: Request, res: Response, next: NextFunction) => {
