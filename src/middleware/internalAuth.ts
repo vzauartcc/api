@@ -18,6 +18,20 @@ export default function (req: Request, res: Response, next: NextFunction) {
 		return next();
 	}
 
+	if (isJwtValid(req)) {
+		return next();
+	}
+
+	return res.status(status.FORBIDDEN).json();
+}
+
+export function bearerInternalAuth(req: Request, res: Response, next: NextFunction) {
+	setupSentry(req);
+
+	if (isKeyValid(req)) {
+		return next();
+	}
+
 	return res.status(status.FORBIDDEN).json();
 }
 
