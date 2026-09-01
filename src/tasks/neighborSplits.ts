@@ -36,12 +36,24 @@ interface ZIDSplit {
 	}[];
 }
 
+interface ZKCSplit {
+	sectors: {
+		sectorId: string;
+		owner: string;
+		freq: string;
+		master: string;
+	}[];
+}
+
 async function msetWithTtl(redis: Redis, entries: string[]) {
 	if (entries.length === 0) return;
+
 	const keys = entries.filter((_, i) => i % 2 === 0);
+
 	const pipeline = redis.pipeline();
 	pipeline.mset(entries);
 	keys.forEach((key) => pipeline.expire(key, 600));
+
 	await pipeline.exec();
 }
 
@@ -128,6 +140,21 @@ export async function getNeighborSplits(redis: Redis) {
 		}
 	} catch (e) {
 		console.error('error fetching zid split list', e);
+	}
+
+	try {
+		const { data: zkcSplit } = await axios.get<ZKCSplit>('https://vzkc.org/api/splits/active');
+
+		const entries: string[] = [];
+		zkcSplit.sectors.forEach((s) => {
+			const owner = s.owner.replace(/\D/g, '');
+
+			entries.push(`split:k:${s.sectorId}`, owner);
+		});
+
+		await msetWithTtl(redis, entries);
+	} catch (e) {
+		console.error('error fetching zkc split', e);
 	}
 }
 
