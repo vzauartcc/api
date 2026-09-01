@@ -29,6 +29,7 @@ import { setupS3 } from './helpers/s3.js';
 import zau from './helpers/zau.js';
 import { closeEventSignups } from './tasks/events.js';
 import { expireExamAttempts } from './tasks/examAttempts.js';
+import { getNeighborSplits } from './tasks/neighborSplits.js';
 import { soloExpiringNotifications, syncVatusaSoloEndorsements } from './tasks/solo.js';
 import { syncVatusaTrainingRecords } from './tasks/trainingRecords.js';
 
@@ -260,6 +261,12 @@ console.log(`Starting Exam Attempt Expiration task. . . .`);
 new Cron('0 6 * * *', { name: 'Exam Attempt Expiration', timezone: 'Etc/UTC', catch: true }, () => {
 	expireExamAttempts();
 });
+
+console.log(`Starting Neighbor Split fetch task. . . .`);
+new Cron('*/5 * * * *', { name: 'Sync Neighbor Splits', timezone: 'Etc/UTC', catch: true }, () =>
+	getNeighborSplits(app.redis),
+);
+getNeighborSplits(app.redis);
 
 if (process.env['NODE_ENV'] === 'production') {
 	console.log(`Starting VATUSA Training Records Sync task. . . .`);
