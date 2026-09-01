@@ -540,8 +540,17 @@ async function syncController(user: IUser) {
 			user.vis = true;
 		}
 
+		vatusa.roles
+			.filter((f) => ['ZAU', 'ZHQ'].includes(f.facility))
+			.forEach((r) => {
+				if (!user.roleCodes.includes(r.role)) {
+					user.roleCodes.push(r.role);
+				}
+			});
+
 		if (user.isModified()) {
 			console.log('Updating', user.cid, 'with VATUSA data.');
+			await user.save();
 		}
 	} catch (e) {
 		console.warn('Failed to fetch VATUSA details for', user.cid, 'during login.');
