@@ -58,8 +58,6 @@ async function msetWithTtl(redis: Redis, entries: string[]) {
 }
 
 export async function getNeighborSplits(redis: Redis) {
-	await clearSplits(redis);
-
 	try {
 		const { data: zmpSplit } = await axios.get<ZMPSplit[]>(
 			'https://minniecenter.org/api/eventsplits',
@@ -158,7 +156,7 @@ export async function getNeighborSplits(redis: Redis) {
 	}
 }
 
-async function clearSplits(redis: any) {
+export async function clearNeighborSplits(redis: any) {
 	try {
 		const keys = await redis.keys(`split:c:*`);
 
@@ -167,6 +165,26 @@ async function clearSplits(redis: any) {
 		}
 	} catch (e) {
 		console.error('error clearing zob split', e);
+	}
+
+	try {
+		const keys = await redis.keys(`split:i:*`);
+
+		if (keys.length > 0) {
+			await redis.del(keys);
+		}
+	} catch (e) {
+		console.error('error clearing zid split', e);
+	}
+
+	try {
+		const keys = await redis.keys(`split:k:*`);
+
+		if (keys.length > 0) {
+			await redis.del(keys);
+		}
+	} catch (e) {
+		console.error('error clearing zkc split', e);
 	}
 
 	try {
