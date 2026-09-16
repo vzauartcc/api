@@ -465,7 +465,7 @@ router.post(
 					color: 2003199,
 					footer: !isLastChunk ? undefined : { text: 'Position information provided by WATSN' },
 					fields: chunk,
-					url: `https://www.zauartcc.org/events/${eventData.url}#${i}`,
+					url: `https://www.zauartcc.org/event/${eventData.url}#${i}`,
 					image: !isLastChunk
 						? undefined
 						: {

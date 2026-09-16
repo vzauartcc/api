@@ -30,7 +30,7 @@ const TrainingWaitlistSchema = new Schema<ITrainingWaitlist>(
 );
 
 TrainingWaitlistSchema.virtual('certification', {
-	ref: 'Certification',
+	ref: 'TrainingMilestone',
 	localField: 'certCode',
 	foreignField: 'code',
 	justOne: true,
