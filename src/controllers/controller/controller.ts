@@ -774,10 +774,12 @@ router.put('/:cid/roles', internalAuth, async (req: Request, res: Response, next
 			throwNotFoundException('User not found');
 		}
 
+		const oldRoles = user.roleCodes;
+
 		const allowedRoles = await RoleModel.find({}).exec();
 
 		const seen = new Set<string>();
-		const finalRoles: string[] = [];
+		const finalRoleCodes: string[] = [];
 
 		roles.forEach((role) => {
 			if (seen.has(role)) {
@@ -786,13 +788,18 @@ router.put('/:cid/roles', internalAuth, async (req: Request, res: Response, next
 
 			if (allowedRoles.find((x) => x.code === role)) {
 				seen.add(role);
-				finalRoles.push(role);
+				finalRoleCodes.push(role);
 			} else {
 				console.warn('Invalid role sent for', user.cid, ':', role);
 			}
 		});
 
-		user.roleCodes = finalRoles;
+		// No new roles are being added.
+		if (finalRoleCodes.every((r) => oldRoles.includes(r))) {
+			return res.status(status.OK).json();
+		}
+
+		user.roleCodes = finalRoleCodes;
 
 		await user.save();
 		clearUserCache(user.cid);
