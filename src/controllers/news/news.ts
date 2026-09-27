@@ -3,6 +3,7 @@ import discord from '../../helpers/discord.js';
 import { throwBadRequestException, throwNotFoundException } from '../../helpers/errors.js';
 import { sanitizeInput } from '../../helpers/html.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
+import zau from '../../helpers/zau.js';
 import { isStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
@@ -40,7 +41,7 @@ router.post('/', getUser, isStaff, async (req: Request, res: Response, next: Nex
 		if (!req.body || !req.body.title || !req.body.content) {
 			throwBadRequestException('All field are required');
 		}
-		const { title, content, createdBy } = req.body;
+		const { title, content } = req.body;
 		const uriSlug =
 			title
 				.replace(/\s+/g, '-')
@@ -54,7 +55,7 @@ router.post('/', getUser, isStaff, async (req: Request, res: Response, next: Nex
 			title,
 			content: sanitizeInput(content),
 			uriSlug,
-			createdBy,
+			createdBy: req.user.cid,
 		});
 
 		await clearCachePrefix('news');
@@ -67,6 +68,8 @@ router.post('/', getUser, isStaff, async (req: Request, res: Response, next: Nex
 		});
 
 		try {
+			if (!zau.isProd) return;
+
 			const cleanDescription = content.replace(/<\/?[^>]+(>|$)/g, '');
 
 			await discord.sendMessage('486966861632897034', {
@@ -146,6 +149,7 @@ router.patch(
 			}
 
 			newsItem.content = sanitizeInput(content);
+			newsItem.createdBy = req.user.cid;
 			await newsItem.save();
 
 			await clearCachePrefix('news');
