@@ -1,4 +1,5 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
+import { isValidObjectId } from 'mongoose';
 import { getCacheInstance } from '../../app.js';
 import {
 	throwBadRequestException,
@@ -202,38 +203,36 @@ router.get('/status', getUser, async (req: Request, res: Response, next: NextFun
 });
 
 router.patch(
-	'/:cid',
+	'/:id',
 	getUser,
 	isManagement,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			if (
-				!req.params['cid'] ||
-				req.params['cid'] === 'undefined' ||
-				isNaN(Number(req.params['cid']))
-			) {
-				throwBadRequestException('Invalid CID');
+			if (!isValidObjectId(req.params['id'])) {
+				throwBadRequestException('Invalid ID');
 			}
 
-			const application = await VisitApplicationModel.findOne({
-				cid: +req.params['cid'],
-				deleted: { $ne: true },
-			})
-				.cache()
-				.exec();
+			const application = await VisitApplicationModel.findById(req.params['id']).cache().exec();
 			if (!application) {
 				throwNotFoundException('Visiting Application Not Found');
 			}
 
-			if (!zau.isDev) {
-				await vatusaApi.post(`/facility/ZAU/roster/manageVisitor/${req.params['cid']}`);
+			let message = '';
+
+			if (zau.isProd) {
+				try {
+					await vatusaApi.post(`/facility/ZAU/roster/manageVisitor/${application.cid}`);
+				} catch (e) {
+					console.error('error adding user to visiting roster', e);
+					message = 'Unable to add user to VATUSA roster. Please do so manually.';
+				}
 			}
 
 			await application.delete();
 			await getCacheInstance().clear('visit-applications');
 
-			const user = await UserModel.findOne({ cid: +req.params['cid'] })
-				.cache('10 minutes', `user-${req.params['cid']}`)
+			const user = await UserModel.findOne({ cid: application.cid })
+				.cache('10 minutes', `user-${application.cid}`)
 				.exec();
 			if (!user) {
 				throwNotFoundException('Controller not found');
@@ -272,7 +271,7 @@ router.patch(
 				actionType: ACTION_TYPE.APPROVE_VISIT,
 			});
 
-			return res.status(status.OK).json();
+			return res.status(status.OK).json({ message });
 		} catch (e) {
 			return next(e);
 		}
@@ -280,22 +279,16 @@ router.patch(
 );
 
 router.delete(
-	'/:cid',
+	'/:id',
 	getUser,
 	isManagement,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			if (
-				!req.params['cid'] ||
-				req.params['cid'] === 'undefined' ||
-				isNaN(Number(req.params['cid']))
-			) {
-				throwBadRequestException('Invalid CID');
+			if (!isValidObjectId(req.params['id'])) {
+				throwBadRequestException('Invalid ID');
 			}
 
-			const application = await VisitApplicationModel.findOne({ cid: req.params['cid'] })
-				.cache()
-				.exec();
+			const application = await VisitApplicationModel.findById(req.params['id']).cache().exec();
 			if (!application) {
 				throwNotFoundException('Visiting Application Not Found');
 			}
@@ -303,8 +296,8 @@ router.delete(
 			await application.delete();
 			await getCacheInstance().clear('visit-applications');
 
-			const user = await UserModel.findOne({ cid: req.params['cid'] })
-				.cache('10 minutes', `user-${req.params['cid']}`)
+			const user = await UserModel.findOne({ cid: application.cid })
+				.cache('10 minutes', `user-${application.cid}`)
 				.exec();
 			if (!user) {
 				throwNotFoundException('User Not Found');

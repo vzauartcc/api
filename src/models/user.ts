@@ -151,50 +151,43 @@ UserSchema.virtual('isMember').get(function (this: IUser) {
 UserSchema.virtual('isManagement').get(function (this: IUser) {
 	if (!this.roleCodes) return false;
 
-	const search = ['atm', 'datm'];
-	return this.roleCodes.some((r) => search.includes(r));
+	return this.roleCodes.some((r) => ['atm', 'datm', 'wm'].includes(r));
 });
 
 UserSchema.virtual('isSeniorStaff').get(function (this: IUser) {
 	if (!this.roleCodes) return false;
 
-	const search = ['atm', 'datm', 'ta', 'wm'];
-	return this.roleCodes.some((r) => search.includes(r));
+	return this.roleCodes.some((r) => ['atm', 'datm', 'ta', 'wm'].includes(r));
 });
 
 UserSchema.virtual('isStaff').get(function (this: IUser) {
 	if (!this.roleCodes) return false;
 
-	const search = ['atm', 'datm', 'ta', 'ec', 'fe', 'wm'];
-	return this.roleCodes.some((r) => search.includes(r));
+	return this.roleCodes.some((r) => ['atm', 'datm', 'ta', 'ec', 'fe', 'wm'].includes(r));
 });
 
 UserSchema.virtual('isInstructor').get(function (this: IUser) {
 	if (!this.roleCodes) return false;
 
-	const search = ['atm', 'datm', 'ta', 'wm', 'ins'];
-	return this.roleCodes.some((r) => search.includes(r));
+	return this.roleCodes.some((r) => ['atm', 'datm', 'ta', 'wm', 'ins'].includes(r));
 });
 
 UserSchema.virtual('isTrainingStaff').get(function (this: IUser) {
 	if (!this.roleCodes) return false;
 
-	const search = ['atm', 'datm', 'ta', 'wm', 'ins', 'mtr', 'ia'];
-	return this.roleCodes.some((r) => search.includes(r));
+	return this.roleCodes.some((r) => ['atm', 'datm', 'ta', 'wm', 'ins', 'mtr', 'ia'].includes(r));
 });
 
 UserSchema.virtual('isEventsTeam').get(function (this: IUser) {
 	if (!this.roleCodes) return false;
 
-	const search = ['atm', 'datm', 'ec', 'wm'];
-	return this.roleCodes.some((r) => search.includes(r));
+	return this.roleCodes.some((r) => ['atm', 'datm', 'ec', 'wm'].includes(r));
 });
 
 UserSchema.virtual('isFacilityTeam').get(function (this: IUser) {
 	if (!this.roleCodes) return false;
 
-	const search = ['atm', 'datm', 'ta', 'fe', 'wm'];
-	return this.roleCodes.some((r) => search.includes(r));
+	return this.roleCodes.some((r) => ['atm', 'datm', 'ta', 'fe', 'wm'].includes(r));
 });
 
 UserSchema.virtual('ratingShort').get(function (this: IUser) {
