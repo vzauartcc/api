@@ -2,6 +2,7 @@ import axios from 'axios';
 import { randomUUID } from 'crypto';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
+import { RoleModel } from 'models/role.js';
 import { isValidObjectId } from 'mongoose';
 import {
 	throwBadRequestException,
@@ -540,8 +541,10 @@ async function syncController(user: IUser) {
 			user.vis = true;
 		}
 
+		const allRoles = await RoleModel.find({}).exec();
+		const roleCodes = new Set(allRoles.map((r) => r.code));
 		vatusa.roles
-			.filter((f) => ['ZAU', 'ZHQ'].includes(f.facility))
+			.filter((f) => ['ZAU', 'ZHQ'].includes(f.facility) && roleCodes.has(f.role))
 			.forEach((r) => {
 				if (!user.roleCodes.includes(r.role)) {
 					user.roleCodes.push(r.role);
