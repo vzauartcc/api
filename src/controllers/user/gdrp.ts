@@ -1,7 +1,5 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import path from 'path';
-import { PassThrough } from 'stream';
-import { pipeline } from 'stream/promises';
 import tar from 'tar-stream';
 import zlib from 'zlib';
 import {
@@ -274,15 +272,15 @@ async function getGdrpData(cid: number) {
 
 	pack.finalize();
 
-	const gzip = zlib.createGzip({ level: 9 });
+	const tarChunks: Buffer[] = [];
+	// tar-stream's Pack is a streamx stream, not a node stream, so it is only
+	// consumable as an async iterable.
+	const packChunks = pack as unknown as AsyncIterable<Uint8Array>;
+	for await (const chunk of packChunks) {
+		tarChunks.push(Buffer.from(chunk));
+	}
 
-	const chunks: any[] = [];
-	const collector = new PassThrough();
-	collector.on('data', (chunk) => chunks.push(chunk));
-
-	await pipeline(pack, gzip, collector);
-
-	const gzBuffer = Buffer.concat(chunks);
+	const gzBuffer = zlib.gzipSync(Buffer.concat(tarChunks), { level: 9 });
 
 	sendMail({
 		to: user!.email,
