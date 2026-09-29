@@ -2,7 +2,7 @@ import axios from 'axios';
 import { randomUUID } from 'crypto';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { RoleModel } from 'models/role.js';
+import { RoleModel } from '../../models/role.js';
 import { isValidObjectId } from 'mongoose';
 import {
 	throwBadRequestException,
