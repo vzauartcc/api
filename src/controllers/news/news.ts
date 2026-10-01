@@ -68,24 +68,24 @@ router.post('/', getUser, isStaff, async (req: Request, res: Response, next: Nex
 		});
 
 		try {
-			if (!zau.isProd) return;
+			if (zau.isProd) {
+				const cleanDescription = content.replace(/<\/?[^>]+(>|$)/g, '');
 
-			const cleanDescription = content.replace(/<\/?[^>]+(>|$)/g, '');
-
-			await discord.sendMessage('486966861632897034', {
-				embeds: [
-					{
-						title: title,
-						description: `**News Article Published!**\n\n${cleanDescription.length > 1500 ? cleanDescription.slice(0, 1500) + '...\n\nRead the full article on the website!' : cleanDescription}`,
-						color: 39423,
-						footer: {
-							text: 'Published by ' + req.user.name,
+				await discord.sendMessage('486966861632897034', {
+					embeds: [
+						{
+							title: title,
+							description: `**News Article Published!**\n\n${cleanDescription.length > 1500 ? cleanDescription.slice(0, 1500) + '...\n\nRead the full article on the website!' : cleanDescription}`,
+							color: 39423,
+							footer: {
+								text: 'Published by ' + req.user.name,
+							},
+							url: 'https://www.zauartcc.org/news/' + uriSlug,
+							timestamp: new Date().toISOString(),
 						},
-						url: 'https://www.zauartcc.org/news/' + uriSlug,
-						timestamp: new Date().toISOString(),
-					},
-				],
-			});
+					],
+				});
+			}
 		} catch (err) {
 			console.error('Error posting news article to discord', err);
 		}

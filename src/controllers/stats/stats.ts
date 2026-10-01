@@ -375,7 +375,7 @@ router.get(
 				.populate({ path: 'certificationDate', select: 'code gainedDate' })
 				.populate({
 					path: 'absence',
-					match: { expirationDate: { $gte: new Date() }, deleted: false },
+					match: { expirationDate: { $gte: endOfPeriod }, deleted: false },
 					select: 'expirationDate',
 				})
 				.lean({ virtuals: true })
