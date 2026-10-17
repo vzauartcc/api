@@ -24,6 +24,7 @@ router.get('/', getUser, isManagement, async (_req: Request, res: Response, next
 		const applications = await VisitApplicationModel.find({
 			deleted: { $ne: true },
 		})
+			.populate('user', 'cid fname lname history')
 			.lean()
 			.cache('10 minutes', 'visit-applications')
 			.exec();

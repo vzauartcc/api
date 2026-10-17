@@ -1,7 +1,8 @@
-import { model, Schema } from 'mongoose';
+import { type Document, model, Schema, type PopulatedDoc } from 'mongoose';
 import type { SoftDeleteDocument, SoftDeleteModel } from 'mongoose-delete';
 import MongooseDelete from 'mongoose-delete';
 import type { ITimestamps } from './timestamps.js';
+import type { IUser } from './user.js';
 
 interface IVisitApplication extends SoftDeleteDocument, ITimestamps {
 	cid: number;
@@ -11,6 +12,9 @@ interface IVisitApplication extends SoftDeleteDocument, ITimestamps {
 	email: string;
 	home?: string;
 	reason: string;
+
+	// Virtuals
+	user?: PopulatedDoc<IUser & ITimestamps & Document>;
 }
 
 const VisitApplicationSchema = new Schema<IVisitApplication>(
@@ -28,6 +32,13 @@ const VisitApplicationSchema = new Schema<IVisitApplication>(
 
 VisitApplicationSchema.plugin(MongooseDelete, {
 	deletedAt: true,
+});
+
+VisitApplicationSchema.virtual('user', {
+	ref: 'User',
+	localField: 'cid',
+	foreignField: 'cid',
+	justOne: true,
 });
 
 export const VisitApplicationModel = model<IVisitApplication, SoftDeleteModel<IVisitApplication>>(
