@@ -137,8 +137,8 @@ router.get('/controllers', getUser, async (req: Request, res: Response, next: Ne
 	// Controller list on feedback page, and used in various other places to only return a trimmed list of controllers
 	try {
 		const allUsers = await getUsersWithPrivacy(req.user, {
-			deletedAt: null,
-			member: true,
+			deleted: false,
+			$or: [{ member: true }, { roleCodes: 'ace' }],
 		});
 		const controllers = [];
 
