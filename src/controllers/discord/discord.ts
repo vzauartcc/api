@@ -6,6 +6,7 @@ import {
 	throwInternalServerErrorException,
 	throwUnauthorizedException,
 } from '../../helpers/errors.js';
+import zau from '../../helpers/zau.js';
 import getUser from '../../middleware/user.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { UserModel } from '../../models/user.js';
@@ -77,10 +78,12 @@ router.post('/info', getUser, async (req: Request, res: Response, next: NextFunc
 
 		user.discord = discordUser.id;
 
-		await req.app.redis.lpush(
-			'dbot:new_discord_user',
-			JSON.stringify({ discord: discordUser.id, token: token.access_token }),
-		);
+		if (zau.isProd) {
+			await req.app.redis.lpush(
+				'dbot:new_discord_user',
+				JSON.stringify({ discord: discordUser.id, token: token.access_token }),
+			);
+		}
 
 		await user.save();
 		clearUserCache(user.cid);
@@ -100,10 +103,12 @@ router.post('/info', getUser, async (req: Request, res: Response, next: NextFunc
 
 router.delete('/user', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		await req.app.redis.lpush(
-			'dbot:remove_discord_user',
-			JSON.stringify({ discord: req.user.discord, token: '' }),
-		);
+		if (zau.isProd) {
+			await req.app.redis.lpush(
+				'dbot:remove_discord_user',
+				JSON.stringify({ discord: req.user.discord, token: '' }),
+			);
+		}
 
 		await UserModel.updateOne({ cid: req.user.cid }, { $unset: { discord: '', discordInfo: '' } });
 		clearUserCache(req.user.cid);

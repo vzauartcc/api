@@ -975,20 +975,22 @@ router.delete(
 				throwNotFoundException('User not found');
 			}
 
-			if (user.vis) {
-				await vatusaApi.delete(`/facility/ZAU/roster/manageVisitor/${req.params['cid']}`, {
-					data: {
-						reason: req.body.reason,
-						by: req.user.cid,
-					},
-				});
-			} else {
-				await vatusaApi.delete(`/facility/ZAU/roster/${req.params['cid']}`, {
-					data: {
-						reason: req.body.reason,
-						by: req.user.cid,
-					},
-				});
+			if (zau.isProd) {
+				if (user.vis) {
+					await vatusaApi.delete(`/facility/ZAU/roster/manageVisitor/${req.params['cid']}`, {
+						data: {
+							reason: req.body.reason,
+							by: req.user.cid,
+						},
+					});
+				} else {
+					await vatusaApi.delete(`/facility/ZAU/roster/${req.params['cid']}`, {
+						data: {
+							reason: req.body.reason,
+							by: req.user.cid,
+						},
+					});
+				}
 			}
 
 			user.member = false;
