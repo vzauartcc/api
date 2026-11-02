@@ -149,6 +149,10 @@ router.get(
 			}
 
 			if (exam && exam !== '') {
+				if (!isValidObjectId(exam)) {
+					throwBadRequestException('Invalid Exam ID');
+				}
+
 				query.examId = new Types.ObjectId(exam);
 			}
 

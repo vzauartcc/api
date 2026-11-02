@@ -21,23 +21,29 @@ import examAttemptRouter from './attempt.js';
 const router = Router();
 
 const createExamValidation = [
-	body('title').trim().notEmpty().withMessage('Title is required'),
-	body('title').trim().isLength({ max: 100 }).withMessage('Title should not exceed 100 characters'),
-	body('description').trim().optional(),
+	body('title')
+		.trim()
+		.notEmpty()
+		.withMessage('Title is required')
+		.isLength({ max: 100 })
+		.withMessage('Title should not exceed 100 characters'),
 	body('description')
 		.trim()
+		.optional()
 		.isLength({ max: 1000 })
 		.withMessage('Description should not exceed 1000 characters'),
 	body('certCode').trim().notEmpty().withMessage('Milestone is required'),
-	body('questions.*.text').notEmpty().withMessage('Question text is required'),
 	body('questions.*.text')
+		.notEmpty()
 		.trim()
+		.withMessage('Question text is required')
 		.isLength({ max: 400 })
 		.withMessage('Question text should not exceed 400 characters'),
 	body('questions.*.isActive').isBoolean().withMessage('isActive must be a boolean'),
-	body('questions.*.options.*.text').notEmpty().withMessage('Option text is required'),
 	body('questions.*.options.*.text')
+		.notEmpty()
 		.trim()
+		.withMessage('Option text is required')
 		.isLength({ max: 400 })
 		.withMessage('Option text should not exceed 400 characters'),
 	body('questions.*.options.*.isCorrect').isBoolean().withMessage('isCorrect must be a boolean'),

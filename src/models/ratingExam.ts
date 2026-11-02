@@ -1,63 +1,74 @@
 import { Document, model, Schema, type PopulatedDoc } from 'mongoose';
 import type { SoftDeleteDocument, SoftDeleteModel } from 'mongoose-delete';
 import MongooseDelete from 'mongoose-delete';
+import type { ICertification } from './certification.js';
 import type { ITimestamps } from './timestamps.js';
 import type { IUser } from './user.js';
 
-export interface IRatingRubricIndicator extends Document {
+export interface IRatingExamIndicator extends Document {
 	name: string;
 	deduction: number;
-	maxOccurences: number;
+	failureThreshold: number;
 	isActive: boolean;
 	category: string;
 	type: 'theory' | 'practical';
 }
 
-const RatingIndicatorSchema = new Schema<IRatingRubricIndicator>({
+const RatingIndicatorSchema = new Schema<IRatingExamIndicator>({
 	name: { type: String, required: true },
 	deduction: { type: Number, required: true },
-	maxOccurences: { type: Number, required: true },
+	failureThreshold: { type: Number, required: true },
 	isActive: { type: Boolean, required: true },
 	category: { type: String, required: true },
 	type: { type: String, enum: ['theory', 'practical'], required: true },
 });
 
-export interface IRatingRubric extends SoftDeleteDocument, ITimestamps {
+export interface IRatingExam extends SoftDeleteDocument, ITimestamps {
 	name: string;
 	isActive: boolean;
 	updatedBy: number;
+	certCode: string;
 
-	indicators: IRatingRubricIndicator[];
+	indicators: IRatingExamIndicator[];
 
 	// Virtuals
 	user?: PopulatedDoc<IUser & ITimestamps & Document>;
+	certification?: PopulatedDoc<ICertification & Document>;
 }
 
-const RatingRubricSchema = new Schema<IRatingRubric>(
+const RatingExamSchema = new Schema<IRatingExam>(
 	{
 		name: { type: String, required: true },
 		isActive: { type: Boolean, required: true },
 		indicators: { type: [RatingIndicatorSchema], required: true },
 		updatedBy: { type: Number, required: true, ref: 'User' },
+		certCode: { type: String, required: true },
 	},
 	{
-		collection: 'ratingRubric',
+		collection: 'ratingExams',
 		timestamps: true,
 	},
 );
 
-RatingRubricSchema.virtual('user', {
+RatingExamSchema.virtual('user', {
 	ref: 'User',
 	localField: 'updatedBy',
 	foreignField: 'cid',
 	justOne: true,
 });
 
-RatingRubricSchema.plugin(MongooseDelete, {
+RatingExamSchema.virtual('certification', {
+	ref: 'Certification',
+	localField: 'certCode',
+	foreignField: 'code',
+	justOne: true,
+});
+
+RatingExamSchema.plugin(MongooseDelete, {
 	deletedAt: true,
 });
 
-export const RatingRubricModel = model<IRatingRubric, SoftDeleteModel<IRatingRubric>>(
-	'RatingRubric',
-	RatingRubricSchema,
+export const RatingExamModel = model<IRatingExam, SoftDeleteModel<IRatingExam>>(
+	'RatingExam',
+	RatingExamSchema,
 );
