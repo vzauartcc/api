@@ -19,7 +19,7 @@ router.get('/by-user/:cid', getUser, async (req: Request, res: Response, next: N
 
 		if (Number(cid) !== req.user.cid) {
 			if (!req.user.isTrainingStaff) {
-				throwForbiddenException("You Are Not Authorized to View This User's Exam Attempts.");
+				throwForbiddenException("You are not authorized to view this user's exam attempts");
 			}
 		}
 
@@ -110,7 +110,7 @@ router.get('/:attemptId', getUser, async (req: Request, res: Response, next: Nex
 		}
 
 		if (req.user.cid !== attempt.student && !req.user.isTrainingStaff) {
-			throwForbiddenException('You Are Not Authorized to View This Attempt.');
+			throwForbiddenException('You are not authorized to view this attempt.');
 		}
 
 		if (req.user.cid === attempt.student) {

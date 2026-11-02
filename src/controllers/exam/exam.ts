@@ -8,7 +8,7 @@ import {
 	throwNotFoundException,
 } from '../../helpers/errors.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
-import { isTrainingStaff } from '../../middleware/auth.js';
+import { isInstructorAssistant, isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { ExamModel } from '../../models/exam.js';
@@ -66,14 +66,6 @@ const createExamValidation = [
 	},
 ];
 
-function isExamEditor(req: Request, res: Response, next: NextFunction) {
-	if (req.user && req.user.roleCodes.some((v: string) => ['atm', 'datm', 'ta', 'ia'].includes(v))) {
-		return next();
-	}
-
-	return res.status(status.FORBIDDEN).json();
-}
-
 router.use('/attempt', examAttemptRouter);
 
 router.get(
@@ -100,7 +92,7 @@ router.get(
 router.post(
 	'/',
 	getUser,
-	isExamEditor,
+	isInstructorAssistant,
 	createExamValidation,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
@@ -135,7 +127,7 @@ router.post(
 router.patch(
 	'/:id',
 	getUser,
-	isExamEditor,
+	isInstructorAssistant,
 	createExamValidation,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
@@ -264,7 +256,7 @@ router.post(
 router.get(
 	'/:id',
 	getUser,
-	isExamEditor,
+	isInstructorAssistant,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!isValidObjectId(req.params['id'])) {
@@ -289,7 +281,7 @@ router.get(
 router.delete(
 	'/:id',
 	getUser,
-	isExamEditor,
+	isInstructorAssistant,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!isValidObjectId(req.params['id'])) {
