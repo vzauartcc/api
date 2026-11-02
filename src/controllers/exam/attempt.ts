@@ -9,6 +9,7 @@ import { clearCachePrefix } from '../../helpers/redis.js';
 import { isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { ExamAttemptModel, type IExamAttempt } from '../../models/examAttempt.js';
+import { UserModel } from '../../models/user.js';
 import status from '../../types/status.js';
 
 const router = Router();
@@ -181,16 +182,17 @@ router.get(
 					.exec();
 			}
 
-			const students = await ExamAttemptModel.find({})
-				.select('student')
-				.populate({ path: 'user', select: 'fname lname' })
-				.lean({ virtuals: true })
+			const studentCids = await ExamAttemptModel.distinct('student').exec();
+
+			const students = await UserModel.find({ cid: { $in: studentCids } })
+				.select('cid fname lname')
+				.lean()
 				.exec();
 
 			return res.status(status.OK).json({
 				amount: count,
 				attempts: attempts,
-				students: [...new Map(students.map((item) => [item.student.toString(), item])).values()],
+				students: [...new Map(students.map((item) => [item.cid.toString(), item])).values()],
 			});
 		} catch (e) {
 			return next(e);

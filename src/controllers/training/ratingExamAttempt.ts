@@ -114,16 +114,17 @@ router.get('/', getUser, isInstructor, async (req: Request, res: Response, next:
 				.exec();
 		}
 
-		const students = await RatingExamAttemptModel.find({})
-			.select('studentCid')
-			.populate({ path: 'student', select: 'fname lname' })
-			.lean({ virtuals: true })
+		const studentCids = await RatingExamAttemptModel.distinct('studentCid').exec();
+
+		const students = await UserModel.find({ cid: { $in: studentCids } })
+			.select('fname lname cid')
+			.lean()
 			.exec();
 
 		return res.status(status.OK).json({
 			amount: count,
 			attempts: attempts,
-			students: [...new Map(students.map((item) => [item.studentCid.toString(), item])).values()],
+			students: [...new Map(students.map((item) => [item.cid.toString(), item])).values()],
 		});
 	} catch (e) {
 		return next(e);
@@ -346,7 +347,7 @@ router.patch(
 			}
 
 			const ratingExam = {} as IRatingExam;
-			ratingExam.indicators = attempt.indicators;
+			ratingExam.indicators = [...attempt.indicators];
 
 			const data = processAttempt(ratingExam, body);
 
