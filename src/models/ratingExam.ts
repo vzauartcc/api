@@ -39,10 +39,10 @@ export interface IRatingExam extends SoftDeleteDocument, ITimestamps {
 const RatingExamSchema = new Schema<IRatingExam>(
 	{
 		name: { type: String, required: true },
-		isActive: { type: Boolean, required: true },
+		isActive: { type: Boolean, required: true, index: true },
 		indicators: { type: [RatingIndicatorSchema], required: true },
 		updatedBy: { type: Number, required: true, ref: 'User' },
-		certCode: { type: String, required: true },
+		certCode: { type: String, required: true, index: true },
 	},
 	{
 		collection: 'ratingExams',

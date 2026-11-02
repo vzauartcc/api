@@ -54,10 +54,10 @@ export interface IRatingExamAttempt extends ITimestamps {
 
 const RatingExamAttemptSchema = new Schema<IRatingExamAttempt>(
 	{
-		ratingExamId: { type: Schema.Types.ObjectId, required: true, ref: 'RatingExam' },
+		ratingExamId: { type: Schema.Types.ObjectId, required: true, ref: 'RatingExam', index: true },
 		indicators: { type: [RatingExamAttemptIndicatorSchema], required: true },
 
-		studentCid: { type: Number, required: true, ref: 'User' },
+		studentCid: { type: Number, required: true, ref: 'User', index: true },
 		instructorCid: { type: Number, required: true, ref: 'User' },
 
 		theoryPassed: { type: Boolean, required: true },
@@ -77,6 +77,8 @@ const RatingExamAttemptSchema = new Schema<IRatingExamAttempt>(
 		timestamps: true,
 	},
 );
+
+RatingExamAttemptSchema.index({ ratingExamId: 1, studentCid: 1 });
 
 RatingExamAttemptSchema.plugin(mongooseLeanVirtuals);
 

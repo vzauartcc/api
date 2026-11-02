@@ -19,10 +19,10 @@ interface ITrainingWaitlist extends ITimestamps {
 
 const TrainingWaitlistSchema = new Schema<ITrainingWaitlist>(
 	{
-		studentCid: { type: Number, required: true, ref: 'User' },
-		certCode: { type: String, required: true, ref: 'Certification' },
+		studentCid: { type: Number, required: true, ref: 'User', index: true },
+		certCode: { type: String, required: true, ref: 'Certification', index: true },
 		availability: [{ type: String }],
-		instructorCid: { type: Number, required: true, default: -1, ref: 'User' },
+		instructorCid: { type: Number, required: true, default: -1, ref: 'User', index: true },
 		assignedDate: { type: Date },
 		notes: { type: String },
 	},

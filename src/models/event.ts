@@ -27,10 +27,10 @@ interface IEvent extends SoftDeleteDocument {
 
 const EventSchema = new Schema<IEvent>(
 	{
-		name: { type: String, required: true },
+		name: { type: String, required: true, index: true },
 		description: { type: String, required: true },
-		url: { type: String, required: true },
-		bannerUrl: { type: String },
+		url: { type: String, required: true, index: true },
+		bannerUrl: { type: String, index: true },
 		eventStart: { type: Date, required: true },
 		eventEnd: { type: Date, required: true },
 		createdBy: { type: Number, required: true, ref: 'User' },

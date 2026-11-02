@@ -30,9 +30,9 @@ interface ITrainingSession extends SoftDeleteDocument, ITimestamps {
 
 const TrainingSessionSchema = new Schema<ITrainingSession>(
 	{
-		studentCid: { type: Number, required: true, ref: 'User' },
-		instructorCid: { type: Number, required: true, ref: 'User' },
-		milestoneCode: { type: String, required: true, ref: 'TrainingMilestone' },
+		studentCid: { type: Number, required: true, ref: 'User', index: true },
+		instructorCid: { type: Number, required: true, ref: 'User', index: true },
+		milestoneCode: { type: String, required: true, ref: 'TrainingMilestone', index: true },
 		position: { type: String },
 		startTime: { type: Date, required: true },
 		endTime: { type: Date, required: true },
