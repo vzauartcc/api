@@ -25,7 +25,7 @@ const ExamSchema = new Schema<IExam>(
 		description: { type: String },
 		questions: [QuestionSchema],
 		createdBy: { type: Number, ref: 'User', required: true },
-		certCode: { type: String, required: true },
+		certCode: { type: String, required: true, index: true },
 		isActive: { type: Boolean, required: true },
 	},
 	{ timestamps: true },

@@ -15,10 +15,10 @@ interface IDownload extends Document, ITimestamps {
 
 const DownloadSchema = new Schema<IDownload>(
 	{
-		name: { type: String, required: true },
+		name: { type: String, required: true, index: true },
 		description: { type: String },
-		fileName: { type: String, required: true },
-		category: { type: String, required: true },
+		fileName: { type: String, required: true, index: true },
+		category: { type: String, required: true, index: true },
 		author: { type: Number, ref: 'User', required: true },
 	},
 	{

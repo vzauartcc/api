@@ -15,7 +15,7 @@ interface INotification extends ITimestamps {
 
 const NotificationSchema = new Schema<INotification>(
 	{
-		recipient: { type: Number, ref: 'User', required: true },
+		recipient: { type: Number, ref: 'User', required: true, index: true },
 		read: { type: Boolean, default: false, required: true },
 		title: { type: String, required: true },
 		content: { type: String, required: true },

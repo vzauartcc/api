@@ -19,7 +19,7 @@ interface IControllerHours extends Document {
 
 const ControllerHoursSchema = new Schema<IControllerHours>(
 	{
-		cid: { type: Number, required: true, ref: 'User' },
+		cid: { type: Number, required: true, ref: 'User', index: true },
 		timeStart: { type: Date, required: true },
 		timeEnd: { type: Date, required: true },
 		position: { type: String, required: true },

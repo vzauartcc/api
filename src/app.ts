@@ -116,6 +116,7 @@ console.log('Connecting to MongoDB. . . .');
 mongoose.set('toJSON', { virtuals: true });
 mongoose.set('toObject', { virtuals: true });
 mongoose.set('strictQuery', true);
+mongoose.set('autoIndex', true);
 mongoose.connect(MONGO_URI, { family: 4 });
 const db = mongoose.connection;
 db.once('open', () => console.log('Successfully connected to MongoDB'));

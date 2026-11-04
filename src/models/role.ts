@@ -9,10 +9,10 @@ export interface IRole extends Document {
 }
 
 const RoleSchema = new Schema<IRole>({
-	code: { type: String, required: true },
+	code: { type: String, required: true, unique: true },
 	order: { type: Number, required: true },
 	name: { type: String, required: true },
-	class: { type: String, required: true },
+	class: { type: String, required: true, index: true },
 	description: { type: String, required: true },
 });
 

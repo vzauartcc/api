@@ -21,11 +21,11 @@ interface ITrainingRequest extends SoftDeleteDocument, ITimestamps {
 
 const TrainingRequestSchema = new Schema<ITrainingRequest>(
 	{
-		studentCid: { type: Number, required: true, ref: 'User' },
-		instructorCid: { type: Number, ref: 'User' },
+		studentCid: { type: Number, required: true, ref: 'User', index: true },
+		instructorCid: { type: Number, ref: 'User', index: true },
 		startTime: { type: Date, required: true },
 		endTime: { type: Date, required: true },
-		milestoneCode: { type: String, required: true, ref: 'TrainingMilestone' },
+		milestoneCode: { type: String, required: true, ref: 'TrainingMilestone', index: true },
 		remarks: { type: String, default: '' },
 	},
 	{ collection: 'trainingRequests', timestamps: true },

@@ -9,6 +9,7 @@ import { clearCachePrefix } from '../../helpers/redis.js';
 import { isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { ExamAttemptModel, type IExamAttempt } from '../../models/examAttempt.js';
+import { UserModel } from '../../models/user.js';
 import status from '../../types/status.js';
 
 const router = Router();
@@ -19,7 +20,7 @@ router.get('/by-user/:cid', getUser, async (req: Request, res: Response, next: N
 
 		if (Number(cid) !== req.user.cid) {
 			if (!req.user.isTrainingStaff) {
-				throwForbiddenException("You Are Not Authorized to View This User's Exam Attempts.");
+				throwForbiddenException("You are not authorized to view this user's exam attempts");
 			}
 		}
 
@@ -110,7 +111,7 @@ router.get('/:attemptId', getUser, async (req: Request, res: Response, next: Nex
 		}
 
 		if (req.user.cid !== attempt.student && !req.user.isTrainingStaff) {
-			throwForbiddenException('You Are Not Authorized to View This Attempt.');
+			throwForbiddenException('You are not authorized to view this attempt.');
 		}
 
 		if (req.user.cid === attempt.student) {
@@ -149,6 +150,10 @@ router.get(
 			}
 
 			if (exam && exam !== '') {
+				if (!isValidObjectId(exam)) {
+					throwBadRequestException('Invalid Exam ID');
+				}
+
 				query.examId = new Types.ObjectId(exam);
 			}
 
@@ -177,16 +182,17 @@ router.get(
 					.exec();
 			}
 
-			const students = await ExamAttemptModel.find({})
-				.select('student')
-				.populate({ path: 'user', select: 'fname lname' })
-				.lean({ virtuals: true })
+			const studentCids = await ExamAttemptModel.distinct('student').exec();
+
+			const students = await UserModel.find({ cid: { $in: studentCids } })
+				.select('cid fname lname')
+				.lean()
 				.exec();
 
 			return res.status(status.OK).json({
 				amount: count,
 				attempts: attempts,
-				students: [...new Map(students.map((item) => [item.student.toString(), item])).values()],
+				students: [...new Map(students.map((item) => [item.cid.toString(), item])).values()],
 			});
 		} catch (e) {
 			return next(e);

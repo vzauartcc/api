@@ -23,8 +23,8 @@ const FeedbackSchema = new Schema<IFeedback>(
 	{
 		name: { type: String, required: true },
 		email: { type: String, required: true },
-		submitter: { type: Number, required: true },
-		controllerCid: { type: Number, required: true, ref: 'User' },
+		submitter: { type: Number, required: true, index: true },
+		controllerCid: { type: Number, required: true, ref: 'User', index: true },
 		rating: { type: Number, required: true },
 		position: { type: String, required: true },
 		comments: { type: String, required: true },

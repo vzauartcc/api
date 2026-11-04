@@ -1,4 +1,4 @@
-import { type Document, model, Schema, type PopulatedDoc } from 'mongoose';
+import { model, Schema, type Document, type PopulatedDoc } from 'mongoose';
 import type { SoftDeleteDocument, SoftDeleteModel } from 'mongoose-delete';
 import MongooseDelete from 'mongoose-delete';
 import type { ITimestamps } from './timestamps.js';
@@ -19,7 +19,7 @@ interface IVisitApplication extends SoftDeleteDocument, ITimestamps {
 
 const VisitApplicationSchema = new Schema<IVisitApplication>(
 	{
-		cid: { type: Number, required: true },
+		cid: { type: Number, required: true, index: true },
 		fname: { type: String, required: true },
 		lname: { type: String, required: true },
 		rating: { type: String },

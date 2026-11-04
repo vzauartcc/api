@@ -16,9 +16,9 @@ interface INews extends SoftDeleteDocument, ITimestamps {
 
 const NewsSchema = new Schema<INews>(
 	{
-		title: { type: String, required: true },
+		title: { type: String, required: true, index: true },
 		content: { type: String, required: true },
-		uriSlug: { type: String, required: true },
+		uriSlug: { type: String, required: true, index: true },
 		createdBy: { type: Number, ref: 'User' },
 	},
 	{ collection: 'news', timestamps: true },
