@@ -406,7 +406,7 @@ router.post(
 				await discord.sendMessage('1234367676240105493', {
 					content: `**${req.user.name}** sent a message in <#${channelId}> with the following content:\n\n${content.length > 1500 ? content.slice(0, 1500) + '...' : content}`,
 				});
-			} catch (e) {
+			} catch (_e) {
 				// Do nothing
 			}
 

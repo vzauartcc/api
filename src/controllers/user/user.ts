@@ -187,7 +187,7 @@ router.post('/login', oAuth, async (req: Request, res: Response, next: NextFunct
 
 		// VATSIM API returns 200 codes on some errors, use CID as a check to see if there was an error.
 		if (vatsimUserData?.data?.cid === null) {
-			let error = vatsimUserData;
+			const error = vatsimUserData;
 			throw error;
 		} else {
 			vatsimUserData = vatsimUserData.data;
@@ -555,7 +555,7 @@ async function syncController(user: IUser) {
 			console.log('Updating', user.cid, 'with VATUSA data.');
 			await user.save();
 		}
-	} catch (e) {
+	} catch (_e) {
 		console.warn('Failed to fetch VATUSA details for', user.cid, 'during login.');
 	}
 }

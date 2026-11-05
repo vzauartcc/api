@@ -189,14 +189,14 @@ export async function syncUserHistory(cid: number) {
 		});
 
 		await user.save();
-	} catch (e: any) {
-		if (e.name !== 'TimeoutError') {
+	} catch (e) {
+		if (e instanceof Error && e.name !== 'TimeoutError') {
 			console.error(e);
 		}
 	}
 }
 
-function buildHistory(transfers: any[]) {
+function buildHistory(transfers: IVatusaHistory[]) {
 	const history = [];
 	let joinDate = null;
 

@@ -154,7 +154,7 @@ async function requestToken(options = {} as DiscordOptions): Promise<DiscordToke
 		redirect_uri: string;
 		scope: string | string[];
 	}
-	function encode(obj: Object) {
+	function encode(obj: object) {
 		let string = '';
 
 		for (const [key, value] of Object.entries(obj)) {

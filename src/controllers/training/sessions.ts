@@ -550,7 +550,7 @@ router.post(
 
 			const duration = `${('00' + hours).slice(-2)}:${('00' + minutes).slice(-2)}`;
 
-			let vatusaRes = { data: { id: 0 } };
+			const vatusaRes = { data: { id: 0 } };
 
 			if (!zau.isDev) {
 				const { data: vatusaRes } = await vatusaApi.post(

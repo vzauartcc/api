@@ -59,7 +59,7 @@ router.get('/aircraft/feed', (req: Request, res: Response, next: NextFunction) =
 		sub.subscribe('PILOT:UPDATE', 'PILOT:DELETE');
 		sub.on('message', async (channel: string, message: any) => {
 			if (channel === 'PILOT:UPDATE') {
-				let data = await req.app.redis.hgetall(`PILOT:${message}`);
+				const data = await req.app.redis.hgetall(`PILOT:${message}`);
 				data['type'] = 'update';
 				res.write(`data: ${JSON.stringify(data)}\n\n`);
 			}
@@ -104,7 +104,7 @@ router.get('/atis', (req: Request, res: Response, next: NextFunction) => {
 		sub.subscribe('ATIS:UPDATE', 'ATIS:DELETE');
 		sub.on('message', async (channel, message) => {
 			if (channel === 'ATIS:UPDATE') {
-				let data = await req.app.redis.hgetall(`ATIS:${message}`);
+				const data = await req.app.redis.hgetall(`ATIS:${message}`);
 				data['type'] = 'update';
 				res.write(`data: ${JSON.stringify(data)}\n\n`);
 			}

@@ -27,7 +27,7 @@ import { ControllerHoursModel } from '../../models/controllerHours.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { RoleModel } from '../../models/role.js';
 import { TrainingWaitlistModel } from '../../models/trainingWaitlist.js';
-import { UserModel, type IUser } from '../../models/user.js';
+import { UserModel, type ICertificationDate, type IUser } from '../../models/user.js';
 import status from '../../types/status.js';
 import absenceRouter from './absence.js';
 import { checkOI, clearUserCache, grantCerts, syncUserHistory } from './utils.js';
@@ -169,9 +169,9 @@ router.get('/log', getUser, isStaff, async (req: Request, res: Response, next: N
 	const limit = +(req.query['limit'] as string) || 20;
 	const action = +(req.query['action'] as string);
 
-	const actionQuery = {} as any;
+	const actionQuery: Record<string, unknown> = {};
 	if (!isNaN(action) && action > 0) {
-		actionQuery.actionType = action;
+		actionQuery['actionType'] = action;
 	}
 
 	const amount = await DossierModel.countDocuments(actionQuery).cache('5 minutes').exec();
@@ -457,7 +457,7 @@ router.get('/stats/:cid', async (req: Request, res: Response, next: NextFunction
 				}
 
 				const length = Number(end.diff(start)) / 1000;
-				let ms = getMonthYearString(start);
+				const ms = getMonthYearString(start);
 
 				let found = hours.activity.find((a) => a.name === ms);
 				if (!found) {
@@ -853,7 +853,7 @@ router.put(
 
 			// Handle certifications (certCodes and certificationDate)
 			const existingCertMap = new Map(user.certificationDate.map((cert) => [cert.code, cert]));
-			const updatedCertificationDate = [] as any[];
+			const updatedCertificationDate: ICertificationDate[] = [];
 
 			certs.forEach((code: string) => {
 				if (existingCertMap.has(code)) {

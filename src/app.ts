@@ -169,7 +169,7 @@ app.get('/charts', async (req: Request, res: Response, next: NextFunction) => {
 		// Airports are now expected to be the ICAO identifier.
 		for (let i = 0; i < airports.length; i++) {
 			const element = airports[i];
-			if (element && element[0] !== 'K' && element?.length != 4) {
+			if (element && element[0] !== 'K' && element?.length !== 4) {
 				airports[i] = 'K' + element;
 			}
 		}
@@ -239,11 +239,13 @@ app.listen(process.env['PORT'], () => {
 });
 
 console.log(`Starting Reset Split task. . . .`);
+// eslint-disable-next-line no-new
 new Cron('0 9 * * *', { name: 'Reset Split Map', timezone: 'Etc/UTC', catch: true }, () =>
 	resetSplit(app.redis),
 );
 
 console.log(`Starting Solo Expiration Notification task. . . .`);
+// eslint-disable-next-line no-new
 new Cron(
 	'0 0 * * *',
 	{ name: 'Solo Expiration Notifications', timezone: 'Etc/UTC', catch: true },
@@ -251,19 +253,23 @@ new Cron(
 );
 
 console.log(`Starting VATUSA Solo Endorsement Sync task. . . .`);
+// eslint-disable-next-line no-new
 new Cron('0 * * * *', { name: 'Solo Endorsement Sync', catch: true }, () =>
 	syncVatusaSoloEndorsements(),
 );
 
 console.log(`Starting Close Old Event Signups task. . . .`);
+// eslint-disable-next-line no-new
 new Cron('30 * * * *', { name: 'Close Old Event Signups', catch: true }, () => closeEventSignups());
 
 console.log(`Starting Exam Attempt Expiration task. . . .`);
+// eslint-disable-next-line no-new
 new Cron('0 6 * * *', { name: 'Exam Attempt Expiration', timezone: 'Etc/UTC', catch: true }, () => {
 	expireExamAttempts();
 });
 
 console.log(`Starting Neighbor Split fetch task. . . .`);
+// eslint-disable-next-line no-new
 new Cron('*/5 * * * *', { name: 'Sync Neighbor Splits', timezone: 'Etc/UTC', catch: true }, () =>
 	getNeighborSplits(app.redis),
 );
@@ -271,6 +277,7 @@ getNeighborSplits(app.redis);
 
 if (process.env['NODE_ENV'] === 'production') {
 	console.log(`Starting VATUSA Training Records Sync task. . . .`);
+	// eslint-disable-next-line no-new
 	new Cron(
 		'0 6 * * *',
 		{ name: 'Training Record Sync', timezone: 'America/Chicago', catch: true },
@@ -278,7 +285,7 @@ if (process.env['NODE_ENV'] === 'production') {
 	);
 }
 
-process.on('uncaughtException', (err: any, _origin) => {
+process.on('uncaughtException', (err: Error, _origin) => {
 	console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
 	console.log('                 Uncaught Exception               ');
 	console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');

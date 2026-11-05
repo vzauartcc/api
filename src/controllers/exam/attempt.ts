@@ -40,7 +40,7 @@ router.get('/by-user/:cid', getUser, async (req: Request, res: Response, next: N
 			attempts.forEach((attempt) => {
 				(attempt.questionOrder as any) = attempt.questionOrder.map((q) => ({
 					...q,
-					options: q.options.map(({ isCorrect, ...rest }) => rest),
+					options: q.options.map(({ isCorrect: _isCorrect, ...rest }) => rest),
 				}));
 			});
 		}
@@ -115,10 +115,10 @@ router.get('/:attemptId', getUser, async (req: Request, res: Response, next: Nex
 		}
 
 		if (req.user.cid === attempt.student) {
-			attempt.responses = attempt.responses.map(({ isCorrect, ...rest }) => rest);
+			attempt.responses = attempt.responses.map(({ isCorrect: _isCorrect, ...rest }) => rest);
 			(attempt.questionOrder as any) = attempt.questionOrder.map((q) => ({
 				...q,
-				options: q.options.map(({ isCorrect, ...rest }) => rest),
+				options: q.options.map(({ isCorrect: _isCorrect, ...rest }) => rest),
 				multiCorrect: q.options.filter((o) => o.isCorrect === true).length > 1,
 			}));
 		}
@@ -353,19 +353,19 @@ export async function submitExam(attempt: IExamAttempt, timedOut: boolean) {
 
 		const question = questions.find((q) => q.id === response.questionId.toString());
 		if (!question) {
-			return { ...response, isCorrect: false };
+			return { ...response, _isCorrect: false };
 		}
 
 		const correctOptions = question.options
 			.filter((x) => x.isCorrect === true)
 			.map((x) => x._id) as Types.ObjectId[];
 
-		const isCorrect = correctOptions.every((x: Types.ObjectId) =>
+		const _isCorrect = correctOptions.every((x: Types.ObjectId) =>
 			response.selectedOptions.some((y) => y.equals(x)),
 		);
-		if (isCorrect) correctAnswers++;
+		if (_isCorrect) correctAnswers++;
 
-		return { ...response, isCorrect };
+		return { ...response, _isCorrect };
 	});
 
 	const score = Math.round((correctAnswers / questions.length) * 100);

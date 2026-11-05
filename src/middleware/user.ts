@@ -77,7 +77,7 @@ export async function isUserValid(req: Request) {
 		req.user = user as unknown as IUser;
 
 		return true;
-	} catch (err) {
+	} catch (_err) {
 		return false;
 	}
 }

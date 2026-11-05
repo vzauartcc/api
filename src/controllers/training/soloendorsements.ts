@@ -200,11 +200,11 @@ router.patch(
 			let e = '';
 
 			if (zau.isProd) {
-				if (solo.vatusaId || 0 !== 0) {
+				if (solo.vatusaId !== 0) {
 					try {
 						await vatusaApi.delete(`/solo?id=${solo.vatusaId}`);
-					} catch (err) {
-						e += `${e}`;
+					} catch (_err) {
+						// Do nothing, we don't care about this error.
 					}
 				}
 
@@ -287,7 +287,7 @@ router.delete(
 			if (zau.isProd) {
 				try {
 					await vatusaApi.delete(`/solo?id=${solo.vatusaId}`);
-				} catch (err) {
+				} catch (_err) {
 					throwInternalServerErrorException(
 						'Error deleting from VATUSA, manually check and verify on VATUSA',
 					);

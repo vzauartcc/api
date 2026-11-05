@@ -25,7 +25,7 @@ export async function getUsersWithPrivacy(user: IUser, findOptions = {}) {
 	const cacheKey =
 		Object.keys(findOptions).length === 0 ? 'users' : `user-${JSON.stringify(findOptions)}`;
 
-	let results = await UserModel.aggregate([
+	const results = await UserModel.aggregate([
 		{ $match: findOptions },
 		{
 			$unset: userSelector(isStaff).replaceAll('-', '').split(' '),
