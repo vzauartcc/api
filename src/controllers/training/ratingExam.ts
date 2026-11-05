@@ -175,7 +175,7 @@ router.patch(
 
 			const indicators = rawIndicators.map(
 				({ _id, category, deduction, isActive, failureThreshold, name, type }) => ({
-					_id: _id || null,
+					...(_id ? { _id } : {}),
 					category,
 					deduction,
 					isActive,
