@@ -3,7 +3,7 @@ import { body, validationResult } from 'express-validator';
 import { isValidObjectId } from 'mongoose';
 import { getCacheInstance } from '../../app.js';
 import { throwBadRequestException, throwNotFoundException } from '../../helpers/errors.js';
-import { isInstructorAssistant, isTrainingStaff } from '../../middleware/auth.js';
+import { isInstructorAssistant } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { RatingExamModel, type IRatingExamIndicator } from '../../models/ratingExam.js';
 import status from '../../types/status.js';
@@ -65,53 +65,43 @@ const createRatingExamValidation = [
 	body('indicators.*.isActive').isBoolean().toBoolean().withMessage('isActive must be a boolean'),
 ];
 
-router.get(
-	'/',
-	getUser,
-	isTrainingStaff,
-	async (_req: Request, res: Response, next: NextFunction) => {
-		try {
-			const forms = await RatingExamModel.find({ deleted: { $ne: true } })
-				.populate('user', 'cid fname lname')
-				.populate('certification', 'name')
-				.lean()
-				.cache('10 minutes', 'rating-exams')
-				.exec();
+router.get('/', getUser, async (_req: Request, res: Response, next: NextFunction) => {
+	try {
+		const forms = await RatingExamModel.find({ deleted: { $ne: true } })
+			.populate('user', 'cid fname lname')
+			.populate('certification', 'name')
+			.lean()
+			.cache('10 minutes', 'rating-exams')
+			.exec();
 
-			return res.status(status.OK).json(forms);
-		} catch (e) {
-			return next(e);
+		return res.status(status.OK).json(forms);
+	} catch (e) {
+		return next(e);
+	}
+});
+
+router.get('/:id', getUser, async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const id = req.params['id'];
+		if (!id || id === 'undefined' || !isValidObjectId(id)) {
+			throwBadRequestException('Invalid ID');
 		}
-	},
-);
 
-router.get(
-	'/:id',
-	getUser,
-	isTrainingStaff,
-	async (req: Request, res: Response, next: NextFunction) => {
-		try {
-			const id = req.params['id'];
-			if (!id || id === 'undefined' || !isValidObjectId(id)) {
-				throwBadRequestException('Invalid ID');
-			}
-
-			const ratingExam = await RatingExamModel.findOne({ _id: id, deleted: { $ne: true } })
-				.populate('user', 'cid fname lname')
-				.populate('certification', 'name')
-				.lean()
-				.cache('10 minutes', `rating-exam-${id}`)
-				.exec();
-			if (!ratingExam) {
-				throwNotFoundException('Rating Exam not found');
-			}
-
-			return res.status(status.OK).json(ratingExam);
-		} catch (e) {
-			return next(e);
+		const ratingExam = await RatingExamModel.findOne({ _id: id, deleted: { $ne: true } })
+			.populate('user', 'cid fname lname')
+			.populate('certification', 'name')
+			.lean()
+			.cache('10 minutes', `rating-exam-${id}`)
+			.exec();
+		if (!ratingExam) {
+			throwNotFoundException('Rating Exam not found');
 		}
-	},
-);
+
+		return res.status(status.OK).json(ratingExam);
+	} catch (e) {
+		return next(e);
+	}
+});
 
 router.post(
 	'/',
