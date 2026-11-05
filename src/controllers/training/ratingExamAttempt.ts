@@ -244,12 +244,16 @@ router.post(
 				throwBadRequestException('Rating Exam not found');
 			}
 
-			if (
-				!ratingExam.indicators
-					.filter((i) => i.isActive)
-					.every((i) => body.indicators.find((j) => i._id.toString() === j.indicatorId))
-			) {
-				throwBadRequestException('Missing indicators');
+			const incomingIndicatorsIds = new Set(body.indicators.map((i) => i.indicatorId));
+
+			const missingIndicators = ratingExam?.indicators.filter(
+				(i) => i.isActive && !incomingIndicatorsIds.has(i._id.toString()),
+			);
+
+			if (missingIndicators.length > 0) {
+				throwBadRequestException(
+					`Missing indicators: ${missingIndicators.map((i) => i.name).join(', ')}`,
+				);
 			}
 
 			const student = await UserModel.findOne({ cid: body.studentCid }).exec();
@@ -338,12 +342,16 @@ router.patch(
 				throwBadRequestException('Invalid attempt');
 			}
 
-			if (
-				!attempt.indicators
-					.filter((i) => i.isActive)
-					.every((i) => body.indicators.find((j) => i._id.toString() === j.indicatorId))
-			) {
-				throwBadRequestException('Missing indicators');
+			const incomingIndicatorsIds = new Set(body.indicators.map((i) => i.indicatorId));
+
+			const missingIndicators = attempt.indicators.filter(
+				(i) => i.isActive && !incomingIndicatorsIds.has(i._id.toString()),
+			);
+
+			if (missingIndicators.length > 0) {
+				throwBadRequestException(
+					`Missing indicators: ${missingIndicators.map((i) => i.name).join(', ')}`,
+				);
 			}
 
 			const ratingExam = {} as IRatingExam;
@@ -399,7 +407,7 @@ function processAttempt(ratingExam: IRatingExam, body: IRatingAttemptBody) {
 			(i) => indicator._id.toString() === i.indicatorId,
 		);
 		if (!indicatorAttempt) {
-			throwBadRequestException('Missing indicator');
+			throwBadRequestException(`Missing indicator: ${indicator.name}`);
 		}
 
 		if (indicator.type === 'theory') {
