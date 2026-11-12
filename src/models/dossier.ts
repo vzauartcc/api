@@ -76,7 +76,7 @@ const DossierSchema = new Schema<IDossier>(
 		by: { type: Number, ref: 'User' },
 		affected: { type: Number, ref: 'User' },
 		action: { type: String },
-		actionType: { type: Number, required: true },
+		actionType: { type: Number, required: true, index: true },
 	},
 	{
 		collection: 'dossier',

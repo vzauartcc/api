@@ -83,7 +83,7 @@ export async function getNeighborSplits(redis: Redis) {
 		}
 		await msetWithTtl(redis, entries);
 	} catch (e) {
-		console.error('error fetching zmp split', e);
+		console.error('error fetching zmp split', e instanceof Error ? e.message : e);
 	}
 
 	try {
@@ -103,7 +103,7 @@ export async function getNeighborSplits(redis: Redis) {
 			await msetWithTtl(redis, entries);
 		}
 	} catch (e) {
-		console.error('error fetching zob split', e);
+		console.error('error fetching zob split', e instanceof Error ? e.message : e);
 	}
 
 	try {
@@ -133,11 +133,11 @@ export async function getNeighborSplits(redis: Redis) {
 
 				await msetWithTtl(redis, entries);
 			} catch (e) {
-				console.error('error fetching zid split', e);
+				console.error('error fetching zid split', e instanceof Error ? e.message : e);
 			}
 		}
 	} catch (e) {
-		console.error('error fetching zid split list', e);
+		console.error('error fetching zid split list', e instanceof Error ? e.message : e);
 	}
 
 	try {
@@ -152,11 +152,11 @@ export async function getNeighborSplits(redis: Redis) {
 
 		await msetWithTtl(redis, entries);
 	} catch (e) {
-		console.error('error fetching zkc split', e);
+		console.error('error fetching zkc split', e instanceof Error ? e.message : e);
 	}
 }
 
-export async function clearNeighborSplits(redis: any) {
+export async function clearNeighborSplits(redis: Redis) {
 	try {
 		const keys = await redis.keys(`split:c:*`);
 
@@ -164,7 +164,7 @@ export async function clearNeighborSplits(redis: any) {
 			await redis.del(keys);
 		}
 	} catch (e) {
-		console.error('error clearing zob split', e);
+		console.error('error clearing zob split', e instanceof Error ? e.message : e);
 	}
 
 	try {
@@ -174,7 +174,7 @@ export async function clearNeighborSplits(redis: any) {
 			await redis.del(keys);
 		}
 	} catch (e) {
-		console.error('error clearing zid split', e);
+		console.error('error clearing zid split', e instanceof Error ? e.message : e);
 	}
 
 	try {
@@ -184,7 +184,7 @@ export async function clearNeighborSplits(redis: any) {
 			await redis.del(keys);
 		}
 	} catch (e) {
-		console.error('error clearing zkc split', e);
+		console.error('error clearing zkc split', e instanceof Error ? e.message : e);
 	}
 
 	try {
@@ -194,6 +194,6 @@ export async function clearNeighborSplits(redis: any) {
 			await redis.del(keys);
 		}
 	} catch (e) {
-		console.error('error clearing zmp split', e);
+		console.error('error clearing zmp split', e instanceof Error ? e.message : e);
 	}
 }

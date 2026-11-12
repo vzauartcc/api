@@ -7,7 +7,13 @@ import { SoloEndorsementModel } from '../models/soloEndorsement.js';
 
 export async function soloExpiringNotifications() {
 	if (!process.env['DISCORD_TOKEN'] || process.env['DISCORD_TOKEN'] === '') {
-		console.log('Skipping Solo Endorsement Expiration Check due to no bot configuration.');
+		console.log('Skipping Solo Endorsement Expiration Check due to no Discord token.');
+		return;
+	}
+
+	if (!zau.isProd) {
+		console.log('Skipping Solo Endorsement Expiration Check due to non-production environment.');
+		return;
 	}
 
 	const now = new Date();

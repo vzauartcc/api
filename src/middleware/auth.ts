@@ -120,6 +120,14 @@ export function isInstructor(req: Request, res: Response, next: NextFunction) {
 	return res.status(status.FORBIDDEN).json();
 }
 
+export function isInstructorAssistant(req: Request, res: Response, next: NextFunction) {
+	if (req.user && req.user.isInstructorAssistant) {
+		return next();
+	}
+
+	return res.status(status.FORBIDDEN).json();
+}
+
 export function isStaff(req: Request, res: Response, next: NextFunction) {
 	if (req.user && req.user.isStaff) {
 		return next();

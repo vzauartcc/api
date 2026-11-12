@@ -15,7 +15,7 @@ export interface IAbsence extends SoftDeleteDocument, ITimestamps {
 
 const AbsenceSchema = new Schema<IAbsence>(
 	{
-		controller: { type: Number, required: true, ref: 'User' },
+		controller: { type: Number, required: true, ref: 'User', index: true },
 		expirationDate: { type: Date, required: true },
 		reason: { type: String, required: true },
 	},

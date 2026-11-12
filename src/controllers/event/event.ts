@@ -522,7 +522,7 @@ router.post(
 						}
 						return;
 					}
-					let messageId = (data as { id: string }).id;
+					const messageId = (data as { id: string }).id;
 					if (!messageId) {
 						captureMessage('Discord Webhook failed', data);
 						throwInternalServerErrorException('Discord failed to process our message.');
@@ -694,7 +694,7 @@ router.put(
 			if (eventData.positions.length > 0) {
 				const newPositions = [];
 
-				for (let position of computedPositions) {
+				for (const position of computedPositions) {
 					newPositions.push(position);
 					for (let i = 0; i < eventData.positions.length; i++) {
 						if (!eventData.positions[i]) continue;

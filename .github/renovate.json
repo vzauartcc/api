@@ -86,7 +86,8 @@
 				"/typescript/",
 				"/nodemon/",
 				"/ts-node/",
-				"/globals/"
+				"/globals/",
+				"typescript-eslint"
 			]
 		},
 		{

@@ -47,7 +47,7 @@ const ManagedRoleSchema = new Schema<IManagedRole>(
 
 const DiscordConfigSchema = new Schema<IDiscordConfig>(
 	{
-		id: { type: String, required: true },
+		id: { type: String, required: true, index: true },
 		type: { type: String, required: true, default: 'discord' },
 		repostChannels: { type: Object },
 		managedRoles: [ManagedRoleSchema],

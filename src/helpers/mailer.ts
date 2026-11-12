@@ -6,7 +6,7 @@ import path from 'path';
 
 export interface CustomMailOptions extends SendMailOptions {
 	template?: string;
-	context?: Record<string, any>;
+	context?: Record<string, unknown>;
 }
 
 const emailDir = path.join(import.meta.dirname, '../email');

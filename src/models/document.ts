@@ -18,11 +18,11 @@ interface IDocument extends Document, ITimestamps {
 
 const DocumentSchema = new Schema<IDocument>(
 	{
-		name: { type: String, required: true },
-		category: { type: String, required: true },
+		name: { type: String, required: true, index: true },
+		category: { type: String, required: true, index: true },
 		description: { type: String },
 		content: { type: String },
-		slug: { type: String, required: true },
+		slug: { type: String, required: true, index: true },
 		author: { type: Number, required: true, ref: 'User' },
 		type: { type: String, required: true },
 		fileName: { type: String },

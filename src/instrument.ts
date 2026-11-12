@@ -7,11 +7,11 @@ Sentry.init({
 	beforeSend(event, hint) {
 		const error = hint.originalException;
 
-		if (error && (error as any).name === 'JsonWebTokenError') {
+		if (error instanceof Error && error.name === 'JsonWebTokenError') {
 			return null;
 		}
 
-		if (error && typeof error === 'object' && 'code' in error && 'message' in error) {
+		if (error instanceof Error && 'code' in error && 'message' in error) {
 			return null;
 		}
 

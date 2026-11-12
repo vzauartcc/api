@@ -20,7 +20,7 @@ interface ISoloEndorsement extends SoftDeleteDocument, ITimestamps {
 
 const SoloEndorsementSchema = new Schema<ISoloEndorsement>(
 	{
-		studentCid: { type: Number, required: true, ref: 'User' },
+		studentCid: { type: Number, required: true, ref: 'User', index: true },
 		instructorCid: { type: Number, required: true, ref: 'User' },
 		expires: { type: Date, required: true },
 		position: { type: String, required: true },

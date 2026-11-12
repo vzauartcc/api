@@ -111,7 +111,7 @@ export function isJwtValid(req: Request): boolean {
 		req.internal = true;
 
 		return true;
-	} catch (e) {
+	} catch (_e) {
 		req.internal = false;
 		req.application = null as unknown as IApplication;
 

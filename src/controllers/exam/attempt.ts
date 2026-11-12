@@ -9,6 +9,7 @@ import { clearCachePrefix } from '../../helpers/redis.js';
 import { isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { ExamAttemptModel, type IExamAttempt } from '../../models/examAttempt.js';
+import { UserModel } from '../../models/user.js';
 import status from '../../types/status.js';
 
 const router = Router();
@@ -19,7 +20,7 @@ router.get('/by-user/:cid', getUser, async (req: Request, res: Response, next: N
 
 		if (Number(cid) !== req.user.cid) {
 			if (!req.user.isTrainingStaff) {
-				throwForbiddenException("You Are Not Authorized to View This User's Exam Attempts.");
+				throwForbiddenException("You are not authorized to view this user's exam attempts");
 			}
 		}
 
@@ -39,7 +40,7 @@ router.get('/by-user/:cid', getUser, async (req: Request, res: Response, next: N
 			attempts.forEach((attempt) => {
 				(attempt.questionOrder as any) = attempt.questionOrder.map((q) => ({
 					...q,
-					options: q.options.map(({ isCorrect, ...rest }) => rest),
+					options: q.options.map(({ isCorrect: _isCorrect, ...rest }) => rest),
 				}));
 			});
 		}
@@ -110,14 +111,14 @@ router.get('/:attemptId', getUser, async (req: Request, res: Response, next: Nex
 		}
 
 		if (req.user.cid !== attempt.student && !req.user.isTrainingStaff) {
-			throwForbiddenException('You Are Not Authorized to View This Attempt.');
+			throwForbiddenException('You are not authorized to view this attempt.');
 		}
 
 		if (req.user.cid === attempt.student) {
-			attempt.responses = attempt.responses.map(({ isCorrect, ...rest }) => rest);
+			attempt.responses = attempt.responses.map(({ isCorrect: _isCorrect, ...rest }) => rest);
 			(attempt.questionOrder as any) = attempt.questionOrder.map((q) => ({
 				...q,
-				options: q.options.map(({ isCorrect, ...rest }) => rest),
+				options: q.options.map(({ isCorrect: _isCorrect, ...rest }) => rest),
 				multiCorrect: q.options.filter((o) => o.isCorrect === true).length > 1,
 			}));
 		}
@@ -149,6 +150,10 @@ router.get(
 			}
 
 			if (exam && exam !== '') {
+				if (!isValidObjectId(exam)) {
+					throwBadRequestException('Invalid Exam ID');
+				}
+
 				query.examId = new Types.ObjectId(exam);
 			}
 
@@ -177,16 +182,17 @@ router.get(
 					.exec();
 			}
 
-			const students = await ExamAttemptModel.find({})
-				.select('student')
-				.populate({ path: 'user', select: 'fname lname' })
-				.lean({ virtuals: true })
+			const studentCids = await ExamAttemptModel.distinct('student').exec();
+
+			const students = await UserModel.find({ cid: { $in: studentCids } })
+				.select('cid fname lname')
+				.lean()
 				.exec();
 
 			return res.status(status.OK).json({
 				amount: count,
 				attempts: attempts,
-				students: [...new Map(students.map((item) => [item.student.toString(), item])).values()],
+				students: [...new Map(students.map((item) => [item.cid.toString(), item])).values()],
 			});
 		} catch (e) {
 			return next(e);
@@ -347,19 +353,19 @@ export async function submitExam(attempt: IExamAttempt, timedOut: boolean) {
 
 		const question = questions.find((q) => q.id === response.questionId.toString());
 		if (!question) {
-			return { ...response, isCorrect: false };
+			return { ...response, _isCorrect: false };
 		}
 
 		const correctOptions = question.options
 			.filter((x) => x.isCorrect === true)
 			.map((x) => x._id) as Types.ObjectId[];
 
-		const isCorrect = correctOptions.every((x: Types.ObjectId) =>
+		const _isCorrect = correctOptions.every((x: Types.ObjectId) =>
 			response.selectedOptions.some((y) => y.equals(x)),
 		);
-		if (isCorrect) correctAnswers++;
+		if (_isCorrect) correctAnswers++;
 
-		return { ...response, isCorrect };
+		return { ...response, _isCorrect };
 	});
 
 	const score = Math.round((correctAnswers / questions.length) * 100);

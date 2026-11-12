@@ -8,7 +8,7 @@ import {
 	throwNotFoundException,
 } from '../../helpers/errors.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
-import { isTrainingStaff } from '../../middleware/auth.js';
+import { isInstructorAssistant, isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { ExamModel } from '../../models/exam.js';
@@ -21,26 +21,35 @@ import examAttemptRouter from './attempt.js';
 const router = Router();
 
 const createExamValidation = [
-	body('title').trim().notEmpty().withMessage('Title is required'),
-	body('title').trim().isLength({ max: 100 }).withMessage('Title should not exceed 100 characters'),
-	body('description').trim().optional(),
+	body('title')
+		.trim()
+		.notEmpty()
+		.withMessage('Title is required')
+		.isLength({ max: 100 })
+		.withMessage('Title should not exceed 100 characters'),
 	body('description')
+		.optional()
 		.trim()
 		.isLength({ max: 1000 })
 		.withMessage('Description should not exceed 1000 characters'),
 	body('certCode').trim().notEmpty().withMessage('Milestone is required'),
-	body('questions.*.text').notEmpty().withMessage('Question text is required'),
 	body('questions.*.text')
+		.notEmpty()
 		.trim()
+		.withMessage('Question text is required')
 		.isLength({ max: 400 })
 		.withMessage('Question text should not exceed 400 characters'),
-	body('questions.*.isActive').isBoolean().withMessage('isActive must be a boolean'),
-	body('questions.*.options.*.text').notEmpty().withMessage('Option text is required'),
+	body('questions.*.isActive').isBoolean().toBoolean().withMessage('isActive must be a boolean'),
 	body('questions.*.options.*.text')
+		.notEmpty()
 		.trim()
+		.withMessage('Option text is required')
 		.isLength({ max: 400 })
 		.withMessage('Option text should not exceed 400 characters'),
-	body('questions.*.options.*.isCorrect').isBoolean().withMessage('isCorrect must be a boolean'),
+	body('questions.*.options.*.isCorrect')
+		.isBoolean()
+		.toBoolean()
+		.withMessage('isCorrect must be a boolean'),
 	// Custom validation logic here
 	(req: Request, res: Response, next: NextFunction) => {
 		const questions = req.body.questions || [];
@@ -65,14 +74,6 @@ const createExamValidation = [
 		return next();
 	},
 ];
-
-function isExamEditor(req: Request, res: Response, next: NextFunction) {
-	if (req.user && req.user.roleCodes.some((v: string) => ['atm', 'datm', 'ta', 'ia'].includes(v))) {
-		return next();
-	}
-
-	return res.status(status.FORBIDDEN).json();
-}
 
 router.use('/attempt', examAttemptRouter);
 
@@ -100,7 +101,7 @@ router.get(
 router.post(
 	'/',
 	getUser,
-	isExamEditor,
+	isInstructorAssistant,
 	createExamValidation,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
@@ -135,7 +136,7 @@ router.post(
 router.patch(
 	'/:id',
 	getUser,
-	isExamEditor,
+	isInstructorAssistant,
 	createExamValidation,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
@@ -264,7 +265,7 @@ router.post(
 router.get(
 	'/:id',
 	getUser,
-	isExamEditor,
+	isInstructorAssistant,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!isValidObjectId(req.params['id'])) {
@@ -289,7 +290,7 @@ router.get(
 router.delete(
 	'/:id',
 	getUser,
-	isExamEditor,
+	isInstructorAssistant,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
 			if (!isValidObjectId(req.params['id'])) {

@@ -116,10 +116,9 @@ export async function findInS3(filename: string) {
 
 		return true;
 	} catch (e) {
-		if ((e as any).name === 'NotFound') {
+		if (e instanceof Error && e.name === 'NotFound') {
 			return false;
 		}
-
 		throw e;
 	}
 }

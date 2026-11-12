@@ -31,8 +31,8 @@ export interface IExamAttempt extends Document, ITimestamps {
 
 const ExamAttemptSchema = new Schema<IExamAttempt>(
 	{
-		examId: { type: Schema.Types.ObjectId, required: true, ref: 'Exam' },
-		student: { type: Number, required: true, ref: 'User' },
+		examId: { type: Schema.Types.ObjectId, required: true, ref: 'Exam', index: true },
+		student: { type: Number, required: true, ref: 'User', index: true },
 		questionOrder: [{ type: QuestionSchema }],
 		responses: [ResponseSchema],
 		startTime: { type: Date },
@@ -52,6 +52,8 @@ const ExamAttemptSchema = new Schema<IExamAttempt>(
 );
 
 ExamAttemptSchema.plugin(mongooseLeanVirtuals);
+
+ExamAttemptSchema.index({ examId: 1, student: 1 });
 
 ExamAttemptSchema.plugin(MongooseDelete, {
 	deletedAt: true,

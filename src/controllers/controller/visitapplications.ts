@@ -29,7 +29,7 @@ router.get('/', getUser, isManagement, async (_req: Request, res: Response, next
 			.cache('10 minutes', 'visit-applications')
 			.exec();
 
-		let retval = [];
+		const retval = [];
 		for (const app of applications) {
 			try {
 				let vatusaData = {} as IVisitingStatus;
