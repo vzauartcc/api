@@ -110,9 +110,13 @@ router.get('/:slug/positions', async (req: Request, res: Response, next: NextFun
 			.sort({
 				'positions.order': -1,
 			})
-			.select('open submitted eventStart positions signups name')
+			.select('open submitted eventStart positions signups name requiresEventEndorsement')
 			.populate('positions.user', 'cid fname lname roleCodes')
-			.populate('signups.user', 'fname lname cid vis rating certCodes')
+			.populate({
+				path: 'signups.user',
+				select: 'fname lname cid vis rating certCodes',
+				populate: { path: 'certifications' },
+			})
 			.lean({ virtuals: true })
 			.cache('1 minute', `event-positions-${req.params['slug']}`)
 			.exec();
