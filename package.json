@@ -14,8 +14,8 @@
 	"scripts": {
 		"lint": "eslint . --fix",
 		"format": "prettier --write .",
-		"start:dev": "doppler run -- nodemon --exec \"npx tsx --import ./src/instrument.ts src/app.ts\"",
-		"start:ryan": "doppler run -p api -c dev_ryan -- nodemon --exec \"npx tsx --import ./src/instrument.ts src/app.ts\"",
+		"start:dev": "doppler run -- npx tsx watch --clear-screen=false --exclude '**/*.!(ts)' --import ./src/instrument.ts src/app.ts",
+		"start:ryan": "doppler run -p api -c dev_ryan -- npx tsx watch --clear-screen=false --exclude '**/*.!(ts)' --import ./src/instrument.ts src/app.ts",
 		"build": "tsc && cp -R src/email dist/email",
 		"test:renovate": "npx --yes --package renovate -- renovate-config-validator"
 	},
@@ -72,7 +72,6 @@
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-prettier": "^5.5.4",
 		"globals": "^16.4.0",
-		"nodemon": "^3.1.10",
 		"prettier": "^3.6.2",
 		"ts-node": "^10.9.2",
 		"typescript": "^5.9.3",
