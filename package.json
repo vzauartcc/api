@@ -14,8 +14,8 @@
 	"scripts": {
 		"lint": "eslint . --fix",
 		"format": "prettier --write .",
-		"start:dev": "doppler run -- nodemon --exec \"npx tsx --import ./src/instrument.ts src/app.ts\"",
-		"start:ryan": "doppler run -p api -c dev_ryan -- nodemon --exec \"npx tsx --import ./src/instrument.ts src/app.ts\"",
+		"dev": "npx tsx watch --clear-screen=false --exclude '**/*.!(ts)' --import ./src/instrument.ts src/app.ts",
+		"type-check": "npx tsc --noEmit",
 		"build": "tsc && cp -R src/email dist/email",
 		"test:renovate": "npx --yes --package renovate -- renovate-config-validator"
 	},
@@ -62,7 +62,7 @@
 		"@types/luxon": "^3.7.1",
 		"@types/mongoose-delete": "^1.0.6",
 		"@types/multer": "^2.0.0",
-		"@types/node": "^24.6.2",
+		"@types/node": "^26.6.6",
 		"@types/nodemailer": "^7.0.2",
 		"@types/nodemailer-express-handlebars": "^4.0.5",
 		"@types/tar-stream": "^3.1.4",
@@ -72,10 +72,12 @@
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-prettier": "^5.5.4",
 		"globals": "^16.4.0",
-		"nodemon": "^3.1.10",
 		"prettier": "^3.6.2",
 		"ts-node": "^10.9.2",
 		"typescript": "^5.9.3",
 		"typescript-eslint": "^8.72.1"
+	},
+	"engines": {
+		"node": ">=26 <27"
 	}
 }
