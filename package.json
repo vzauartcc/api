@@ -62,7 +62,7 @@
 		"@types/luxon": "^3.7.1",
 		"@types/mongoose-delete": "^1.0.6",
 		"@types/multer": "^2.0.0",
-		"@types/node": "^24.6.2",
+		"@types/node": "^26.6.6",
 		"@types/nodemailer": "^7.0.2",
 		"@types/nodemailer-express-handlebars": "^4.0.5",
 		"@types/tar-stream": "^3.1.4",
@@ -77,5 +77,8 @@
 		"ts-node": "^10.9.2",
 		"typescript": "^5.9.3",
 		"typescript-eslint": "^8.72.1"
+	},
+	"engines": {
+		"node": ">=26 <27"
 	}
 }
