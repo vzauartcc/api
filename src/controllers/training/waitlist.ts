@@ -11,7 +11,7 @@ import getUser from '../../middleware/user.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
 import { TrainingRequestMilestoneModel as TrainingMilestoneModel } from '../../models/trainingMilestone.js';
 import { TrainingWaitlistModel } from '../../models/trainingWaitlist.js';
-import { UserModel } from '../../models/user.js';
+import { UserModel, type IUser } from '../../models/user.js';
 import status from '../../types/status.js';
 
 const router = Router();
@@ -162,6 +162,17 @@ router.post(
 
 			clearCachePrefix('waitlist');
 
+			if (student?.discord && Number(req.body.instructor) > 0) {
+				await req.app.redis.lpush(
+					'dbot:student_assignment',
+					JSON.stringify({
+						studentId: student.discord,
+						instructorCid: Number(req.body.instructor),
+						added: true,
+					}),
+				);
+			}
+
 			return res.status(status.CREATED).json();
 		} catch (e) {
 			return next(e);
@@ -185,7 +196,7 @@ router.patch(
 			}
 
 			const waitlist = await TrainingWaitlistModel.findById(req.params['id'])
-				.populate('student', 'fname lname cid rating')
+				.populate('student', 'fname lname cid rating discord')
 				.populate('instructor', 'fname lname cid')
 				.populate('certification', 'name code')
 				.exec();
@@ -197,6 +208,8 @@ router.patch(
 			if (`${waitlist.instructorCid}` === req.body.instructor) {
 				throwBadRequestException('Invalid instructor CID');
 			}
+
+			const oldInstructor = waitlist.instructorCid.toString();
 
 			waitlist.instructorCid = req.body.instructor;
 			waitlist.certCode = req.body.certification;
@@ -213,6 +226,32 @@ router.patch(
 				action: 'Training waitlist signup for %a was updated by %b.',
 				actionType: ACTION_TYPE.EDIT_WAITLIST_SIGNUP,
 			});
+
+			const student = waitlist.student as IUser;
+
+			if (student?.discord) {
+				if (Number(oldInstructor) > 0) {
+					await req.app.redis.lpush(
+						'dbot:student_assignment',
+						JSON.stringify({
+							studentId: student.discord,
+							instructorCid: Number(oldInstructor),
+							added: false,
+						}),
+					);
+				}
+
+				if (waitlist.instructorCid > 0) {
+					await req.app.redis.lpush(
+						'dbot:student_assignment',
+						JSON.stringify({
+							studentId: student.discord,
+							instructorCid: waitlist.instructorCid,
+							added: true,
+						}),
+					);
+				}
+			}
 
 			clearCachePrefix('waitlist');
 
@@ -247,6 +286,22 @@ router.delete(
 			});
 
 			clearCachePrefix('waitlist');
+
+			const student = await UserModel.findOne({ cid: waitlist.studentCid })
+				.select('cid discord')
+				.lean()
+				.exec();
+
+			if (student?.discord && waitlist.instructorCid > 0) {
+				await req.app.redis.lpush(
+					'dbot:student_assignment',
+					JSON.stringify({
+						studentId: student.discord,
+						instructorCid: waitlist.instructorCid,
+						added: false,
+					}),
+				);
+			}
 
 			return res.status(status.NO_CONTENT).json();
 		} catch (e) {
