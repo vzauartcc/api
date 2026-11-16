@@ -14,8 +14,8 @@
 	"scripts": {
 		"lint": "eslint . --fix",
 		"format": "prettier --write .",
-		"start:dev": "doppler run -- npx tsx watch --clear-screen=false --exclude '**/*.!(ts)' --import ./src/instrument.ts src/app.ts",
-		"start:ryan": "doppler run -p api -c dev_ryan -- npx tsx watch --clear-screen=false --exclude '**/*.!(ts)' --import ./src/instrument.ts src/app.ts",
+		"dev": "npx tsx watch --clear-screen=false --exclude '**/*.!(ts)' --import ./src/instrument.ts src/app.ts",
+		"type-check": "npx tsc --noEmit",
 		"build": "tsc && cp -R src/email dist/email",
 		"test:renovate": "npx --yes --package renovate -- renovate-config-validator"
 	},
