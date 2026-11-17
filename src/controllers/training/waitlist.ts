@@ -1,6 +1,7 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import { isValidObjectId } from 'mongoose';
+import discord from '../../helpers/discord.js';
 import {
 	throwBadRequestException,
 	throwNotFoundException,
@@ -188,15 +189,21 @@ router.post(
 
 			clearCachePrefix('waitlist');
 
-			if (student?.discord && Number(req.body.instructor) > 0) {
-				await req.app.redis.lpush(
-					'dbot:student_assignment',
-					JSON.stringify({
-						studentId: student.discord,
-						instructorCid: Number(req.body.instructor),
-						added: true,
-					}),
-				);
+			if (student?.discord) {
+				if (Number(req.body.instructor) > 0) {
+					await req.app.redis.lpush(
+						'dbot:student_assignment',
+						JSON.stringify({
+							studentId: student.discord,
+							instructorCid: Number(req.body.instructor),
+							added: true,
+						}),
+					);
+				}
+			} else {
+				await discord.sendMessage('1107470185218199562', {
+					content: `<@&1215950778120933467> ${student.name}'s Discord account is not linked. Automatic training roles not applied.`,
+				});
 			}
 
 			return res.status(status.CREATED).json();
@@ -275,7 +282,9 @@ router.patch(
 
 			const student = waitlist.student as IUser;
 
-			if (student?.discord && Number(oldInstructor) !== waitlist.instructorCid) {
+			if (student?.discord) {
+				if (Number(oldInstructor) === waitlist.instructorCid) return;
+
 				if (Number(oldInstructor) > 0) {
 					await req.app.redis.lpush(
 						'dbot:student_assignment',
@@ -297,6 +306,10 @@ router.patch(
 						}),
 					);
 				}
+			} else {
+				await discord.sendMessage('1107470185218199562', {
+					content: `<@&1215950778120933467> ${student.name}'s Discord account is not linked. Automatic training roles not applied.`,
+				});
 			}
 
 			clearCachePrefix('waitlist');
