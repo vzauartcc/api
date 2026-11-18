@@ -3,7 +3,6 @@
 	"compilerOptions": {
 		"rootDir": "./src",
 		"outDir": "./dist",
-		"baseUrl": "./src",
 
 		"module": "nodenext",
 		"target": "es2024",

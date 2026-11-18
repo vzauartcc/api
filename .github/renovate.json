@@ -84,7 +84,6 @@
 				"/eslint/",
 				"/prettier/",
 				"/typescript/",
-				"/nodemon/",
 				"/ts-node/",
 				"/globals/",
 				"typescript-eslint"

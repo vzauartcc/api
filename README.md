@@ -34,7 +34,7 @@ Thank you to all contributors, past and present.
 
 Prerequisites:
 
-- Most recent LTS of Node.js (v16), with the corresponding version of npm.
+- Most recent LTS of Node.js, with the corresponding version of npm.
 - Doppler installed and logged in.
 - A basic understanding of Git (branches, merge requests).
 

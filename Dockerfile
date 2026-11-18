@@ -1,5 +1,5 @@
 # 1. Build Typescript
-FROM node:24-slim AS builder
+FROM node:26-slim AS builder
 
 WORKDIR /usr/src/app
 
@@ -12,7 +12,7 @@ COPY . .
 RUN npm run build
 
 # 2. Copy built files to new bare image
-FROM gcr.io/distroless/nodejs24-debian13 AS production
+FROM gcr.io/distroless/nodejs26-debian13 AS production
 ENV NODE_ENV=production
 
 WORKDIR /usr/src/app

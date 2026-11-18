@@ -9,7 +9,6 @@ npm-debug.log
 .env
 .local
 *.log
-nodemon.json
 .editorconfig
 seeds
 
