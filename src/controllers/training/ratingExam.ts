@@ -94,7 +94,7 @@ router.get('/:id', getUser, async (req: Request, res: Response, next: NextFuncti
 			.cache('10 minutes', `rating-exam-${id}`)
 			.exec();
 		if (!ratingExam) {
-			throwNotFoundException('Rating Exam not found');
+			throwNotFoundException('Practical Exam not found');
 		}
 
 		return res.status(status.OK).json(ratingExam);
@@ -198,7 +198,7 @@ router.patch(
 			).exec();
 
 			if (!form) {
-				throwNotFoundException('Rating Exam not found');
+				throwNotFoundException('Practical Exam not found');
 			}
 
 			await getCacheInstance().clear('rating-exams');
@@ -226,7 +226,7 @@ router.delete(
 				deleted: { $ne: true },
 			}).exec();
 			if (!exam) {
-				throwNotFoundException('Rating Exam not found');
+				throwNotFoundException('Practical Exam not found');
 			}
 
 			await exam.delete();

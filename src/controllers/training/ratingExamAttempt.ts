@@ -25,7 +25,7 @@ const createAttemptValidation = [
 		.isInt({ min: 1 })
 		.toInt()
 		.withMessage('Student CID must be a number'),
-	body('ratingExamId').isMongoId().withMessage('Rating Exam ID Invalid'),
+	body('ratingExamId').isMongoId().withMessage('Practical Exam ID Invalid'),
 	body('notes')
 		.optional()
 		.trim()
@@ -90,7 +90,7 @@ router.get(
 
 			if (ratingExamId && ratingExamId !== '') {
 				if (!isValidObjectId(ratingExamId)) {
-					throwBadRequestException('Invalid Rating Exam ID');
+					throwBadRequestException('Invalid Practical Exam ID');
 				}
 
 				query.ratingExamId = new Types.ObjectId(ratingExamId);
@@ -237,7 +237,7 @@ router.post(
 			const body: IRatingAttemptBody = req.body as IRatingAttemptBody;
 
 			if (body.studentCid === req.user.cid) {
-				throwForbiddenException('Student cannot be yourself.');
+				throwForbiddenException('You cannot submit a practical exam for yourself');
 			}
 
 			const ratingExam = await RatingExamModel.findOne({
@@ -246,7 +246,7 @@ router.post(
 				deleted: { $ne: true },
 			}).exec();
 			if (!ratingExam) {
-				throwBadRequestException('Rating Exam not found');
+				throwBadRequestException('Practical Exam not found');
 			}
 
 			const incomingIndicatorsIds = new Set(body.indicators.map((i) => i.indicatorId));
@@ -330,7 +330,7 @@ router.patch(
 			}
 
 			if (attempt.studentCid === req.user.cid) {
-				throwForbiddenException('Cannot edit own rating exam');
+				throwForbiddenException('You cannot edit your own practical exam');
 			}
 
 			// Attempts can only be edited in the first 24 hours.
