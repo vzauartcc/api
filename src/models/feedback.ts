@@ -14,9 +14,11 @@ interface IFeedback extends SoftDeleteDocument, ITimestamps {
 	comments: string;
 	anonymous: boolean;
 	approved: boolean;
+	reviewerCid?: number;
 
 	// Virtuals
 	controller?: IUser;
+	reviewer?: IUser;
 }
 
 const FeedbackSchema = new Schema<IFeedback>(
@@ -30,6 +32,7 @@ const FeedbackSchema = new Schema<IFeedback>(
 		comments: { type: String, required: true },
 		anonymous: { type: Boolean, default: false, required: true },
 		approved: { type: Boolean, default: false, required: true },
+		reviewerCid: { type: Number, ref: 'User' },
 	},
 	{ collection: 'feedback', timestamps: true },
 );
@@ -41,6 +44,13 @@ FeedbackSchema.plugin(MongooseDelete, {
 FeedbackSchema.virtual('controller', {
 	ref: 'User',
 	localField: 'controllerCid',
+	foreignField: 'cid',
+	justOne: true,
+});
+
+FeedbackSchema.virtual('reviewer', {
+	ref: 'User',
+	localField: 'reviewerCid',
 	foreignField: 'cid',
 	justOne: true,
 });
