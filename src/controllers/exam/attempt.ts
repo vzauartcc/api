@@ -360,12 +360,12 @@ export async function submitExam(attempt: IExamAttempt, timedOut: boolean) {
 			.filter((x) => x.isCorrect === true)
 			.map((x) => x._id) as Types.ObjectId[];
 
-		const _isCorrect = correctOptions.every((x: Types.ObjectId) =>
+		const isCorrect = correctOptions.every((x: Types.ObjectId) =>
 			response.selectedOptions.some((y) => y.equals(x)),
 		);
-		if (_isCorrect) correctAnswers++;
+		if (isCorrect) correctAnswers++;
 
-		return { ...response, _isCorrect };
+		return { ...response, isCorrect };
 	});
 
 	const score = Math.round((correctAnswers / questions.length) * 100);

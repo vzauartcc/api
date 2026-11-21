@@ -7,7 +7,7 @@ import {
 	throwForbiddenException,
 	throwNotFoundException,
 } from '../../helpers/errors.js';
-import { isInstructor } from '../../middleware/auth.js';
+import { isTrainingStaff } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { RatingExamModel, type IRatingExam } from '../../models/ratingExam.js';
 import {
@@ -25,7 +25,7 @@ const createAttemptValidation = [
 		.isInt({ min: 1 })
 		.toInt()
 		.withMessage('Student CID must be a number'),
-	body('ratingExamId').isMongoId().withMessage('Rating Exam ID Invalid'),
+	body('ratingExamId').isMongoId().withMessage('Practical Exam ID Invalid'),
 	body('notes')
 		.optional()
 		.trim()
@@ -71,65 +71,70 @@ const createAttemptValidation = [
 		.withMessage('Practical Comments should not exceed 4000 characters'),
 ];
 
-router.get('/', getUser, isInstructor, async (req: Request, res: Response, next: NextFunction) => {
-	try {
-		const page = +(req.query['page'] as string) || 1;
-		const limit = +(req.query['limit'] as string) || 10;
-		const ratingExamId = (req.query['exam'] as string) || '';
-		const student = +(req.query['user'] as string) || 0;
+router.get(
+	'/',
+	getUser,
+	isTrainingStaff,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const page = +(req.query['page'] as string) || 1;
+			const limit = +(req.query['limit'] as string) || 10;
+			const ratingExamId = (req.query['exam'] as string) || '';
+			const student = +(req.query['user'] as string) || 0;
 
-		const query = {} as any;
+			const query = {} as any;
 
-		if (!isNaN(student) && student > 0) {
-			query.studentCid = student;
-		}
-
-		if (ratingExamId && ratingExamId !== '') {
-			if (!isValidObjectId(ratingExamId)) {
-				throwBadRequestException('Invalid Rating Exam ID');
+			if (!isNaN(student) && student > 0) {
+				query.studentCid = student;
 			}
 
-			query.ratingExamId = new Types.ObjectId(ratingExamId);
-		}
+			if (ratingExamId && ratingExamId !== '') {
+				if (!isValidObjectId(ratingExamId)) {
+					throwBadRequestException('Invalid Practical Exam ID');
+				}
 
-		const count = await RatingExamAttemptModel.countDocuments(query).exec();
+				query.ratingExamId = new Types.ObjectId(ratingExamId);
+			}
 
-		let attempts: any[] = [];
+			const count = await RatingExamAttemptModel.countDocuments(query).exec();
 
-		if (count > 0) {
-			attempts = await RatingExamAttemptModel.find(query)
-				.skip(limit * (page - 1))
-				.limit(limit)
-				.populate({ path: 'student', select: 'fname lname' })
-				.populate({ path: 'instructor', select: 'fname lname' })
-				.populate({
-					path: 'ratingExam',
-					select: 'name certCode',
-					populate: {
-						path: 'certification',
-					},
-				})
-				.sort({ updatedAt: 'desc' })
-				.lean({ virtuals: true })
+			let attempts: any[] = [];
+
+			if (count > 0) {
+				attempts = await RatingExamAttemptModel.find(query)
+					.skip(limit * (page - 1))
+					.limit(limit)
+					.populate({ path: 'student', select: 'fname lname' })
+					.populate({ path: 'instructor', select: 'fname lname' })
+					.populate({
+						path: 'ratingExam',
+						select: 'name certCode',
+						populate: {
+							path: 'certification',
+						},
+					})
+					.sort({ updatedAt: 'desc' })
+					.lean({ virtuals: true })
+					.exec();
+			}
+
+			const studentCids = await RatingExamAttemptModel.distinct('studentCid').exec();
+
+			const students = await UserModel.find({ cid: { $in: studentCids } })
+				.select('fname lname cid')
+				.lean()
 				.exec();
+
+			return res.status(status.OK).json({
+				amount: count,
+				attempts: attempts,
+				students: [...new Map(students.map((item) => [item.cid.toString(), item])).values()],
+			});
+		} catch (e) {
+			return next(e);
 		}
-
-		const studentCids = await RatingExamAttemptModel.distinct('studentCid').exec();
-
-		const students = await UserModel.find({ cid: { $in: studentCids } })
-			.select('fname lname cid')
-			.lean()
-			.exec();
-
-		return res.status(status.OK).json({
-			amount: count,
-			attempts: attempts,
-			students: [...new Map(students.map((item) => [item.cid.toString(), item])).values()],
-		});
-	} catch (e) {
-		return next(e);
-	}
-});
+	},
+);
 
 router.get('/by-user/:cid', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	try {
@@ -188,7 +193,7 @@ router.get('/:id', getUser, async (req: Request, res: Response, next: NextFuncti
 			throwNotFoundException('Attempt not found');
 		}
 
-		if (req.user.cid !== attempt.studentCid && !req.user.isInstructor) {
+		if (req.user.cid !== attempt.studentCid && !req.user.isTrainingStaff) {
 			throwForbiddenException('You are not authorized to view this attempt');
 		}
 
@@ -215,7 +220,7 @@ interface IRatingAttemptBody {
 router.post(
 	'/',
 	getUser,
-	isInstructor,
+	isTrainingStaff,
 	createAttemptValidation,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
@@ -232,7 +237,7 @@ router.post(
 			const body: IRatingAttemptBody = req.body as IRatingAttemptBody;
 
 			if (body.studentCid === req.user.cid) {
-				throwForbiddenException('Student cannot be yourself.');
+				throwForbiddenException('You cannot submit a practical exam for yourself');
 			}
 
 			const ratingExam = await RatingExamModel.findOne({
@@ -241,7 +246,7 @@ router.post(
 				deleted: { $ne: true },
 			}).exec();
 			if (!ratingExam) {
-				throwBadRequestException('Rating Exam not found');
+				throwBadRequestException('Practical Exam not found');
 			}
 
 			const incomingIndicatorsIds = new Set(body.indicators.map((i) => i.indicatorId));
@@ -290,7 +295,7 @@ router.post(
 router.patch(
 	'/:id',
 	getUser,
-	isInstructor,
+	isTrainingStaff,
 	createAttemptValidation,
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
@@ -325,7 +330,7 @@ router.patch(
 			}
 
 			if (attempt.studentCid === req.user.cid) {
-				throwForbiddenException('Cannot edit own rating exam');
+				throwForbiddenException('You cannot edit your own practical exam');
 			}
 
 			// Attempts can only be edited in the first 24 hours.
