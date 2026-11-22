@@ -35,7 +35,7 @@ router.get('/', getUser, isSeniorStaff, async (req: Request, res: Response, next
 			.populate('controller', 'fname lname cid')
 			.populate('reviewer', 'cid fname lname')
 			.lean()
-			.cache('10 minutes', 'feedback-all')
+			.cache('10 minutes', `feedback-all-${page}-${limit}`)
 			.exec();
 
 		return res.status(status.OK).json({ amount, feedback });
@@ -77,7 +77,7 @@ router.get('/own', getUser, async (req: Request, res: Response, next: NextFuncti
 			{ $skip: limit * (page - 1) },
 			{ $limit: limit },
 		])
-			.cache('10 minutes', `feedback-${req.user.cid}`)
+			.cache('10 minutes', `feedback-${req.user.cid}-${page}-${limit}`)
 			.exec();
 
 		return res.status(status.OK).json({ feedback, amount });
@@ -119,8 +119,9 @@ router.post('/', getUser, async (req: Request, res: Response, next: NextFunction
 			anonymous: req.body.anon,
 			approved: false,
 		});
+
 		await getCacheInstance().clear('feedback-count');
-		await clearCachePrefix('feedback');
+		await getCacheInstance().clear('feedback-unapproved');
 
 		await DossierModel.create({
 			by: req.user.cid,
