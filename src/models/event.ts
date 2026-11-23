@@ -19,6 +19,7 @@ interface IEvent extends SoftDeleteDocument {
 	open: boolean;
 	submitted: boolean;
 	discordId?: string;
+	discordEventId?: string;
 	requiresEventEndorsement: boolean;
 
 	// Virtuals
@@ -43,6 +44,7 @@ const EventSchema = new Schema<IEvent>(
 		open: { type: Boolean, required: true },
 		submitted: { type: Boolean, required: true },
 		discordId: { type: String },
+		discordEventId: { type: String },
 		requiresEventEndorsement: { type: Boolean },
 	},
 	{

@@ -6,3 +6,11 @@ export interface TextChannelInfo {
 	parentName: string;
 	lastMessage: string | null;
 }
+
+export interface EditDiscordEventPayload {
+	name?: string;
+	description?: string;
+	startTime?: Date;
+	endTime?: Date;
+	image?: string;
+}
