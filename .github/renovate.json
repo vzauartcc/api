@@ -31,6 +31,13 @@
 			"automerge": false
 		},
 		{
+			"description": "Group minor and patch updates together for DiscordJS Rest, but do not automerge",
+			"matchUpdateTypes": ["minor", "patch"],
+			"groupName": "discordjs rest minor and patch updates",
+			"automerge": false,
+			"matchPackageNames": ["/discord/"]
+		},
+		{
 			"description": "Group minor and patch updates together for MongoDB/Redis, but do not automerge",
 			"matchUpdateTypes": ["minor", "patch"],
 			"groupName": "mongoose and redis minor and patch updates",

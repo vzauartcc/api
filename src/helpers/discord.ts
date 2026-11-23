@@ -1,18 +1,27 @@
-import axios from 'axios';
-import type { IDiscordMessage } from '../types/Discord.js';
+import { DiscordAPIError, REST } from '@discordjs/rest';
+import {
+	ChannelType,
+	Routes,
+	type APIChannel,
+	type APIGuild,
+	type APIGuildCategoryChannel,
+	type APIMessage,
+	type APINewsChannel,
+	type APIRole,
+	type APITextChannel,
+	type APIUser,
+	type RESTPostAPIChannelMessageJSONBody,
+} from 'discord-api-types/v10';
 
-const discord = axios.create({
-	baseURL: 'https://discord.com/api',
-	headers: {
-		Authorization: `Bot ${process.env['DISCORD_TOKEN']}`,
-		'Content-Type': 'application/json',
-		'User-Agent': 'vZAU ARTCC API Integration',
-	},
-});
+const discord = new REST({
+	version: '10',
+	userAgentAppendix: 'vZAU ARTCC API Integration',
+}).setToken(process.env['DISCORD_TOKEN']!);
 
-async function sendMessage(channelId: string, message: IDiscordMessage) {
-	const url = `/channels/${channelId}/messages`;
-
+async function sendMessage(
+	channelId: string,
+	message: RESTPostAPIChannelMessageJSONBody,
+): Promise<APIMessage> {
 	// Ensure there is some content, as Discord requires either 'content', 'embeds', or 'files'.
 	// You can add more robust validation here.
 	if (!message.content && (!message.embeds || message.embeds.length === 0)) {
@@ -20,18 +29,20 @@ async function sendMessage(channelId: string, message: IDiscordMessage) {
 	}
 
 	try {
-		const response = await discord.post(url, message);
+		const response = (await discord.post(Routes.channelMessages(channelId), {
+			body: message,
+		})) as APIMessage;
 
 		console.log(`Message successfully sent to channel ${channelId}`);
 		return response;
 	} catch (err) {
 		// Detailed error logging for debugging API issues
-		if (axios.isAxiosError(err) && err.response) {
+		if (err instanceof DiscordAPIError) {
 			console.error(
 				`Failed to send message to channel ${channelId}. Discord API Error:`,
-				err.response.data,
+				err.message,
 			);
-			throw new Error(`Discord API responded with status ${err.response.status}`);
+			throw new Error(`Discord API responded with status ${err.status}`);
 		}
 
 		console.error(`An unknown error occurred while sending message:`, err);
@@ -39,17 +50,14 @@ async function sendMessage(channelId: string, message: IDiscordMessage) {
 	}
 }
 
-async function getCurrentUser(tokenType: string, accessToken: string) {
+async function getCurrentUser(accessToken: string): Promise<APIUser> {
 	try {
-		return await discord.get('/users/@me', {
-			headers: {
-				Authorization: `${tokenType} ${accessToken}`,
-			},
-		});
+		const oauth = new REST({ version: '10', authPrefix: 'Bearer' }).setToken(accessToken);
+		return (await oauth.get(Routes.user('@me'))) as APIUser;
 	} catch (err) {
-		if (axios.isAxiosError(err) && err.response) {
-			console.error(`Failed to get current discord user. Discord API Error:`, err.response.data);
-			throw new Error(`Discord API responded with status ${err.response.status}`);
+		if (err instanceof DiscordAPIError) {
+			console.error(`Failed to get current discord user. Discord API Error:`, err.message);
+			throw new Error(`Discord API responded with status ${err.status}`);
 		}
 
 		console.error(`An unknown error occurred while getting current discord user:`, err);
@@ -59,102 +67,92 @@ async function getCurrentUser(tokenType: string, accessToken: string) {
 
 async function getAllTextChannels(guildId: string) {
 	try {
-		const channels = await discord.get(`/guilds/${guildId}/channels`);
+		const channels = (await discord.get(Routes.guildChannels(guildId))) as APIChannel[];
 
-		const textChannels = channels.data.filter(
-			(channel: any) => channel.type === 0 || channel.type === 5,
+		const categories = channels.filter(
+			(c): c is APIGuildCategoryChannel => c.type === ChannelType.GuildCategory,
 		);
 
-		const categoryMap = new Map(
-			channels.data.filter((c: any) => c.type === 4).map((cat: any) => [cat.id, cat.name]),
+		const textChannels = channels.filter(
+			(c): c is APITextChannel | APINewsChannel =>
+				c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement,
 		);
 
-		return textChannels.map((c: any) => ({
-			id: c.id,
-			name: c.name,
-			topic: c.topic,
-			parent: c.parent_id,
-			parentName: categoryMap.get(c.parent_id) || 'No Category',
-			lastMessage: c.last_message_id,
+		const categoryMap = new Map(categories.map((cat) => [cat.id, cat.name]));
+
+		return textChannels.map((channel) => ({
+			id: channel.id,
+			name: channel.name,
+			topic: channel.topic ?? null,
+			parent: channel.parent_id ?? null,
+			parentName: categoryMap.get(channel.parent_id ?? '') ?? 'No Category',
+			lastMessage: channel.last_message_id ?? null,
 		}));
-	} catch (e) {
-		if (axios.isAxiosError(e) && e.response) {
-			console.error(`Failed to get all text channels. Discord API Error:`, e.response.data);
-			throw new Error(`Discord API responded with status ${e.response.status}`);
+	} catch (err) {
+		if (err instanceof DiscordAPIError) {
+			console.error(`Failed to get all text channels. Discord API Error:`, err.message);
+			throw new Error(`Discord API responded with status ${err.status}`);
 		}
 
-		console.error(`An unknown error occurred while getting all text channels:`, e);
-		throw e;
+		console.error(`An unknown error occurred while getting all text channels:`, err);
+		throw err;
 	}
 }
 
-async function getAllRoles(guildId: string) {
+async function getAllRoles(guildId: string): Promise<APIRole[]> {
 	try {
-		const roles = await discord.get(`/guilds/${guildId}/roles`);
-
-		return roles.data.map((r: any) => ({ id: r.id, name: r.name }));
-	} catch (e) {
-		if (axios.isAxiosError(e) && e.response) {
-			console.error(`Failed to get all text channels. Discord API Error:`, e.response.data);
-			throw new Error(`Discord API responded with status ${e.response.status}`);
+		return (await discord.get(Routes.guildRoles(guildId))) as APIRole[];
+	} catch (err) {
+		if (err instanceof DiscordAPIError) {
+			console.error(`Failed to get all guild roles. Discord API Error:`, err.message);
+			throw new Error(`Discord API responded with status ${err.status}`);
 		}
 
-		console.error(`An unknown error occurred while getting all text channels:`, e);
-		throw e;
+		console.error(`An unknown error occurred while getting all text channels:`, err);
+		throw err;
 	}
 }
 
-async function getMessageContent(channelId: string, messageId: string) {
+async function getMessageContent(channelId: string, messageId: string): Promise<APIMessage> {
 	try {
-		const message = await discord.get(`/channels/${channelId}/messages/${messageId}`);
-
-		return {
-			author: message.data.author,
-			content: message.data.content,
-		};
-	} catch (e) {
-		if (axios.isAxiosError(e) && e.response) {
-			console.error(`Failed to get all text channels. Discord API Error:`, e.response.data);
-			throw new Error(`Discord API responded with status ${e.response.status}`);
+		return (await discord.get(Routes.channelMessage(channelId, messageId))) as APIMessage;
+	} catch (err) {
+		if (err instanceof DiscordAPIError) {
+			console.error(`Failed to get all text channels. Discord API Error:`, err.message);
+			throw new Error(`Discord API responded with status ${err.status}`);
 		}
 
-		console.error(`An unknown error occurred while getting all text channels:`, e);
-		throw e;
+		console.error(`An unknown error occurred while getting all text channels:`, err);
+		throw err;
 	}
 }
 
-async function getAllMessages(channelId: string) {
+async function getAllMessages(channelId: string): Promise<APIMessage[]> {
 	try {
-		const messages = await discord.get(`/channels/${channelId}/messages?limit=100`);
-
-		return messages.data.map((message: any) => ({
-			id: message.id,
-			author: message.author,
-			content: message.content,
-		}));
-	} catch (e) {
-		if (axios.isAxiosError(e) && e.response) {
-			console.error(`Failed to get all text channels. Discord API Error:`, e.response.data);
-			throw new Error(`Discord API responded with status ${e.response.status}`);
+		return (await discord.get(Routes.channelMessages(channelId), {
+			query: new URLSearchParams({ limit: '100' }),
+		})) as APIMessage[];
+	} catch (err) {
+		if (err instanceof DiscordAPIError) {
+			console.error(`Failed to get all text channels. Discord API Error:`, err.message);
+			throw new Error(`Discord API responded with status ${err.status}`);
 		}
 
-		console.error(`An unknown error occurred while getting all text channels:`, e);
-		throw e;
+		console.error(`An unknown error occurred while getting all text channels:`, err);
+		throw err;
 	}
 }
 
-async function getAllGuilds() {
+async function getAllGuilds(): Promise<APIGuild[]> {
 	try {
-		const guilds = await discord.get('/users/@me/guilds');
-
-		return guilds.data.map((g: any) => ({ id: g.id, name: g.name }));
-	} catch (e) {
-		if (axios.isAxiosError(e) && e.response) {
-			console.error(`Failed to get all text channels. Discord API Error:`, e.response.data);
-			throw new Error(`Discord API responded with status ${e.response.status}`);
+		return (await discord.get(Routes.userGuilds())) as APIGuild[];
+	} catch (err) {
+		if (err instanceof DiscordAPIError) {
+			console.error(`Failed to get all text channels. Discord API Error:`, err.message);
+			throw new Error(`Discord API responded with status ${err.status}`);
 		}
-		console.error(`An unknown error occurred while getting all text channels:`, e);
-		throw e;
+		console.error(`An unknown error occurred while getting all text channels:`, err);
+		throw err;
 	}
 }
 
