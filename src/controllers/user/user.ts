@@ -374,7 +374,7 @@ router.delete(
 			await NotificationModel.deleteOne({ _id: req.params['id'] }).exec();
 			await clearCachePrefix(`notifications-${req.user.cid}`);
 
-			return res.status(status.NO_CONTENT).json();
+			return res.sendStatus(status.NO_CONTENT);
 		} catch (e) {
 			return next(e);
 		}
@@ -411,7 +411,7 @@ router.delete(
 
 			await clearCachePrefix(`notifications-${req.user.cid}`);
 
-			return res.status(status.NO_CONTENT).json();
+			return res.sendStatus(status.NO_CONTENT);
 		} catch (e) {
 			return next(e);
 		}

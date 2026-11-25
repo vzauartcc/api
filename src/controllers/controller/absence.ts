@@ -106,7 +106,7 @@ router.delete(
 				actionType: ACTION_TYPE.DELETE_LOA,
 			});
 
-			return res.status(status.NO_CONTENT).json();
+			return res.sendStatus(status.NO_CONTENT);
 		} catch (e) {
 			return next(e);
 		}

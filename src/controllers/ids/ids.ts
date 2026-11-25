@@ -308,7 +308,7 @@ router.delete('/pireps/:id', async (req: Request, res: Response, next: NextFunct
 	try {
 		await PirepModel.findByIdAndDelete(req.params['id']).exec();
 
-		return res.status(status.NO_CONTENT).json();
+		return res.sendStatus(status.NO_CONTENT);
 	} catch (e) {
 		return next(e);
 	}

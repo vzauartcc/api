@@ -321,7 +321,7 @@ router.delete(
 				actionType: ACTION_TYPE.REJECT_VISIT,
 			});
 
-			return res.status(status.NO_CONTENT).json();
+			return res.sendStatus(status.NO_CONTENT);
 		} catch (e) {
 			return next(e);
 		}

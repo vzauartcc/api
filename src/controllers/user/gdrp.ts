@@ -411,7 +411,7 @@ router.delete(
 			// Full cache reset due to GDRP request.
 			clearCacheKeys();
 
-			return res.status(status.NO_CONTENT).json({ message: 'User erased successfully!' });
+			return res.sendStatus(status.NO_CONTENT);
 		} catch (e) {
 			return next(e);
 		}

@@ -1026,7 +1026,7 @@ router.delete(
 				JSON.stringify(user.toJSON({ virtuals: false, version: false })),
 			);
 
-			return res.status(status.NO_CONTENT).json();
+			return res.sendStatus(status.NO_CONTENT);
 		} catch (e) {
 			return next(e);
 		}
