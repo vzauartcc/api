@@ -9,7 +9,7 @@ export interface IStaffingRequest extends SoftDeleteDocument, ITimestamps {
 	date: Date;
 	pilots: number;
 	route: string;
-	description: string;
+	description?: string;
 	accepted: boolean;
 }
 
@@ -21,7 +21,7 @@ const StaffingRequestSchema = new Schema<IStaffingRequest>(
 		date: { type: Date, required: true },
 		pilots: { type: Number, required: true },
 		route: { type: String, required: true },
-		description: { type: String, required: true },
+		description: { type: String },
 		accepted: { type: Boolean, default: false, required: true },
 	},
 	{ timestamps: true, collection: 'staffingRequests' },

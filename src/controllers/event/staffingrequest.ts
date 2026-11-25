@@ -97,13 +97,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 router.post('/', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	// Submit staffing request
 	try {
-		if (
-			!req.body.vaName ||
-			!req.body.date ||
-			!req.body.pilots ||
-			!req.body.route ||
-			!req.body.description
-		) {
+		if (!req.body.vaName || !req.body.date || !req.body.pilots || !req.body.route) {
 			// Validation
 			throwBadRequestException('Missing field');
 		}
