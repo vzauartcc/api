@@ -11,6 +11,7 @@ import {
 import { sendMail } from '../../helpers/mailer.js';
 import { clearCachePrefix } from '../../helpers/redis.js';
 import { deleteFromS3, generateS3SignedUrl } from '../../helpers/s3.js';
+import zau from '../../helpers/zau.js';
 import { isEventsTeam } from '../../middleware/auth.js';
 import getUser from '../../middleware/user.js';
 import { ACTION_TYPE, DossierModel } from '../../models/dossier.js';
@@ -433,12 +434,14 @@ router.post(
 				return res.status(status.OK).json();
 			}
 
-			try {
-				await discord.editEvent(eventData.discordEventId, {
-					image: imageUrl,
-				});
-			} catch (_) {
-				// do nothing
+			if (zau.isProd) {
+				try {
+					await discord.editEvent(eventData.discordEventId, {
+						image: imageUrl,
+					});
+				} catch {
+					// do nothing
+				}
 			}
 
 			return res.status(status.OK).json();
