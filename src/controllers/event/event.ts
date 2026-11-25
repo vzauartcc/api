@@ -430,7 +430,7 @@ router.post(
 			}
 
 			if (!eventData.discordEventId) {
-				return res.send(status.OK).json();
+				return res.status(status.OK).json();
 			}
 
 			try {
