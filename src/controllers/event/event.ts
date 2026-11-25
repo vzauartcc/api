@@ -213,7 +213,7 @@ router.delete('/:slug/signup', getUser, async (req: Request, res: Response, next
 			actionType: ACTION_TYPE.DELETE_EVENT_SIGNUP,
 		});
 
-		return res.status(status.NO_CONTENT).json();
+		return res.sendStatus(status.NO_CONTENT);
 	} catch (e) {
 		return next(e);
 	}
@@ -274,7 +274,7 @@ router.delete(
 				actionType: ACTION_TYPE.MANUAL_DELETE_EVENT_SIGNUP,
 			});
 
-			return res.status(status.NO_CONTENT).json();
+			return res.sendStatus(status.NO_CONTENT);
 		} catch (e) {
 			return next(e);
 		}
@@ -804,7 +804,7 @@ router.delete(
 				actionType: ACTION_TYPE.DELETE_EVENT,
 			});
 
-			return res.status(status.NO_CONTENT).json();
+			return res.sendStatus(status.NO_CONTENT);
 		} catch (e) {
 			return next(e);
 		}

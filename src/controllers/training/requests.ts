@@ -355,7 +355,7 @@ router.delete('/:id', getUser, async (req: Request, res: Response, next: NextFun
 			clearCachePrefix(`notifications-${request.studentCid}`);
 		}
 
-		return res.status(status.NO_CONTENT).json();
+		return res.sendStatus(status.NO_CONTENT);
 	} catch (e) {
 		return next(e);
 	}

@@ -324,7 +324,7 @@ router.delete(
 
 			await clearCachePrefix('exam-attempt');
 
-			return res.status(status.NO_CONTENT).json({});
+			return res.sendStatus(status.NO_CONTENT);
 		} catch (e) {
 			return next(e);
 		}
