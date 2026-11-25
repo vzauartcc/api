@@ -1,6 +1,7 @@
 import { captureMessage } from '@sentry/node';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { getCacheInstance } from '../../app.js';
+import discord from '../../helpers/discord.js';
 import {
 	throwBadRequestException,
 	throwForbiddenException,
@@ -414,6 +415,40 @@ router.patch(
 //#endregion
 
 router.post(
+	'/bannerUploaded',
+	getUser,
+	isEventsTeam,
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const event = req.body.event;
+			const imageUrl = req.body.imageUrl;
+
+			const eventData = await EventModel.findOne({ bannerUrl: event }).lean().exec();
+
+			if (!eventData) {
+				throwNotFoundException('Event not found');
+			}
+
+			if (!eventData.discordEventId) {
+				return res.status(status.OK).json();
+			}
+
+			try {
+				await discord.editEvent(eventData.discordEventId, {
+					image: imageUrl,
+				});
+			} catch (_) {
+				// do nothing
+			}
+
+			return res.status(status.OK).json();
+		} catch (e) {
+			return next(e);
+		}
+	},
+);
+
+router.post(
 	'/sendEvent',
 	getUser,
 	isEventsTeam,
@@ -591,6 +626,25 @@ router.post('/', getUser, isEventsTeam, async (req: Request, res: Response, next
 		const fileName = `${Date.now()}-${req.body.fileName}`;
 		const s3Url = await generateS3SignedUrl(`events/${fileName}`, req.body.fileType, fileSize);
 
+		let discordEventId;
+		try {
+			const desc = req.body.requiresEventEndorsement
+				? `**Event Endorsement Required**\n${req.body.description}`
+				: req.body.description;
+
+			const response = await discord.createEvent(
+				req.body.name,
+				desc,
+				new Date(req.body.startTime),
+				undefined,
+				new Date(req.body.endTime),
+			);
+
+			discordEventId = response.id;
+		} catch (e) {
+			console.log('failed to create discord event', e);
+		}
+
 		await EventModel.create({
 			name: req.body.name,
 			description: req.body.description,
@@ -602,6 +656,7 @@ router.post('/', getUser, isEventsTeam, async (req: Request, res: Response, next
 			open: true,
 			submitted: false,
 			requiresEventEndorsement: req.body.requiresEventEndorsement,
+			...(discordEventId && { discordEventId }),
 		});
 
 		await clearCachePrefix('event');
@@ -613,7 +668,7 @@ router.post('/', getUser, isEventsTeam, async (req: Request, res: Response, next
 			actionType: ACTION_TYPE.CREATE_EVENT,
 		});
 
-		return res.status(status.CREATED).json({ url: s3Url });
+		return res.status(status.CREATED).json({ url: s3Url, eventId: fileName });
 	} catch (e) {
 		return next(e);
 	}
@@ -752,6 +807,33 @@ router.put(
 				eventData.bannerUrl = fileName;
 			}
 
+			if (eventData.discordEventId) {
+				try {
+					await discord.editEvent(eventData.discordEventId, {
+						name: eventData.name,
+						description: eventData.description,
+						startTime: eventData.eventStart,
+						endTime: eventData.eventEnd,
+					});
+				} catch (_) {
+					// do nothing
+				}
+			} else {
+				try {
+					const response = await discord.createEvent(
+						eventData.name,
+						eventData.description,
+						eventData.eventStart,
+						undefined,
+						eventData.eventEnd,
+					);
+
+					eventData.discordEventId = response.id;
+				} catch (_) {
+					// do nothing
+				}
+			}
+
 			await eventData.save();
 
 			await clearCachePrefix('event');
@@ -763,7 +845,7 @@ router.put(
 				actionType: ACTION_TYPE.UPDATE_EVENT,
 			});
 
-			return res.status(status.OK).json({ url: s3Url });
+			return res.status(status.OK).json({ url: s3Url, eventId: eventData.bannerUrl });
 		} catch (e) {
 			return next(e);
 		}
@@ -791,6 +873,14 @@ router.delete(
 			// 🚨 **Delete Banner from S3 If It Exists**
 			if (deleteEvent.bannerUrl) {
 				deleteFromS3(`events/${deleteEvent.bannerUrl}`);
+			}
+
+			if (deleteEvent.discordEventId) {
+				try {
+					await discord.deleteEvent(deleteEvent.discordEventId);
+				} catch (_) {
+					// do nothing
+				}
 			}
 
 			await deleteEvent.delete();
