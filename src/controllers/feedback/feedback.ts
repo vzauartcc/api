@@ -33,8 +33,9 @@ router.get('/', getUser, isSeniorStaff, async (req: Request, res: Response, next
 			.limit(limit)
 			.sort({ createdAt: 'desc' })
 			.populate('controller', 'fname lname cid')
+			.populate('reviewer', 'cid fname lname')
 			.lean()
-			.cache()
+			.cache('10 minutes', `feedback-all-${page}-${limit}`)
 			.exec();
 
 		return res.status(status.OK).json({ amount, feedback });
@@ -76,7 +77,7 @@ router.get('/own', getUser, async (req: Request, res: Response, next: NextFuncti
 			{ $skip: limit * (page - 1) },
 			{ $limit: limit },
 		])
-			.cache()
+			.cache('10 minutes', `feedback-${req.user.cid}-${page}-${limit}`)
 			.exec();
 
 		return res.status(status.OK).json({ feedback, amount });
@@ -118,7 +119,9 @@ router.post('/', getUser, async (req: Request, res: Response, next: NextFunction
 			anonymous: req.body.anon,
 			approved: false,
 		});
+
 		await getCacheInstance().clear('feedback-count');
+		await getCacheInstance().clear('feedback-unapproved');
 
 		await DossierModel.create({
 			by: req.user.cid,
@@ -200,6 +203,7 @@ router.patch(
 				{ _id: req.params['id'] },
 				{
 					approved: true,
+					reviewerCid: req.user.cid,
 				},
 			)
 				.populate('controller', 'cid')
@@ -252,6 +256,10 @@ router.patch(
 			if (!feedback) {
 				throwNotFoundException('Feedback Entry Not Found');
 			}
+
+			feedback.reviewerCid = req.user.cid;
+
+			await feedback.save();
 
 			await feedback.delete();
 

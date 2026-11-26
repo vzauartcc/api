@@ -286,7 +286,7 @@ router.delete('/:id', getUser, isStaff, async (req: Request, res: Response, next
 			actionType: ACTION_TYPE.DELETE_DOCUMENT,
 		});
 
-		return res.status(status.NO_CONTENT).json();
+		return res.sendStatus(status.NO_CONTENT);
 	} catch (e) {
 		return next(e);
 	}

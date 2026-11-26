@@ -60,28 +60,26 @@ router.post('/info', getUser, async (req: Request, res: Response, next: NextFunc
 			throwForbiddenException('Unable to Authenticate with Discord');
 		}
 
-		const response = await discord.getCurrentUser(token.token_type, token.access_token);
+		const response = await discord.getCurrentUser(token.access_token);
 
-		if (!response || !response.data) {
+		if (!response) {
 			throwForbiddenException('Unable to Retrieve Discord Information');
 		}
 
-		const discordUser = response.data;
-
 		user.discordInfo = {
-			clientId: discordUser.id,
+			clientId: response.id,
 			accessToken: token.access_token,
 			refreshToken: token.refresh_token,
 			tokenType: token.token_type,
 			expires: new Date(Date.now() + token.expires_in * 1000),
 		};
 
-		user.discord = discordUser.id;
+		user.discord = response.id;
 
 		if (zau.isProd) {
 			await req.app.redis.lpush(
 				'dbot:new_discord_user',
-				JSON.stringify({ discord: discordUser.id, token: token.access_token }),
+				JSON.stringify({ discord: response.id, token: token.access_token }),
 			);
 		}
 

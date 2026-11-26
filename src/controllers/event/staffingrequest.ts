@@ -97,13 +97,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 router.post('/', getUser, async (req: Request, res: Response, next: NextFunction) => {
 	// Submit staffing request
 	try {
-		if (
-			!req.body.vaName ||
-			!req.body.date ||
-			!req.body.pilots ||
-			!req.body.route ||
-			!req.body.description
-		) {
+		if (!req.body.vaName || !req.body.date || !req.body.pilots || !req.body.route) {
 			// Validation
 			throwBadRequestException('Missing field');
 		}
@@ -254,7 +248,7 @@ router.delete(
 			await getCacheInstance().clear(`staffing-request-${staffingRequest.id}`);
 			await clearCachePrefix('staffing-requests');
 
-			return res.status(status.NO_CONTENT).json();
+			return res.sendStatus(status.NO_CONTENT);
 		} catch (e) {
 			return next(e);
 		}
